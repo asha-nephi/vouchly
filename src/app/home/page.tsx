@@ -5,6 +5,8 @@ import { CATEGORIES } from "@/lib/catalog";
 import { CATEGORY_ICONS } from "@/lib/icons";
 import { ShopRow, ShopTile } from "@/components/shop-card";
 import TabBar from "@/components/tab-bar";
+import Bell from "@/components/bell";
+import { unreadCount } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,7 @@ function greeting() {
 export default async function Home() {
   const user = await requireUser();
   const area = user.area ?? "Ikeja";
-  const { near, more } = await browse(area);
+  const [{ near, more }, unread] = await Promise.all([browse(area), unreadCount(user.id)]);
   const first = user.name.split(" ")[0];
   const cats = [{ id: "all", label: "All" }, ...CATEGORIES].slice(0, 8);
 
@@ -60,9 +62,12 @@ export default async function Home() {
             </svg>
             <span className="sr-only">Change area</span>
           </Link>
-          <span className="text-[15px] font-extrabold text-accent">
-            Vouchly
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[15px] font-extrabold text-accent">
+              Vouchly
+            </span>
+            <Bell initial={unread} />
+          </div>
         </div>
 
         <div>

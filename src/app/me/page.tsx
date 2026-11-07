@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { orders } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { unreadCount } from "@/lib/notifications";
 import { myShop } from "@/lib/shops";
 import { logout } from "../actions";
 import { Footer, Note } from "@/components/ui";
@@ -18,9 +19,10 @@ export default async function Me() {
   const shop = await myShop(user.id);
   const count = async (where: ReturnType<typeof and>) =>
     (await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where))[0]?.n ?? 0;
-  const [newOrders, problems] = await Promise.all([
+  const [newOrders, problems, unread] = await Promise.all([
     shop ? count(and(eq(orders.shopId, shop.id), inArray(orders.status, ["paid", "disputed"]))) : 0,
     user.role === "admin" ? count(eq(orders.status, "disputed")) : 0,
+    unreadCount(user.id),
   ]);
   const initials = user.name
     .split(" ")
@@ -110,6 +112,10 @@ export default async function Me() {
               Confirm new members <span aria-hidden="true">›</span>
             </Link>
           )}
+          <Link href="/notifications" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
+            Notifications
+            <span className={`text-sm ${unread ? "font-bold text-accent" : "font-medium text-muted"}`}>{unread ? `${unread} new` : ""} ›</span>
+          </Link>
           <Link href="/orders" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
             My orders <span aria-hidden="true">›</span>
           </Link>

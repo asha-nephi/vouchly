@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { basketCount, readBasket } from "@/lib/basket";
+import { currentUser } from "@/lib/auth";
+import { unreadCount } from "@/lib/notifications";
 
 const TABS = [
   { href: "/home", label: "Home", icon: "M3 11l9-7 9 7M5 10v10h14V10" },
@@ -10,7 +12,9 @@ const TABS = [
 
 // Bottom navigation, fixed to the screen. Pages using it add bottom padding.
 export default async function TabBar({ active }: { active: (typeof TABS)[number]["label"] }) {
-  const count = basketCount(await readBasket());
+  const [basket, user] = await Promise.all([readBasket(), currentUser()]);
+  const count = basketCount(basket);
+  const unread = user ? await unreadCount(user.id) : 0;
   return (
     <nav
       aria-label="Main"
@@ -25,6 +29,11 @@ export default async function TabBar({ active }: { active: (typeof TABS)[number]
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={on ? "#14213d" : "#5a6478"} strokeWidth={on ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d={t.icon} />
                 </svg>
+                {t.label === "Me" && unread > 0 && (
+                  <span className="absolute right-2.5 top-0.5 size-2.5 rounded-full bg-[#d92d20] ring-2 ring-white">
+                    <span className="sr-only">New notifications</span>
+                  </span>
+                )}
                 {t.label === "Basket" && count > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-extrabold text-white">
                     {count}
