@@ -74,6 +74,9 @@ export const shops = pgTable("shops", {
   area: text("area").notNull(),
   coverPhoto: text("cover_photo"),
   paystackSubaccount: text("paystack_subaccount"),
+  payoutBank: text("payout_bank"), // shown to the seller only
+  payoutAccountName: text("payout_account_name"),
+  payoutAccountLast4: text("payout_account_last4"),
   isOpen: boolean("is_open").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("shops_slug_idx").on(t.slug), index("shops_area_cat_idx").on(t.area, t.category)]);

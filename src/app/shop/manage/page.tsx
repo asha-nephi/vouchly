@@ -82,6 +82,20 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
           ))}
         </div>
 
+        <Link
+          href="/shop/manage/payout"
+          className={shop.paystackSubaccount ? `${card} block p-4` : "block rounded-[20px] bg-[#fdf0d5] p-4 text-[#3a2a08]"}
+        >
+          <p className="text-[13px] font-bold opacity-70">Payout account</p>
+          {shop.paystackSubaccount ? (
+            <p className="mt-1 text-[15px] font-bold">
+              {shop.payoutBank} · ···· {shop.payoutAccountLast4}
+            </p>
+          ) : (
+            <p className="mt-1 text-[15px] font-bold">Add your bank account so buyers can pay you →</p>
+          )}
+        </Link>
+
         <Link href="/shop/manage/delivery" className={`${card} block p-4`}>
           <p className="text-[13px] font-bold text-muted">Delivery</p>
           <p className="mt-1 text-[15px] font-bold">{ways}</p>

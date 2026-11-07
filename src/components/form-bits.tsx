@@ -6,19 +6,23 @@ export function Select({
   options,
   defaultValue,
   placeholder,
+  onChange,
 }: {
   label: string;
   name: string;
   options: readonly { value: string; label: string }[];
   defaultValue?: string;
   placeholder?: string;
+  onChange?: (value: string) => void;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[13px] font-bold">{label}</span>
       <select
+        key={defaultValue ?? ""} // rebuild when the saved value changes, so it refills after an error
         name={name}
         defaultValue={defaultValue ?? ""}
+        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         required
         className="h-[52px] appearance-none rounded-[14px] border border-[#d5dae4] bg-white bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%235a6478%22 stroke-width=%222.2%22><path d=%22M6 9l6 6 6-6%22/></svg>')] bg-[right_14px_center] bg-no-repeat px-3.5 text-[15px] outline-none focus:border-ink"
       >

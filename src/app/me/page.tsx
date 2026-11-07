@@ -92,6 +92,9 @@ export default async function Me() {
               Confirm new members <span aria-hidden="true">›</span>
             </Link>
           )}
+          <Link href="/orders" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
+            My orders <span aria-hidden="true">›</span>
+          </Link>
           <Link href="/area" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
             My area <span className="text-sm font-medium text-muted">{user.area ?? "Ikeja"} ›</span>
           </Link>

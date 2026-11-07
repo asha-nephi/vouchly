@@ -13,8 +13,9 @@ import { clearBasket } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function BasketPage() {
+export default async function BasketPage({ searchParams }: { searchParams: Promise<{ payment?: string }> }) {
   await requireUser();
+  const { payment } = await searchParams;
   const basket = await readBasket();
 
   if (!basket) {
@@ -79,6 +80,7 @@ export default async function BasketPage() {
             </Link>
           )}
 
+          {payment === "failed" && <Note tone="amber">Your payment didn&apos;t go through, so no order was placed. You can try again.</Note>}
           {gone > 0 && <Note tone="amber">Some items are no longer available, so we took them out.</Note>}
           {shop && !shop.isOpen && <Note tone="amber">This shop has closed for now, so you can&apos;t order yet.</Note>}
 
@@ -104,17 +106,11 @@ export default async function BasketPage() {
             <span>Items total</span>
             <span>{naira(total)}</span>
           </div>
-          <Note>
-            <b>Next: checkout.</b> You&apos;ll choose pickup, drop-off or a rider and pay safely. Your money is held until you receive your order.
-          </Note>
-          <button
-            type="button"
-            disabled
-            className="h-[54px] w-full rounded-2xl bg-ink text-[15px] font-bold text-white opacity-50"
-            title="Checkout is coming in the next update"
-          >
-            Checkout — coming next
-          </button>
+          {shop?.isOpen && live.length > 0 && (
+            <Link href="/checkout" className="flex h-[54px] items-center justify-center rounded-2xl bg-ink text-[15px] font-bold text-white">
+              Checkout
+            </Link>
+          )}
         </div>
         <TabBar active="Basket" />
       </main>
