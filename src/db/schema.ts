@@ -13,27 +13,43 @@ export const orderStatus = pgEnum("order_status", [
 ]);
 export const paymentStatus = pgEnum("payment_status", ["pending", "held", "released", "refunded", "part_refunded"]);
 
+export const userRole = pgEnum("user_role", ["member", "ward_contact", "admin"]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  phone: text("phone").notNull(),
+  phone: text("phone").notNull(), // stored as 234XXXXXXXXXX
   email: text("email"),
   ward: text("ward").notNull(),
   area: text("area"),
+  role: userRole("role").notNull().default("member"),
+  inviteCode: text("invite_code").notNull(), // this member's own code to invite others
   invitedById: uuid("invited_by_id"),
   confirmed: boolean("confirmed").notNull().default(false),
+  confirmedById: uuid("confirmed_by_id"),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("users_phone_idx").on(t.phone)]);
+}, (t) => [uniqueIndex("users_phone_idx").on(t.phone), uniqueIndex("users_invite_code_idx").on(t.inviteCode)]);
 
-export const invites = pgTable("invites", {
+// One-time sign-in codes. A sign-up keeps the form details in `signup` until the code is checked.
+export const otpCodes = pgTable("otp_codes", {
   id: uuid("id").primaryKey().defaultRandom(),
-  code: text("code").notNull(),
-  createdById: uuid("created_by_id").notNull().references(() => users.id),
-  usedById: uuid("used_by_id").references(() => users.id),
+  phone: text("phone").notNull(),
+  codeHash: text("code_hash").notNull(),
+  signup: jsonb("signup").$type<{ name: string; ward: string; invitedById: string | null; founder: boolean }>(),
+  attempts: smallint("attempts").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("invites_code_idx").on(t.code)]);
+}, (t) => [index("otp_phone_idx").on(t.phone, t.createdAt)]);
+
+export const sessions = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tokenHash: text("token_hash").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("sessions_token_idx").on(t.tokenHash)]);
 
 export const shops = pgTable("shops", {
   id: uuid("id").primaryKey().defaultRandom(),
