@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { payQuote } from "@/app/book/actions";
+import { payQuote } from "@/app/(app)/book/actions";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 
 export default function PayQuote({ code, label }: { code: string; label: string }) {

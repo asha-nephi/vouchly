@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { maskPhone } from "@/lib/phone";
-import { confirmMember } from "../../actions";
+import { confirmMember } from "../../../actions";
 import { BackBar } from "@/components/ui";
 import SubmitButton from "@/components/submit-button";
 

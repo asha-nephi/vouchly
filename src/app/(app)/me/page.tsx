@@ -5,7 +5,7 @@ import { orders } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { unreadCount } from "@/lib/notifications";
 import { myShop } from "@/lib/shops";
-import { logout } from "../actions";
+import { logout } from "../../actions";
 import { Footer, Note } from "@/components/ui";
 import TabBar from "@/components/tab-bar";
 import SubmitButton from "@/components/submit-button";

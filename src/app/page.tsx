@@ -5,17 +5,45 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
+import { Logo } from "@/components/logo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Vouchly · Buy from members your ward can vouch for",
-  description: "Food, stays and services from verified members in Lagos. Join with an invite from a member.",
-  openGraph: {
-    title: "Vouchly · Buy from members your ward can vouch for",
-    description: "Food, stays and services from verified members in Lagos.",
-    type: "website",
-  },
+// Invite links get their own preview, naming who sent it.
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ code?: string }> }): Promise<Metadata> {
+  const inviter = await inviterFor((await searchParams).code);
+  const base: Metadata = { title: { absolute: "Vouchly: buy from people your ward can vouch for" }, alternates: { canonical: "/" } };
+  if (!inviter) return base;
+  const title = `${inviter.name.split(" ")[0]} invited you to Vouchly`;
+  const description = "Buy food, book stays and hire services from confirmed members in Lagos. Your invite code is ready.";
+  return { ...base, title: { absolute: title }, description, openGraph: { title, description }, twitter: { title, description } };
+}
+
+async function inviterFor(raw?: string) {
+  const code = raw && /^[A-Za-z0-9]{4,12}$/.test(raw) ? raw.toUpperCase() : "";
+  if (!code) return null;
+  const [row] = await db.select({ name: users.name, ward: users.ward }).from(users).where(eq(users.inviteCode, code)).limit(1);
+  return row ? { ...row, code } : null;
+}
+
+const SITE = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
+
+// Tells search engines who runs the site.
+const STRUCTURED = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE}/#org`,
+      name: "Vouchly",
+      url: SITE,
+      logo: `${SITE}/icons/icon-512.png`,
+      description: "A marketplace where confirmed members in Lagos buy food, book stays and hire services from each other.",
+      address: { "@type": "PostalAddress", streetAddress: "57 Seriki Aro Avenue", addressLocality: "Ikeja", addressRegion: "Lagos", postalCode: "100282", addressCountry: "NG" },
+      areaServed: { "@type": "City", name: "Lagos" },
+    },
+    { "@type": "WebSite", "@id": `${SITE}/#site`, name: "Vouchly", url: SITE, inLanguage: "en-NG", publisher: { "@id": `${SITE}/#org` } },
+  ],
 };
 
 const EXAMPLES = [
@@ -104,11 +132,9 @@ function VouchCard() {
 
 export default async function Landing({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   if (await currentUser()) redirect("/home");
-  const raw = (await searchParams).code ?? "";
-  const code = /^[A-Za-z0-9]{4,12}$/.test(raw) ? raw.toUpperCase() : "";
   // Opened from a member's invite link: say who invited them.
-  const [inviter] = code ? await db.select({ name: users.name, ward: users.ward }).from(users).where(eq(users.inviteCode, code)).limit(1) : [];
-  const joinHref = inviter ? `/join?code=${code}` : "/join";
+  const inviter = await inviterFor((await searchParams).code);
+  const joinHref = inviter ? `/join?code=${inviter.code}` : "/join";
   const cta = (dark = false) => (
     <Link
       href={joinHref}
@@ -120,8 +146,11 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="min-h-dvh bg-bg">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED) }} />
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-        <span className="text-xl font-extrabold tracking-tight text-ink">Vouchly</span>
+        <Link href="/" aria-label="Vouchly home">
+          <Logo />
+        </Link>
         <Link href="/login" className="flex h-10 items-center rounded-full bg-white px-4 text-sm font-bold shadow-[0_1px_3px_rgba(20,33,61,0.1)]">
           Log in
         </Link>

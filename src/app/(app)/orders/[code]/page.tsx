@@ -10,7 +10,7 @@ import { deliveryDayLabel, holdMode, orderDeadline, problemDeadline, shortDateTi
 import { statusLabel, timeline } from "@/lib/order-status";
 import { dateToKey, nightsBetween, shortDay } from "@/lib/dates";
 import { slotLabel, timeLabel } from "@/lib/listings";
-import { dropRequest } from "@/app/book/actions";
+import { dropRequest } from "@/app/(app)/book/actions";
 import PayQuote from "./pay-quote";
 import { BackBar, Note } from "@/components/ui";
 import { markReceived } from "../actions";

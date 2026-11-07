@@ -7,7 +7,7 @@ import { currentUser } from "@/lib/auth";
 import JoinForm from "./join-form";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Create your account · Vouchly" };
+export const metadata: Metadata = { title: "Create your account", description: "Join Vouchly with an invite code from a member.", alternates: { canonical: "/join" } };
 
 // Invite links open here with ?code=, so the code is filled in.
 export default async function Join({ searchParams }: { searchParams: Promise<{ code?: string }> }) {

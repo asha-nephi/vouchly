@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createContext, useContext, useState, useTransition } from "react";
-import { setBasketQty } from "@/app/basket/actions";
+import { setBasketQty } from "@/app/(app)/basket/actions";
 
 // Shared basket state for one page: steppers update it, the bottom bar reads it.
 type Ctx = {

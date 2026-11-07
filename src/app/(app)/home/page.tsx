@@ -6,6 +6,7 @@ import { CATEGORY_ICONS } from "@/lib/icons";
 import { ShopRow, ShopTile } from "@/components/shop-card";
 import TabBar from "@/components/tab-bar";
 import Bell from "@/components/bell";
+import { LogoMark } from "@/components/logo";
 import { unreadCount } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -63,9 +64,8 @@ export default async function Home() {
             <span className="sr-only">Change area</span>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-[15px] font-extrabold text-accent">
-              Vouchly
-            </span>
+            <LogoMark size={36} />
+            <span className="sr-only">Vouchly</span>
             <Bell initial={unread} />
           </div>
         </div>

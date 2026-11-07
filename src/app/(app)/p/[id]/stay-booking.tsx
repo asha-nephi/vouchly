@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { bookStay } from "@/app/book/actions";
+import { bookStay } from "@/app/(app)/book/actions";
 import Calendar from "@/components/calendar";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";

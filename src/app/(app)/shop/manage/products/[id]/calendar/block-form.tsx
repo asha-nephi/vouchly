@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { saveBlockedDates } from "@/app/shop/actions";
+import { saveBlockedDates } from "@/app/(app)/shop/actions";
 import Calendar from "@/components/calendar";
 import SubmitButton from "@/components/submit-button";
 

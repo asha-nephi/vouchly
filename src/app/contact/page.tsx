@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BackBar, Footer } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Contact · Vouchly" };
+export const metadata: Metadata = { title: "Contact", description: "How to reach Vouchly, a members\u2019 marketplace in Ikeja, Lagos.", alternates: { canonical: "/contact" } };
 
 export default function Contact() {
   return (

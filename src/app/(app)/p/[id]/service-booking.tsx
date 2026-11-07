@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { bookService } from "@/app/book/actions";
+import { bookService } from "@/app/(app)/book/actions";
 import { Select } from "@/components/form-bits";
 import { ErrorText, Field, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
