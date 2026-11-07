@@ -2,13 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, orderItems, orders, shops } from "@/db/schema";
+import { deliverySettings, orderItems, orders, reviews, shops, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { naira } from "@/lib/catalog";
-import { deliveryDayLabel, holdMode } from "@/lib/orders";
+import { maybeSettle } from "@/lib/after-order";
+import { deliveryDayLabel, holdMode, orderDeadline, problemDeadline, shortDateTime, telLink, waLink } from "@/lib/orders";
 import { STATUS, timeline } from "@/lib/order-status";
 import { BackBar, Note } from "@/components/ui";
 import { markReceived } from "../actions";
+import { CancelForm, ProblemForm, ReviewForm } from "./forms";
 
 export const dynamic = "force-dynamic";
 
@@ -18,18 +20,27 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const user = await requireUser();
   const { code } = await params;
   const { placed } = await searchParams;
+  await maybeSettle();
   const [row] = await db
-    .select({ order: orders, shop: shops })
+    .select({ order: orders, shop: shops, sellerPhone: users.phone })
     .from(orders)
     .innerJoin(shops, eq(shops.id, orders.shopId))
+    .innerJoin(users, eq(users.id, shops.ownerId))
     .where(and(eq(orders.code, code), eq(orders.buyerId, user.id)))
     .limit(1);
   if (!row) notFound();
-  const { order: o, shop } = row;
-  const [items, [d]] = await Promise.all([
+  const { order: o, shop, sellerPhone } = row;
+  const [items, [d], [review]] = await Promise.all([
     db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
     db.select().from(deliverySettings).where(eq(deliverySettings.shopId, shop.id)).limit(1),
+    db.select().from(reviews).where(eq(reviews.orderId, o.id)).limit(1),
   ]);
+  const now = new Date();
+  const cancelBy = d ? orderDeadline(o.deliveryDay, d.orderCutoff) : null;
+  const canCancel = o.status === "paid" && !!cancelBy && now < cancelBy;
+  const reportBy = problemDeadline(o.deliveryDay);
+  const canReport = ["paid", "confirmed", "preparing", "ready", "on_the_way", "received"].includes(o.status) && now < reportBy;
+  const hi = `Hi, it's about my Vouchly order ${o.code}.`;
   const total = o.itemsKobo + o.deliveryFeeKobo;
   const s = STATUS[o.status];
   const open = ["paid", "confirmed", "preparing", "ready", "on_the_way"].includes(o.status);
@@ -105,7 +116,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
         {o.status === "awaiting_payment" && <Note tone="amber">This order wasn&apos;t paid, so the seller hasn&apos;t seen it.</Note>}
 
-        {!["awaiting_payment", "cancelled"].includes(o.status) && (
+        {!["awaiting_payment", "cancelled", "disputed"].includes(o.status) && (
           <section className={`${card} p-4`}>
             {timeline(o.status, o.method).map((t, i, all) => (
               <div key={t.key} className="flex gap-3.5">
@@ -152,9 +163,49 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
         <section className={`${card} p-4 text-sm`}>
           <p className="font-bold">{where}</p>
-          {o.method === "rider" && <p className="mt-1 text-[13px] text-muted">The seller will add the rider&apos;s details here on delivery day.</p>}
+          {o.method === "rider" && !o.riderName && <p className="mt-1 text-[13px] text-muted">The seller will add the rider&apos;s details here on delivery day.</p>}
           {o.note && <p className="mt-2 text-[13px] text-muted">Your note: {o.note}</p>}
+          {o.status !== "cancelled" && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <a href={telLink(sellerPhone)} className="flex h-11 items-center justify-center rounded-full border border-[#d5dae4] font-bold">
+                Call seller
+              </a>
+              <a href={waLink(sellerPhone, hi)} target="_blank" rel="noreferrer" className="flex h-11 items-center justify-center rounded-full border border-[#d5dae4] font-bold">
+                WhatsApp
+              </a>
+            </div>
+          )}
         </section>
+
+        {o.riderName && o.status === "on_the_way" && (
+          <section className="rounded-[20px] bg-soft p-4 text-sm">
+            <p className="text-xs font-bold text-deep">Your rider</p>
+            <p className="text-[17px] font-extrabold">{o.riderName}</p>
+            {o.riderCostKobo ? <p className="mt-0.5">Pay the rider {naira(o.riderCostKobo)} when it arrives.</p> : null}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {o.riderPhone && (
+                <a href={telLink(o.riderPhone)} className="flex h-10 items-center rounded-full bg-white px-4 font-bold">
+                  Call rider
+                </a>
+              )}
+              {o.riderTrackingUrl && (
+                <a href={o.riderTrackingUrl} target="_blank" rel="noreferrer" className="flex h-10 items-center rounded-full bg-ink px-4 font-bold text-white">
+                  Track the ride
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+
+        {o.status === "disputed" && (
+          <div className="rounded-[18px] bg-[#fbebeb] px-4 py-3.5 text-[13px] leading-relaxed text-[#5c1a12]">
+            <p className="font-bold">You reported a problem</p>
+            <p className="mt-1">{o.problem}</p>
+            <p className="mt-1.5">{shop.name} has been told. If you can&apos;t sort it out together, Vouchly will step in.</p>
+          </div>
+        )}
+        {o.status === "cancelled" && <Note tone="amber">This order was cancelled{o.cancelReason ? `: ${o.cancelReason}` : ""}. Your money has been refunded.</Note>}
+        {o.problemResolution && o.status !== "disputed" && <Note>{o.problemResolution}</Note>}
 
         {open && (
           <>
@@ -164,9 +215,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                   <b>{naira(total)} is held safely.</b> The seller is paid only when you tap “I’ve received it”.
                 </>
               ) : (
-                <>
-                  <b>Something wrong?</b> Report it within 48 hours of your delivery day.
-                </>
+                <>Tap the button below once you have your order, so {shop.name} knows it arrived.</>
               )}
             </Note>
             <form action={markReceived}>
@@ -177,7 +226,25 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             </form>
           </>
         )}
-        {o.status === "received" && <Note tone="green">You received this order. Thank you!</Note>}
+        {o.status === "received" && (
+          <Note tone="green">{o.autoClosed ? "This order closed because no problem was reported." : "You received this order. Thank you!"}</Note>
+        )}
+        {canCancel && cancelBy && <CancelForm code={o.code} until={shortDateTime(cancelBy)} />}
+        {canReport && <ProblemForm code={o.code} until={shortDateTime(reportBy)} />}
+        {o.status === "received" &&
+          (review ? (
+            <section className={`${card} p-4 text-sm`}>
+              <p className="text-xs font-bold text-muted">Your review</p>
+              <p className="text-lg text-[#e9a23b]" aria-label={`${review.stars} stars`}>
+                {"★".repeat(review.stars)}
+                <span className="text-[#c8ceda]">{"★".repeat(5 - review.stars)}</span>
+              </p>
+              {review.tags.length > 0 && <p className="text-[13px] font-semibold">{review.tags.join(" · ")}</p>}
+              {review.text && <p className="mt-1 text-muted">{review.text}</p>}
+            </section>
+          ) : (
+            <ReviewForm code={o.code} shopName={shop.name} />
+          ))}
       </div>
     </main>
   );

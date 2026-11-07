@@ -4,6 +4,17 @@ import type { ShopCard } from "@/lib/browse";
 
 const deliveryText = (days: number[]) => (days.length ? `Delivers ${dayList(days, true)}` : "");
 
+// "★ 4.8 (12)" once a shop has reviews.
+export function Stars({ rating, count }: { rating: number | null; count: number }) {
+  if (!rating || !count) return null;
+  return (
+    <span className="text-xs font-bold text-[#1d2433]">
+      <span className="text-[#e9a23b]" aria-hidden="true">★</span> {rating.toFixed(1)} <span className="font-semibold text-muted">({count})</span>
+      <span className="sr-only"> stars from {count} reviews</span>
+    </span>
+  );
+}
+
 // Big photo card for sideways scrolling rows.
 export function ShopTile({ s }: { s: ShopCard }) {
   return (
@@ -15,7 +26,10 @@ export function ShopTile({ s }: { s: ShopCard }) {
         )}
       </div>
       <div className="px-0.5">
-        <p className="truncate text-[15px] font-bold">{s.name}</p>
+        <p className="flex items-center justify-between gap-2">
+          <span className="truncate text-[15px] font-bold">{s.name}</span>
+          <Stars rating={s.rating} count={s.reviewCount} />
+        </p>
         <p className="truncate text-[13px] text-muted">
           {categoryLabel(s.category)} · from {naira(s.fromKobo)}
         </p>
@@ -36,7 +50,10 @@ export function ShopRow({ s }: { s: ShopCard }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-bold">{s.name}</p>
+        <p className="flex items-center justify-between gap-2">
+          <span className="truncate text-[15px] font-bold">{s.name}</span>
+          <Stars rating={s.rating} count={s.reviewCount} />
+        </p>
         <p className="truncate text-[13px] text-muted">
           {s.productCount} {s.productCount === 1 ? "item" : "items"} · from {naira(s.fromKobo)}
         </p>

@@ -3,6 +3,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { orders, shops } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { maybeSettle } from "@/lib/after-order";
 import { naira } from "@/lib/catalog";
 import { deliveryDayLabel } from "@/lib/orders";
 import { STATUS, TONE } from "@/lib/order-status";
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MyOrders() {
   const user = await requireUser();
+  await maybeSettle();
   const rows = await db
     .select({ order: orders, shopName: shops.name, photo: shops.coverPhoto })
     .from(orders)

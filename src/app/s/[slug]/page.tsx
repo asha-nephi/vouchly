@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products, shops, users } from "@/db/schema";
+import { deliverySettings, products, reviews, shops, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
 import { cutoffLabel, dayList, naira } from "@/lib/catalog";
@@ -24,7 +24,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   const { shop, ward } = row;
   const isMine = shop.ownerId === me.id;
 
-  const [items, [d], basket] = await Promise.all([
+  const [items, [d], basket, shopReviews, [score]] = await Promise.all([
     db
       .select()
       .from(products)
@@ -32,7 +32,19 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
       .orderBy(asc(products.createdAt)),
     db.select().from(deliverySettings).where(eq(deliverySettings.shopId, shop.id)).limit(1),
     basketStart(),
+    db
+      .select({ review: reviews, name: users.name, ward: users.ward })
+      .from(reviews)
+      .innerJoin(users, eq(users.id, reviews.authorId))
+      .where(eq(reviews.shopId, shop.id))
+      .orderBy(desc(reviews.createdAt))
+      .limit(10),
+    db
+      .select({ avg: sql<number | null>`round(avg(${reviews.stars})::numeric, 1)::float`, n: sql<number>`count(*)::int` })
+      .from(reviews)
+      .where(eq(reviews.shopId, shop.id)),
   ]);
+  const when = new Intl.DateTimeFormat("en-NG", { month: "short", year: "numeric", timeZone: "Africa/Lagos" });
   const days = d ? dayList(d.deliveryDays) : null;
   const ways = d ? [d.pickupOn && "Pickup", d.dropOffOn && "Seller drop-off", d.riderOn && "Rider"].filter(Boolean).join(" · ") : "";
   const canBuy = shop.isOpen && !isMine;
@@ -60,6 +72,11 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
             <h1 className="text-[22px] font-extrabold tracking-tight">{shop.name}</h1>
             {shop.about && <p className="text-sm leading-relaxed text-muted">{shop.about}</p>}
             <div className="flex flex-wrap gap-1.5">
+              {score?.n ? (
+                <a href="#reviews" className="rounded-full bg-[#fdf0d5] px-2.5 py-1 text-xs font-bold text-[#3a2a08]">
+                  ★ {score.avg?.toFixed(1)} · {score.n} {score.n === 1 ? "review" : "reviews"}
+                </a>
+              ) : null}
               <span className="rounded-full bg-soft px-2.5 py-1 text-xs font-bold text-deep">Verified member</span>
               <span className="rounded-full bg-chip px-2.5 py-1 text-xs font-bold text-[#3a4458]">{ward}</span>
               <span className="rounded-full bg-chip px-2.5 py-1 text-xs font-bold text-[#3a4458]">{shop.area}</span>
@@ -103,6 +120,30 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
               <Stepper productId={p.id} name={p.name} disabled={!canBuy} />
             </div>
           ))}
+
+          {shopReviews.length > 0 && (
+            <>
+              <h2 id="reviews" className="pt-3 text-base font-extrabold">
+                Reviews <span className="text-sm font-semibold text-muted">· ★ {score?.avg?.toFixed(1)} from {score?.n}</span>
+              </h2>
+              {shopReviews.map(({ review: r, name, ward }) => (
+                <div key={r.id} className="rounded-[20px] bg-white p-4 text-sm shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold">
+                      {name.split(" ")[0]} <span className="font-medium text-muted">· {ward}</span>
+                    </p>
+                    <p className="text-xs text-muted">{when.format(r.createdAt)}</p>
+                  </div>
+                  <p className="text-[#e9a23b]" aria-label={`${r.stars} stars`}>
+                    {"★".repeat(r.stars)}
+                    <span className="text-[#c8ceda]">{"★".repeat(5 - r.stars)}</span>
+                  </p>
+                  {r.tags.length > 0 && <p className="text-[13px] font-semibold">{r.tags.join(" · ")}</p>}
+                  {r.text && <p className="mt-1 leading-relaxed text-[#3a4458]">{r.text}</p>}
+                </div>
+              ))}
+            </>
+          )}
         </div>
         <BasketBar />
         <TabBar active="Home" />

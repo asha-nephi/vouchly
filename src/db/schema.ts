@@ -128,6 +128,12 @@ export const orders = pgTable("orders", {
   riderTrackingUrl: text("rider_tracking_url"),
   status: orderStatus("status").notNull().default("awaiting_payment"),
   receivedAt: timestamp("received_at", { withTimezone: true }),
+  autoClosed: boolean("auto_closed").notNull().default(false), // marked received after the 48h window
+  problem: text("problem"), // what the buyer reported
+  problemAt: timestamp("problem_at", { withTimezone: true }),
+  problemResolution: text("problem_resolution"),
+  cancelReason: text("cancel_reason"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("orders_code_idx").on(t.code), index("orders_buyer_idx").on(t.buyerId), index("orders_shop_day_idx").on(t.shopId, t.deliveryDay)]);
 
@@ -152,6 +158,7 @@ export const payments = pgTable("payments", {
   releaseAt: timestamp("release_at", { withTimezone: true }), // delivery day + 48h
   releasedAt: timestamp("released_at", { withTimezone: true }),
   refundedKobo: integer("refunded_kobo").notNull().default(0),
+  paidOutAt: timestamp("paid_out_at", { withTimezone: true }), // hold mode: when we sent it to the seller
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("payments_ref_idx").on(t.paystackReference), index("payments_release_idx").on(t.status, t.releaseAt)]);
 

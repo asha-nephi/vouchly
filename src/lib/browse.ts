@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products, shops, users } from "@/db/schema";
+import { deliverySettings, products, reviews, shops, users } from "@/db/schema";
 
 export type ShopCard = {
   id: string;
@@ -15,6 +15,8 @@ export type ShopCard = {
   fromKobo: number;
   deliveryDays: number[];
   servesArea: boolean; // lives in, or drops off in, the buyer's area
+  rating: number | null; // average stars
+  reviewCount: number;
 };
 
 // Open shops that have at least one product to sell.
@@ -41,6 +43,8 @@ async function listShops(opts: { area: string; category?: string; q?: string; li
       productCount: sql<number>`count(${products.id})::int`,
       fromKobo: sql<number>`min(${products.priceKobo})::int`,
       firstPhoto: sql<string | null>`(array_agg(${products.photos}->>0 order by ${products.createdAt}))[1]`,
+      rating: sql<number | null>`(select round(avg(r.stars)::numeric, 1)::float from ${reviews} r where r.shop_id = ${shops.id})`,
+      reviewCount: sql<number>`(select count(*)::int from ${reviews} r where r.shop_id = ${shops.id})`,
     })
     .from(shops)
     .innerJoin(users, eq(users.id, shops.ownerId))
@@ -69,6 +73,8 @@ async function listShops(opts: { area: string; category?: string; q?: string; li
       productCount: r.productCount,
       fromKobo: r.fromKobo,
       deliveryDays: r.deliveryDays ?? [],
+      rating: r.rating,
+      reviewCount: r.reviewCount,
       servesArea: r.area === opts.area || (!!r.dropOffOn && (r.dropOffAreas ?? []).includes(opts.area)),
     }))
     .sort((a, b) => Number(b.servesArea) - Number(a.servesArea));

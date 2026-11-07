@@ -1,8 +1,10 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { orders, payments } from "@/db/schema";
-import { holdMode } from "./orders";
+import { orders, payments, shops } from "@/db/schema";
+import { naira } from "./catalog";
+import { notify } from "./notify";
+import { deliveryDayLabel, holdMode } from "./orders";
 import { verifyPayment } from "./paystack";
 
 // Marks an order paid once Paystack confirms it. Safe to call more than once.
@@ -24,7 +26,15 @@ export async function confirmPayment(reference: string): Promise<{ code: string 
     .update(payments)
     .set(hold ? { status: "held", releaseAt } : { status: "released", releaseAt, releasedAt: new Date() })
     .where(and(eq(payments.id, pay.id), eq(payments.status, "pending")));
-  await db.update(orders).set({ status: "paid" }).where(and(eq(orders.id, order.id), eq(orders.status, "awaiting_payment")));
+  const now = await db
+    .update(orders)
+    .set({ status: "paid" })
+    .where(and(eq(orders.id, order.id), eq(orders.status, "awaiting_payment")))
+    .returning({ id: orders.id });
+  if (now.length) {
+    const [shop] = await db.select({ ownerId: shops.ownerId }).from(shops).where(eq(shops.id, order.shopId));
+    if (shop) await notify(shop.ownerId, "New order", `Order ${order.code} · ${naira(order.itemsKobo)} for ${deliveryDayLabel(order.deliveryDay)}.`, `/shop/manage/orders/${order.code}`);
+  }
   return { code: order.code };
 }
 

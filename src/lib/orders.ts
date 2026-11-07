@@ -48,3 +48,25 @@ export const payEmail = (phone: string, email?: string | null) => email || `${ph
 
 // Pilot: Paystack pays sellers automatically. Hold: we keep it until "Received" (needs a registered business).
 export const holdMode = () => process.env.PAYOUT_MODE === "hold";
+
+// The order deadline for a given delivery day (the cut-off before it).
+export function orderDeadline(deliveryDay: Date, cutoff: string): Date {
+  const [cutDayKey, cutTime = "18:00"] = cutoff.split(" ");
+  const cutDay = DAY_KEYS.indexOf(cutDayKey as (typeof DAY_KEYS)[number]);
+  const [ch, cm] = cutTime.split(":").map(Number);
+  const day = new Date(deliveryDay.getTime() + LAGOS_OFFSET_MS);
+  const back = cutDay < 0 ? 1 : (day.getUTCDay() - cutDay + 7) % 7;
+  return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() - back, ch, cm) - LAGOS_OFFSET_MS);
+}
+
+// Buyers can report a problem until 48 hours after the delivery day ends.
+export const problemDeadline = (deliveryDay: Date) => new Date(deliveryDay.getTime() + 72 * 3600_000 - 60_000);
+
+// "Mon 16 Nov, 11:59pm"
+export function shortDateTime(d: Date) {
+  return new Intl.DateTimeFormat("en-NG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Africa/Lagos" }).format(d);
+}
+
+// Call and WhatsApp links for a 234… number.
+export const telLink = (phone: string) => `tel:+${phone}`;
+export const waLink = (phone: string, text?: string) => `https://wa.me/${phone}${text ? `?text=${encodeURIComponent(text)}` : ""}`;

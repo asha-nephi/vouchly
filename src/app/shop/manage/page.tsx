@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products } from "@/db/schema";
+import { deliverySettings, orders, products } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { categoryLabel, cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { myShop } from "@/lib/shops";
@@ -19,10 +19,17 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
   if (!shop) redirect("/sell");
   const { saved } = await searchParams;
 
-  const [items, [delivery]] = await Promise.all([
+  const [items, [delivery], counts] = await Promise.all([
     db.select().from(products).where(and(eq(products.shopId, shop.id), eq(products.removed, false))).orderBy(asc(products.createdAt)),
     db.select().from(deliverySettings).where(eq(deliverySettings.shopId, shop.id)).limit(1),
+    db
+      .select({ status: orders.status, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(and(eq(orders.shopId, shop.id), inArray(orders.status, ["paid", "confirmed", "preparing", "ready", "on_the_way", "disputed"])))
+      .groupBy(orders.status),
   ]);
+  const n = (s: string) => counts.find((c) => c.status === s)?.n ?? 0;
+  const open = counts.reduce((a, c) => a + c.n, 0);
 
   const ways = delivery
     ? [delivery.pickupOn && "Pickup", delivery.dropOffOn && "Drop-off", delivery.riderOn && "Rider"].filter(Boolean).join(" · ")
@@ -81,6 +88,21 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
             </Link>
           ))}
         </div>
+
+        <Link href="/shop/manage/orders" className="flex items-center gap-3 rounded-[20px] bg-ink p-4 text-white">
+          <span className="flex-1">
+            <span className="block text-base font-extrabold">Orders</span>
+            <span className="mt-0.5 block text-[13px] text-[#c9d1e3]">
+              {open === 0
+                ? "No open orders"
+                : [n("paid") && `${n("paid")} new`, n("disputed") && `${n("disputed")} with a problem`, `${open} open`].filter(Boolean).join(" · ")}
+            </span>
+          </span>
+          {n("paid") + n("disputed") > 0 && (
+            <span className="flex size-8 items-center justify-center rounded-full bg-white text-sm font-extrabold text-ink">{n("paid") + n("disputed")}</span>
+          )}
+          <span aria-hidden="true">→</span>
+        </Link>
 
         <Link
           href="/shop/manage/payout"

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { orders } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { myShop } from "@/lib/shops";
 import { logout } from "../actions";
@@ -12,6 +15,12 @@ const card = "rounded-[20px] bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]";
 export default async function Me() {
   const user = await requireUser();
   const shop = await myShop(user.id);
+  const count = async (where: ReturnType<typeof and>) =>
+    (await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where))[0]?.n ?? 0;
+  const [newOrders, problems] = await Promise.all([
+    shop ? count(and(eq(orders.shopId, shop.id), inArray(orders.status, ["paid", "disputed"]))) : 0,
+    user.role === "admin" ? count(eq(orders.status, "disputed")) : 0,
+  ]);
   const initials = user.name
     .split(" ")
     .map((w) => w[0])
@@ -67,7 +76,9 @@ export default async function Me() {
             <span className="flex-1">
               <span className="block text-base font-extrabold">{shop ? "My shop" : "Sell on Vouchly"}</span>
               <span className="mt-1 block text-[13px] leading-snug text-[#c9d1e3]">
-                {shop ? `${shop.name} · ${shop.isOpen ? "open" : "closed"}` : "Set up your shop in about 5 minutes."}
+                {shop
+                  ? `${shop.name} · ${shop.isOpen ? "open" : "closed"}${newOrders ? ` · ${newOrders} need${newOrders === 1 ? "s" : ""} you` : ""}`
+                  : "Set up your shop in about 5 minutes."}
               </span>
             </span>
             <span className="flex size-10 items-center justify-center rounded-full bg-white text-ink" aria-hidden="true">
@@ -87,6 +98,12 @@ export default async function Me() {
         </section>
 
         <section className={`${card} px-4`}>
+          {user.role === "admin" && (
+            <Link href="/admin/problems" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
+              Problems reported
+              <span className={`text-sm ${problems ? "font-bold text-[#b42318]" : "font-medium text-muted"}`}>{problems} ›</span>
+            </Link>
+          )}
           {user.role !== "member" && (
             <Link href="/admin/members" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
               Confirm new members <span aria-hidden="true">›</span>
