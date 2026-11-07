@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { myShop } from "@/lib/shops";
 import { logout } from "../actions";
 import { Footer, Note } from "@/components/ui";
 
@@ -14,6 +15,7 @@ const steps = (confirmed: boolean) => [
 export default async function Home() {
   const user = await requireUser();
   const first = user.name.split(" ")[0];
+  const shop = await myShop(user.id);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col">
@@ -73,6 +75,18 @@ export default async function Home() {
             className="flex h-[54px] items-center justify-center rounded-2xl bg-ink text-[15px] font-bold text-white"
           >
             Confirm new members
+          </Link>
+        )}
+
+        {user.confirmed && (
+          <Link href={shop ? "/shop/manage" : "/sell"} className="flex items-center gap-3 rounded-[22px] bg-ink p-[18px] text-white">
+            <span className="flex-1">
+              <span className="block text-base font-extrabold">{shop ? "My shop" : "Sell on Vouchly"}</span>
+              <span className="mt-1 block text-[13px] leading-snug text-[#c9d1e3]">
+                {shop ? `${shop.name} · ${shop.isOpen ? "open" : "closed"}` : "Set up your shop in about 5 minutes."}
+              </span>
+            </span>
+            <span className="flex size-10 items-center justify-center rounded-full bg-white text-ink" aria-hidden="true">→</span>
           </Link>
         )}
 

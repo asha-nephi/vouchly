@@ -28,14 +28,18 @@ export function Field(props: {
   inputMode?: "text" | "tel" | "numeric";
   autoComplete?: string;
   hint?: string;
+  required?: boolean;
 }) {
-  const { label, name, hint, ...rest } = props;
+  const { label, name, hint, required = true, ...rest } = props;
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-bold">{label}</span>
+      <span className="text-[13px] font-bold">
+        {label}
+        {!required && <span className="font-medium text-muted"> (optional)</span>}
+      </span>
       <input
         name={name}
-        required
+        required={required}
         {...rest}
         className="h-[52px] rounded-[14px] border border-[#d5dae4] bg-white px-3.5 text-[15px] outline-none placeholder:text-[#8a93a5] focus:border-ink focus:ring-2 focus:ring-ink/10"
       />

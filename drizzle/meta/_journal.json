@@ -15,6 +15,13 @@
       "when": 1794051255578,
       "tag": "0001_signup",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794052479434,
+      "tag": "0002_sellers",
+      "breakpoints": true
     }
   ]
 }

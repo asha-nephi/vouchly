@@ -12,6 +12,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@fontsource-variable/manrope": "^5.3.0",
     "drizzle-orm": "^0.45.4",
     "next": "15.5.29",

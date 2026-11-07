@@ -1,5 +1,5 @@
 import {
-  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, smallint, jsonb, uniqueIndex, index,
+  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, smallint, jsonb, uniqueIndex, index, customType,
 } from "drizzle-orm/pg-core";
 
 // Money is stored in kobo (₦1 = 100 kobo) so there are no rounding errors.
@@ -43,6 +43,19 @@ export const otpCodes = pgTable("otp_codes", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("otp_phone_idx").on(t.phone, t.createdAt)]);
 
+// Photos are kept in the database for now (already shrunk on the phone).
+// Swap src/lib/photos.ts to Cloudflare R2 later without touching anything else.
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
+export const photos = pgTable("photos", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   tokenHash: text("token_hash").notNull(),
@@ -74,7 +87,8 @@ export const products = pgTable("products", {
   photos: jsonb("photos").$type<string[]>().notNull().default([]),
   sellMode: sellMode("sell_mode").notNull().default("preorder"),
   maxPerDay: integer("max_per_day"),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").notNull().default(true), // seller paused it
+  removed: boolean("removed").notNull().default(false), // seller deleted it
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("products_shop_idx").on(t.shopId)]);
 
