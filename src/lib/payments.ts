@@ -1,7 +1,9 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { orders, payments, shops } from "@/db/schema";
+import { orderItems, orders, payments, shops } from "@/db/schema";
+import { refundOrder } from "./after-order";
+import { paidClash } from "./bookings";
 import { naira } from "./catalog";
 import { notify } from "./notify";
 import { deliveryDayLabel, holdMode } from "./orders";
@@ -29,12 +31,23 @@ export async function confirmPayment(reference: string): Promise<{ code: string 
   const now = await db
     .update(orders)
     .set({ status: "paid" })
-    .where(and(eq(orders.id, order.id), eq(orders.status, "awaiting_payment")))
+    .where(and(eq(orders.id, order.id), inArray(orders.status, ["awaiting_payment", "quoted"])))
     .returning({ id: orders.id });
+  // Two guests paid for the same nights at once: the later one gets their money back.
+  if (now.length && order.method === "check_in" && order.checkOut && (await paidClash(await stayProductId(order.id), order.deliveryDay, order.checkOut, order.id))) {
+    await refundOrder(order.id, "Sorry, those dates were booked by someone else just before you");
+    return { code: order.code };
+  }
   if (now.length) {
     const [shop] = await db.select({ ownerId: shops.ownerId }).from(shops).where(eq(shops.id, order.shopId));
-    if (shop) await notify(shop.ownerId, "New order", `Order ${order.code} · ${naira(order.itemsKobo)} for ${deliveryDayLabel(order.deliveryDay)}.`, `/shop/manage/orders/${order.code}`);
+    const what = order.method === "check_in" ? "New booking" : order.method === "visit" ? "New job" : "New order";
+    if (shop) await notify(shop.ownerId, what, `Order ${order.code} · ${naira(order.itemsKobo)} for ${deliveryDayLabel(order.deliveryDay)}.`, `/shop/manage/orders/${order.code}`);
   }
   return { code: order.code };
 }
 
+
+async function stayProductId(orderId: string) {
+  const [it] = await db.select({ productId: orderItems.productId }).from(orderItems).where(eq(orderItems.orderId, orderId)).limit(1);
+  return it?.productId ?? "";
+}

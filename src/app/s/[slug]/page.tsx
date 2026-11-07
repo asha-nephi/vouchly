@@ -13,6 +13,7 @@ import {
 } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
+import { listingLine, priceText } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
 
@@ -154,7 +155,7 @@ export default async function ShopPage({
               This shop is closed for now.
             </p>
           )}
-          {d && days && (
+          {d && days && items.some((i) => i.kind === "item") && (
             <div className="flex items-start gap-2.5 rounded-2xl bg-soft px-4 py-3 text-sm">
               <svg
                 width="20"
@@ -178,7 +179,7 @@ export default async function ShopPage({
               </span>
             </div>
           )}
-          <h2 className="pt-1 text-base font-extrabold">Products</h2>
+          <h2 className="pt-1 text-base font-extrabold">{items.every((i) => i.kind === "item") ? "Products" : items.every((i) => i.kind === "stay") ? "Places to stay" : items.every((i) => i.kind === "service") ? "Services" : "Listings"}</h2>
           {items.length === 0 && (
             <p className="text-sm text-muted">No products yet.</p>
           )}
@@ -198,19 +199,20 @@ export default async function ShopPage({
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-bold">{p.name}</p>
                     <p className="truncate text-[13px] text-muted">
-                      {[
-                        p.size,
-                        p.sellMode === "preorder" ? "Pre-order" : "In stock",
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {listingLine(p)}
                     </p>
                     <p className="text-sm font-extrabold">
-                      {naira(p.priceKobo)}
+                      {priceText(p)}
                     </p>
                   </div>
                 </Link>
-                <Stepper productId={p.id} name={p.name} disabled={!canBuy} />
+                {p.kind === "item" ? (
+                  <Stepper productId={p.id} name={p.name} disabled={!canBuy} />
+                ) : (
+                  <Link href={`/p/${p.id}`} className="flex h-10 shrink-0 items-center rounded-full bg-ink px-4 text-sm font-bold text-white">
+                    {p.kind === "stay" ? "Book" : p.priceType === "quote" ? "Ask" : "Book"}
+                  </Link>
+                )}
               </div>
             ))}
           </div>

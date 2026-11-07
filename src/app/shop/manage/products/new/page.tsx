@@ -6,14 +6,17 @@ import ProductForm from "../product-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewProduct({ searchParams }: { searchParams: Promise<{ first?: string }> }) {
+export default async function NewProduct({ searchParams }: { searchParams: Promise<{ first?: string; kind?: string }> }) {
   const user = await requireUser();
-  if (!(await myShop(user.id))) redirect("/sell");
-  const { first } = await searchParams;
+  const shop = await myShop(user.id);
+  if (!shop) redirect("/sell");
+  const { first, kind } = await searchParams;
+  // Start with what this kind of shop usually lists.
+  const guess = kind === "stay" || kind === "service" || kind === "item" ? kind : shop.category === "stays" ? "stay" : ["repairs", "home_care", "events", "tech"].includes(shop.category) ? "service" : "item";
   return (
     <main className="mx-auto min-h-dvh max-w-md">
-      <BackBar title="Add a product" href="/shop/manage" />
-      <ProductForm first={first === "1"} />
+      <BackBar title="Add a listing" href="/shop/manage" />
+      <ProductForm first={first === "1"} defaultKind={guess} />
     </main>
   );
 }

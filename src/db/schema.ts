@@ -6,10 +6,14 @@ import {
 
 export const category = pgEnum("category", ["food", "stays", "repairs", "fashion", "home_care", "events", "tech"]);
 export const sellMode = pgEnum("sell_mode", ["preorder", "in_stock"]);
-export const deliveryMethod = pgEnum("delivery_method", ["pickup", "drop_off", "rider"]);
+// check_in = a stay booking, visit = a service at the buyer's place.
+export const deliveryMethod = pgEnum("delivery_method", ["pickup", "drop_off", "rider", "check_in", "visit"]);
+export const productKind = pgEnum("product_kind", ["item", "stay", "service"]);
+export const priceType = pgEnum("price_type", ["fixed", "quote"]);
 export const riderPayer = pgEnum("rider_payer", ["buyer_on_arrival", "fee_in_order"]);
 export const orderStatus = pgEnum("order_status", [
   "awaiting_payment", "paid", "confirmed", "preparing", "ready", "on_the_way", "received", "cancelled", "disputed",
+  "requested", "quoted", // service quotes: asked, then priced by the seller
 ]);
 export const paymentStatus = pgEnum("payment_status", ["pending", "held", "released", "refunded", "part_refunded"]);
 
@@ -90,6 +94,24 @@ export const products = pgTable("products", {
   photos: jsonb("photos").$type<string[]>().notNull().default([]),
   sellMode: sellMode("sell_mode").notNull().default("preorder"),
   maxPerDay: integer("max_per_day"),
+  kind: productKind("kind").notNull().default("item"),
+  about: text("about"), // longer description, used by stays and services
+  // Stays
+  guests: smallint("guests"),
+  bedrooms: smallint("bedrooms"),
+  bathrooms: smallint("bathrooms"),
+  amenities: jsonb("amenities").$type<string[]>().notNull().default([]),
+  checkInTime: text("check_in_time"),
+  checkOutTime: text("check_out_time"),
+  minNights: smallint("min_nights").notNull().default(1),
+  rules: text("rules"),
+  privateAddress: text("private_address"), // shown only after a booking is accepted
+  blockedDates: jsonb("blocked_dates").$type<string[]>().notNull().default([]), // YYYY-MM-DD
+  // Services
+  priceType: priceType("price_type").notNull().default("fixed"),
+  priceUnit: text("price_unit"), // e.g. "per visit"
+  serviceAreas: jsonb("service_areas").$type<string[]>().notNull().default([]),
+  workDays: jsonb("work_days").$type<number[]>().notNull().default([1, 2, 3, 4, 5, 6]),
   isActive: boolean("is_active").notNull().default(true), // seller paused it
   removed: boolean("removed").notNull().default(false), // seller deleted it
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -128,6 +150,14 @@ export const orders = pgTable("orders", {
   riderTrackingUrl: text("rider_tracking_url"),
   status: orderStatus("status").notNull().default("awaiting_payment"),
   receivedAt: timestamp("received_at", { withTimezone: true }),
+  // Stays
+  checkOut: timestamp("check_out", { withTimezone: true }),
+  guests: smallint("guests"),
+  checkInInfo: text("check_in_info"), // the host's directions and access details
+  // Services
+  timeSlot: text("time_slot"),
+  quoteNote: text("quote_note"),
+  quotedAt: timestamp("quoted_at", { withTimezone: true }),
   autoClosed: boolean("auto_closed").notNull().default(false), // marked received after the 48h window
   problem: text("problem"), // what the buyer reported
   problemAt: timestamp("problem_at", { withTimezone: true }),

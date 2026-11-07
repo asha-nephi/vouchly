@@ -22,7 +22,7 @@ export async function setBasketQty(productId: string, qty: number, replace = fal
     .select({ shopId: products.shopId, shopName: shops.name, open: shops.isOpen })
     .from(products)
     .innerJoin(shops, eq(shops.id, products.shopId))
-    .where(and(eq(products.id, productId), eq(products.isActive, true), eq(products.removed, false)))
+    .where(and(eq(products.id, productId), eq(products.kind, "item"), eq(products.isActive, true), eq(products.removed, false)))
     .limit(1);
   if (!row) return { ok: false, error: "This product isn't available any more." };
   if (!row.open) return { ok: false, error: "This shop is closed for now." };

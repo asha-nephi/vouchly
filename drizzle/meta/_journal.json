@@ -36,6 +36,13 @@
       "when": 1794058924736,
       "tag": "0004_after_order",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794063132200,
+      "tag": "0005_stays_services",
+      "breakpoints": true
     }
   ]
 }

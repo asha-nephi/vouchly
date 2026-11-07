@@ -48,7 +48,8 @@ export async function cancelOrder(_: BuyerFormState, form: FormData): Promise<Bu
   const row = await buyerOrder(code);
   if (!row) return { error: "We couldn't find that order." };
   const [d] = await db.select().from(deliverySettings).where(eq(deliverySettings.shopId, row.shop.id)).limit(1);
-  const late = d && new Date() >= orderDeadline(row.order.deliveryDay, d.orderCutoff);
+  const booking = row.order.method === "check_in" || row.order.method === "visit";
+  const late = booking ? new Date() >= row.order.deliveryDay : d && new Date() >= orderDeadline(row.order.deliveryDay, d.orderCutoff);
   if (row.order.status !== "paid" || late) return { error: "It's too late to cancel. Please message the seller." };
   const res = await refundOrder(row.order.id, "You cancelled this order");
   if (res.error) return { error: res.error };

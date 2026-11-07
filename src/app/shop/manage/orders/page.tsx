@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { maybeSettle } from "@/lib/after-order";
 import { naira } from "@/lib/catalog";
 import { deliveryDayLabel } from "@/lib/orders";
-import { SELLER_STATUS, TO_DO, TONE } from "@/lib/order-status";
+import { SELLER_STATUS, statusLabel, TO_DO, TONE } from "@/lib/order-status";
 import { myShop } from "@/lib/shops";
 import { BackBar } from "@/components/ui";
 
@@ -18,6 +18,8 @@ const METHOD = {
   pickup: "Pickup",
   drop_off: "You drop off",
   rider: "Rider",
+  check_in: "Stay",
+  visit: "Visit",
 } as const;
 
 export default async function ShopOrders({
@@ -73,7 +75,7 @@ export default async function ShopOrders({
       });
     const g = days.get(key)!;
     g.rows.push(r);
-    if (r.order.status !== "cancelled") {
+    if (r.order.status !== "cancelled" && ["pickup", "drop_off", "rider"].includes(r.order.method)) {
       for (const it of items.filter((i) => i.orderId === r.order.id)) {
         const name = [it.name, it.size].filter(Boolean).join(", ");
         g.make.set(name, (g.make.get(name) ?? 0) + it.quantity);
@@ -127,7 +129,7 @@ export default async function ShopOrders({
             )}
             <div className="cards">
               {g.rows.map(({ order: o, buyer }) => {
-                const s = SELLER_STATUS[o.status];
+                const s = { label: statusLabel(o.status, o.method, true), tone: SELLER_STATUS[o.status].tone };
                 const lines = items.filter((i) => i.orderId === o.id);
                 return (
                   <Link

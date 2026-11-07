@@ -1,21 +1,23 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, orderItems, orders, payments, users } from "@/db/schema";
+import { deliverySettings, orderItems, orders, payments, products, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { naira } from "@/lib/catalog";
 import { deliveryDayLabel, holdMode, problemDeadline, shortDateTime, telLink, waLink } from "@/lib/orders";
-import { PROBLEMS, SELLER_STATUS, sellerNext, TONE } from "@/lib/order-status";
+import { PROBLEMS, SELLER_STATUS, sellerNext, statusLabel, TONE } from "@/lib/order-status";
+import { dateToKey, nightsBetween, shortDay } from "@/lib/dates";
+import { slotLabel } from "@/lib/listings";
 import { myShop } from "@/lib/shops";
 import { BackBar, Note } from "@/components/ui";
 import { advanceOrder } from "../actions";
-import { RefundForm, RiderForm } from "./forms";
+import { CheckInForm, DeclineForm, QuoteForm, RefundForm, RiderForm } from "./forms";
 import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
 const card = "rounded-[20px] bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]";
-const METHOD = { pickup: "Buyer picks up", drop_off: "You drop it off", rider: "Send with a rider" } as const;
+const METHOD = { pickup: "Buyer picks up", drop_off: "You drop it off", rider: "Send with a rider", check_in: "Stay", visit: "Visit" } as const;
 
 export default async function SellerOrder({ params }: { params: Promise<{ code: string }> }) {
   const user = await requireUser();
@@ -23,19 +25,24 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
   if (!shop) redirect("/sell");
   const { code } = await params;
   const [row] = await db
-    .select({ order: orders, buyer: users, pay: payments })
+    .select({ order: orders, buyer: users })
     .from(orders)
     .innerJoin(users, eq(users.id, orders.buyerId))
-    .innerJoin(payments, eq(payments.orderId, orders.id))
     .where(and(eq(orders.code, code), eq(orders.shopId, shop.id)))
     .limit(1);
   if (!row || row.order.status === "awaiting_payment") notFound();
-  const { order: o, buyer, pay } = row;
-  const [items, [d]] = await Promise.all([
+  const { order: o, buyer } = row;
+  const [items, [d], pays] = await Promise.all([
     db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
     db.select().from(deliverySettings).where(eq(deliverySettings.shopId, shop.id)).limit(1),
+    db.select().from(payments).where(eq(payments.orderId, o.id)).orderBy(desc(payments.createdAt)),
   ]);
-  const s = SELLER_STATUS[o.status];
+  // The payment that went through, if any.
+  const pay = pays.find((p) => p.status !== "pending") ?? null;
+  const fee = pay?.feeKobo ?? Math.round(o.itemsKobo * 0.05);
+  const youGet = pay?.sellerKobo ?? o.itemsKobo + o.deliveryFeeKobo - fee;
+  const [listing] = o.method === "check_in" && items[0] ? await db.select().from(products).where(eq(products.id, items[0].productId)).limit(1) : [];
+  const s = { label: statusLabel(o.status, o.method, true), tone: SELLER_STATUS[o.status].tone };
   const next = sellerNext(o.status, o.method);
   const canRefund = ["paid", "confirmed", "preparing", "ready", "on_the_way", "disputed"].includes(o.status);
   const problemLabel = o.problem ? (PROBLEMS.find((p) => o.problem!.startsWith(p.label))?.label ?? "Problem") : null;
@@ -76,10 +83,15 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
         )}
 
         <section className={`${card} px-4 py-1`}>
-          {items.map((it) => (
+          {o.status === "requested" && <p className="border-b border-[#eef0f4] py-3 text-sm text-muted">No price yet. Send one below.</p>}
+          {o.status !== "requested" && items.map((it) => (
             <div key={it.id} className="flex justify-between border-b border-[#eef0f4] py-3 text-sm">
               <span>
-                {it.quantity} × {[it.name, it.size].filter(Boolean).join(", ")}
+                {o.method === "check_in"
+                  ? [it.name, it.size].filter(Boolean).join(" · ")
+                  : o.method === "visit"
+                    ? it.name
+                    : `${it.quantity} × ${[it.name, it.size].filter(Boolean).join(", ")}`}
               </span>
               <span className="font-bold">{naira(it.priceKobo * it.quantity)}</span>
             </div>
@@ -92,20 +104,44 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
           )}
           <div className="flex justify-between border-b border-[#eef0f4] py-3 text-sm text-muted">
             <span>Vouchly 5%</span>
-            <span>−{naira(pay.feeKobo)}</span>
+            <span>−{naira(fee)}</span>
           </div>
           <div className="flex justify-between py-3 text-base font-extrabold">
-            <span>You get</span>
-            <span>{naira(pay.sellerKobo)}</span>
+            <span>{pay ? "You get" : "You'd get"}</span>
+            <span>{naira(youGet)}</span>
           </div>
         </section>
 
         <section className={`${card} p-4 text-sm`}>
-          <p className="text-[13px] font-bold text-muted">{deliveryDayLabel(o.deliveryDay)}</p>
-          <p className="mt-1 font-bold">{METHOD[o.method]}</p>
+          {o.method === "check_in" && o.checkOut ? (
+            <>
+              <p className="text-[13px] font-bold text-muted">Stay</p>
+              <p className="mt-1 font-bold">
+                {shortDay(dateToKey(o.deliveryDay))} → {shortDay(dateToKey(o.checkOut))} · {nightsBetween(dateToKey(o.deliveryDay), dateToKey(o.checkOut))} nights
+                {o.guests ? ` · ${o.guests} ${o.guests === 1 ? "guest" : "guests"}` : ""}
+              </p>
+              {o.checkInInfo && <p className="mt-2 whitespace-pre-line rounded-[14px] bg-soft px-3 py-2.5 text-[13px]">You sent: {o.checkInInfo}</p>}
+            </>
+          ) : o.method === "visit" ? (
+            <>
+              <p className="text-[13px] font-bold text-muted">Visit</p>
+              <p className="mt-1 font-bold">
+                {deliveryDayLabel(o.deliveryDay)} · {slotLabel(o.timeSlot)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[13px] font-bold text-muted">{deliveryDayLabel(o.deliveryDay)}</p>
+              <p className="mt-1 font-bold">{METHOD[o.method]}</p>
+            </>
+          )}
           {o.method === "pickup" && d?.pickupSpot && <p className="mt-0.5 text-muted">At {[d.pickupSpot, d.pickupHours].filter(Boolean).join(" · ")}</p>}
           {o.address && <p className="mt-0.5">{o.address}</p>}
-          {o.note && <p className="mt-2 text-[13px] text-muted">Buyer&apos;s note: {o.note}</p>}
+          {o.note && (
+            <p className="mt-2 whitespace-pre-line text-[13px] text-muted">
+              {o.method === "visit" ? "The job" : "Buyer's note"}: {o.note}
+            </p>
+          )}
           {o.riderName && (
             <p className="mt-2 text-[13px]">
               Rider: <b>{o.riderName}</b> · 0{o.riderPhone?.slice(3)}
@@ -114,7 +150,19 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
           )}
         </section>
 
-        {next && !next.rider && (
+        {o.status === "quoted" && (
+          <Note>
+            You sent a price of <b>{naira(o.itemsKobo)}</b>. Waiting for {buyer.name.split(" ")[0]} to pay.
+          </Note>
+        )}
+        {["requested", "quoted"].includes(o.status) && (
+          <>
+            <QuoteForm code={o.code} again={o.status === "quoted"} />
+            <DeclineForm code={o.code} />
+          </>
+        )}
+        {next?.form === "checkin" && <CheckInForm code={o.code} address={listing?.privateAddress ?? null} />}
+        {next && !next.form && (
           <form action={advanceOrder}>
             <input type="hidden" name="code" value={o.code} />
             <input type="hidden" name="to" value={next.to} />
@@ -123,13 +171,17 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
             </SubmitButton>
           </form>
         )}
-        {(next?.rider || (o.method === "rider" && o.status === "confirmed")) && <RiderForm code={o.code} estimate={d?.riderEstimate ?? undefined} />}
+        {(next?.form === "rider" || (o.method === "rider" && o.status === "confirmed")) && <RiderForm code={o.code} estimate={d?.riderEstimate ?? undefined} />}
         {o.status === "confirmed" && o.method === "rider" && (
           <p className="-mt-2 px-1 text-xs text-muted">Or tap “Start getting it ready” first if it isn&apos;t ready yet.</p>
         )}
-        {["ready", "on_the_way"].includes(o.status) && (
+        {(o.method === "visit" ? o.status === "ready" : ["ready", "on_the_way"].includes(o.status)) && (
           <Note>
-            Waiting for the buyer to tap “I&apos;ve received it”. If they don&apos;t report a problem by {shortDateTime(problemDeadline(o.deliveryDay))}, it closes by itself.
+            {o.method === "check_in"
+              ? "Waiting for the guest to tap “I've checked in”."
+              : o.method === "visit"
+                ? "Waiting for the customer to confirm the job is done."
+                : "Waiting for the buyer to tap “I've received it”."} If they don&apos;t report a problem by {shortDateTime(problemDeadline(o.deliveryDay))}, it closes by itself.
             {holdMode() ? " Then your money is released." : ""}
           </Note>
         )}

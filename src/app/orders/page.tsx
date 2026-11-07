@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { maybeSettle } from "@/lib/after-order";
 import { naira } from "@/lib/catalog";
 import { deliveryDayLabel } from "@/lib/orders";
-import { STATUS, TONE } from "@/lib/order-status";
+import { STATUS, statusLabel, TONE } from "@/lib/order-status";
 import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
 
@@ -32,7 +32,7 @@ export default async function MyOrders() {
   );
 
   const card = (r: (typeof rows)[number]) => {
-    const s = STATUS[r.order.status];
+    const s = { label: statusLabel(r.order.status, r.order.method), tone: STATUS[r.order.status].tone };
     return (
       <Link
         key={r.order.id}

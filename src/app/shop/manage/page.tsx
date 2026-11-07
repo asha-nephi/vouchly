@@ -9,6 +9,7 @@ import { myShop } from "@/lib/shops";
 import { toggleShopOpen } from "../actions";
 import { Note } from "@/components/ui";
 import Photo from "@/components/photo";
+import { listingLine, priceText } from "@/lib/listings";
 import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,8 @@ export default async function MyShop({
             "ready",
             "on_the_way",
             "disputed",
+            "requested",
+            "quoted",
           ]),
         ),
       )
@@ -84,8 +87,8 @@ export default async function MyShop({
         </div>
         <h1 className="text-[26px] font-extrabold tracking-tight">My shop</h1>
 
-        {saved === "product" && <Note tone="green">Product saved.</Note>}
-        {saved === "removed" && <Note tone="green">Product removed.</Note>}
+        {saved === "product" && <Note tone="green">Saved.</Note>}
+        {saved === "removed" && <Note tone="green">Removed.</Note>}
 
         <section className={`${card} flex items-center gap-3 p-3`}>
           <div className="relative size-[52px] shrink-0 overflow-hidden rounded-[14px] bg-soft">
@@ -111,7 +114,7 @@ export default async function MyShop({
           {[
             {
               href: "/shop/manage/products/new",
-              label: "Add product",
+              label: "Add listing",
               icon: "M12 5v14M5 12h14",
             },
             {
@@ -161,6 +164,7 @@ export default async function MyShop({
                 ? "No open orders"
                 : [
                     n("paid") && `${n("paid")} new`,
+                    n("requested") && `${n("requested")} need${n("requested") === 1 ? "s" : ""} a price`,
                     n("disputed") && `${n("disputed")} with a problem`,
                     `${open} open`,
                   ]
@@ -168,9 +172,9 @@ export default async function MyShop({
                     .join(" · ")}
             </span>
           </span>
-          {n("paid") + n("disputed") > 0 && (
+          {n("paid") + n("disputed") + n("requested") > 0 && (
             <span className="flex size-8 items-center justify-center rounded-full bg-white text-sm font-extrabold text-ink">
-              {n("paid") + n("disputed")}
+              {n("paid") + n("disputed") + n("requested")}
             </span>
           )}
           <span aria-hidden="true">→</span>
@@ -208,7 +212,7 @@ export default async function MyShop({
 
         <div className="flex items-baseline justify-between">
           <h2 className="text-base font-extrabold">
-            Products ({items.length})
+            {items.every((i) => i.kind === "item") ? "Products" : "Listings"} ({items.length})
           </h2>
           <Link
             href="/shop/manage/products/new"
@@ -242,14 +246,9 @@ export default async function MyShop({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-bold">{p.name}</p>
                   <p className="text-[13px] text-muted">
-                    {[
-                      p.size,
-                      p.sellMode === "preorder" ? "Pre-order" : "In stock",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {listingLine(p)}
                   </p>
-                  <p className="text-sm font-extrabold">{naira(p.priceKobo)}</p>
+                  <p className="text-sm font-extrabold">{priceText(p)}</p>
                 </div>
                 {!p.isActive && (
                   <span className="rounded-full bg-chip px-2.5 py-1 text-xs font-bold text-[#3a4458]">

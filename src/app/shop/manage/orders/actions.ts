@@ -6,12 +6,13 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orders } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
-import { toKobo } from "@/lib/catalog";
+import { naira, toKobo } from "@/lib/catalog";
 import { notify } from "@/lib/notify";
 import { buyerMessage, sellerNext } from "@/lib/order-status";
 import { normalizePhone } from "@/lib/phone";
 import { refundOrder } from "@/lib/after-order";
 import { myShop } from "@/lib/shops";
+import { orderItems } from "@/db/schema";
 
 export type OrderFormState = { error?: string; values?: Record<string, string> } | undefined;
 
@@ -34,7 +35,7 @@ export async function advanceOrder(form: FormData): Promise<void> {
   const code = String(form.get("code") ?? "");
   const { shop, order } = await sellerOrder(code);
   const next = sellerNext(order.status, order.method);
-  if (!next || next.rider || next.to !== form.get("to")) return;
+  if (!next || next.form || next.to !== form.get("to")) return;
   const done = await db
     .update(orders)
     .set({ status: next.to as typeof order.status })
@@ -82,6 +83,47 @@ export async function sellerRefund(_: OrderFormState, form: FormData): Promise<O
   const res = await refundOrder(order.id, reason);
   if (res.error) return { error: res.error, values: { reason } };
   if (order.status === "disputed") await db.update(orders).set({ problemResolution: "The seller refunded you." }).where(eq(orders.id, order.id));
+  revalidatePath(`/shop/manage/orders/${code}`);
+  return undefined;
+}
+
+// Host sends directions and access details, which also shows the full address.
+export async function sendCheckIn(_: OrderFormState, form: FormData): Promise<OrderFormState> {
+  const code = String(form.get("code") ?? "");
+  const info = String(form.get("info") ?? "").trim().slice(0, 1500);
+  const { shop, order } = await sellerOrder(code);
+  if (order.method !== "check_in" || order.status !== "confirmed") return { error: "Check-in details can't be sent now." };
+  if (info.length < 10) return { error: "Please add the directions and how to get in.", values: { info } };
+  await db.update(orders).set({ status: "ready", checkInInfo: info }).where(and(eq(orders.id, order.id), eq(orders.status, "confirmed")));
+  await notify(order.buyerId, "Check-in details", `${shop.name} sent the address and how to get in.`, `/orders/${code}`);
+  revalidatePath(`/shop/manage/orders/${code}`);
+  return undefined;
+}
+
+// Seller prices a service request.
+export async function sendQuote(_: OrderFormState, form: FormData): Promise<OrderFormState> {
+  const code = String(form.get("code") ?? "");
+  const values = { amount: String(form.get("amount") ?? ""), quoteNote: String(form.get("quoteNote") ?? "").trim().slice(0, 600) };
+  const { shop, order } = await sellerOrder(code);
+  if (order.method !== "visit" || !["requested", "quoted"].includes(order.status)) return { error: "This request can't be priced now.", values };
+  const amount = toKobo(values.amount);
+  if (!amount || amount < 100_00) return { error: "Please enter your price in naira, like 15000.", values };
+  await db.update(orders).set({ status: "quoted", itemsKobo: amount, quoteNote: values.quoteNote || null, quotedAt: new Date() }).where(eq(orders.id, order.id));
+  await db.update(orderItems).set({ priceKobo: amount }).where(eq(orderItems.orderId, order.id));
+  await notify(order.buyerId, "Your quote is ready", `${shop.name} can do it for ${naira(amount)}. Pay to book the visit.`, `/orders/${code}`);
+  revalidatePath(`/shop/manage/orders/${code}`);
+  return undefined;
+}
+
+// Seller can't take a request.
+export async function declineRequest(_: OrderFormState, form: FormData): Promise<OrderFormState> {
+  const code = String(form.get("code") ?? "");
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 300);
+  const { shop, order } = await sellerOrder(code);
+  if (!["requested", "quoted"].includes(order.status)) return { error: "This request can't be declined now." };
+  if (!reason) return { error: "Please say why, so the customer understands.", values: { reason } };
+  await db.update(orders).set({ status: "cancelled", cancelReason: reason, cancelledAt: new Date() }).where(eq(orders.id, order.id));
+  await notify(order.buyerId, "Request declined", `${shop.name}: ${reason}`, `/orders/${code}`);
   revalidatePath(`/shop/manage/orders/${code}`);
   return undefined;
 }

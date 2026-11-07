@@ -8,6 +8,7 @@ import { deliverySettings, products, shops } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { AREAS, CATEGORIES, CUTOFF_TIMES, DAY_KEYS, slugify, toKobo, type CategoryId } from "@/lib/catalog";
 import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
+import { AMENITIES, CHECK_TIMES } from "@/lib/listings";
 import { myShop } from "@/lib/shops";
 
 export type ShopFormState = { error?: string; values?: Record<string, string>; saved?: boolean } | undefined;
@@ -63,6 +64,8 @@ export async function createShop(_: ShopFormState, form: FormData): Promise<Shop
     .values({ ownerId: user.id, name, slug: await uniqueSlug(name), about: about || null, category, area, coverPhoto })
     .returning({ id: shops.id });
   await db.insert(deliverySettings).values({ shopId: shop.id, dropOffAreas: [area] });
+  // Stays and repair services don't deliver, so they skip the delivery step.
+  if (["stays", "repairs", "home_care"].includes(category)) redirect("/shop/manage/products/new?first=1");
   redirect("/shop/manage/delivery?new=1");
 }
 
@@ -97,35 +100,95 @@ export async function toggleShopOpen(): Promise<void> {
 export async function saveProduct(_: ShopFormState, form: FormData): Promise<ShopFormState> {
   const { user, shop } = await requireShop();
   const id = String(form.get("id") ?? "");
-  const name = String(form.get("name") ?? "").trim();
-  const size = String(form.get("size") ?? "").trim();
-  const priceRaw = String(form.get("price") ?? "");
-  const sellMode = form.get("sellMode") === "in_stock" ? "in_stock" : "preorder";
-  const maxRaw = String(form.get("maxPerDay") ?? "").trim();
+  const str = (k: string, max = 200) => String(form.get(k) ?? "").trim().slice(0, max);
+  const kind = (["item", "stay", "service"] as const).find((k) => k === form.get("kind")) ?? "item";
+  const name = str("name", 80);
+  const priceType = kind === "service" && form.get("priceType") === "quote" ? "quote" : "fixed";
+  const on = (k: string) => form.get(k) === "on";
+  const amenities = AMENITIES.filter((a) => on(`amenity:${a}`));
+  const serviceAreas = AREAS.filter((a) => on(`servicearea:${a}`));
+  const workDays = [0, 1, 2, 3, 4, 5, 6].filter((d) => on(`workday:${d}`));
   // New products have no switch, so they start shown.
   const activeVals = form.getAll("isActive").map(String);
   const isActive = activeVals.length === 0 || activeVals.includes("on");
-  const values = { name, size, price: priceRaw, sellMode, maxPerDay: maxRaw };
+  const values: Record<string, string> = {
+    kind,
+    name,
+    price: str("price", 20),
+    size: str("size", 40),
+    sellMode: form.get("sellMode") === "in_stock" ? "in_stock" : "preorder",
+    maxPerDay: str("maxPerDay", 6),
+    about: str("about", 1500),
+    rules: str("rules", 1000),
+    privateAddress: str("privateAddress", 200),
+    guests: str("guests", 3),
+    bedrooms: str("bedrooms", 3),
+    bathrooms: str("bathrooms", 3),
+    minNights: str("minNights", 3),
+    checkInTime: str("checkInTime", 5),
+    checkOutTime: str("checkOutTime", 5),
+    priceType,
+    priceUnit: str("priceUnit", 30),
+    amenities: amenities.join("|"),
+    serviceAreas: serviceAreas.join("|"),
+    workDays: workDays.join("|"),
+  };
+  const fail = (error: string): ShopFormState => ({ error, values });
+  const count = (k: string, label: string, max: number, need = true) => {
+    if (!values[k]) return need ? `Please add the number of ${label}.` : null;
+    const n = Number(values[k]);
+    return Number.isInteger(n) && n >= 1 && n <= max ? null : `The number of ${label} should be from 1 to ${max}.`;
+  };
 
-  if (name.length < 2) return { error: "Please enter the product name.", values };
-  const priceKobo = toKobo(priceRaw);
-  if (!priceKobo) return { error: "Please enter a price in naira, like 2500.", values };
-  const maxPerDay = maxRaw ? Number(maxRaw) : null;
-  if (maxPerDay !== null && (!Number.isInteger(maxPerDay) || maxPerDay < 1)) {
-    return { error: "The most per day must be a whole number, like 20.", values };
+  if (name.length < 2) return fail(kind === "item" ? "Please enter the product name." : "Please give your listing a name.");
+  const priceKobo = kind === "service" && priceType === "quote" ? 0 : toKobo(values.price);
+  if (priceKobo === null) return fail("Please enter a price in naira, like 2500.");
+
+  const maxPerDay = kind === "item" && values.maxPerDay ? Number(values.maxPerDay) : null;
+  if (maxPerDay !== null && (!Number.isInteger(maxPerDay) || maxPerDay < 1)) return fail("The most per day must be a whole number, like 20.");
+  if (kind === "stay") {
+    const bad = count("guests", "guests", 30) ?? count("bedrooms", "bedrooms", 20) ?? count("bathrooms", "bathrooms", 20) ?? count("minNights", "nights", 30, false);
+    if (bad) return fail(bad);
+    if (values.privateAddress.length < 6) return fail("Please add the full address. Only guests with an accepted booking see it.");
   }
+  if (kind === "service" && !workDays.length) return fail("Please pick at least one day you work.");
 
   const kept = form.getAll("keep").map(String).filter(isOurPhoto);
+  const most = kind === "stay" ? 6 : 3;
   const added: string[] = [];
   try {
-    for (const f of filesFrom(form, "photos").slice(0, 3 - kept.length)) added.push(await savePhoto(user.id, f));
+    for (const f of filesFrom(form, "photos").slice(0, Math.max(0, most - kept.length))) added.push(await savePhoto(user.id, f));
   } catch (e) {
-    return { error: (e as Error).message, values };
+    return fail((e as Error).message);
   }
-  const photos = [...kept, ...added].slice(0, 3);
-  if (!photos.length) return { error: "Please add at least one photo. Buyers trust what they can see.", values };
+  const photos = [...kept, ...added].slice(0, most);
+  if (!photos.length) return fail("Please add at least one photo. Buyers trust what they can see.");
 
-  const data = { name, size: size || null, priceKobo, photos, sellMode, maxPerDay, isActive } as const;
+  const n = (k: string) => (values[k] ? Number(values[k]) : null);
+  const data = {
+    kind,
+    name,
+    priceKobo,
+    photos,
+    isActive,
+    about: values.about || null,
+    size: kind === "item" ? values.size || null : null,
+    sellMode: values.sellMode as "preorder" | "in_stock",
+    maxPerDay,
+    guests: kind === "stay" ? n("guests") : null,
+    bedrooms: kind === "stay" ? n("bedrooms") : null,
+    bathrooms: kind === "stay" ? n("bathrooms") : null,
+    minNights: kind === "stay" ? (n("minNights") ?? 1) : 1,
+    amenities: kind === "stay" ? amenities : [],
+    checkInTime: kind === "stay" && CHECK_TIMES.includes(values.checkInTime as never) ? values.checkInTime : null,
+    checkOutTime: kind === "stay" && CHECK_TIMES.includes(values.checkOutTime as never) ? values.checkOutTime : null,
+    rules: kind === "stay" ? values.rules || null : null,
+    privateAddress: kind === "stay" ? values.privateAddress : null,
+    priceType,
+    priceUnit: kind === "service" && priceType === "fixed" ? values.priceUnit || null : null,
+    serviceAreas: kind === "service" ? serviceAreas : [],
+    workDays: kind === "service" ? workDays : [1, 2, 3, 4, 5, 6],
+  } as const;
   if (id) {
     await db.update(products).set(data).where(and(eq(products.id, id), eq(products.shopId, shop.id)));
   } else {
@@ -200,4 +263,20 @@ export async function saveDelivery(_: ShopFormState, form: FormData): Promise<Sh
   revalidatePath("/shop/manage");
   if (form.get("new") === "1") redirect("/shop/manage/products/new?first=1");
   return { saved: true };
+}
+
+// Host blocks or frees nights on a stay's calendar.
+export async function saveBlockedDates(form: FormData): Promise<void> {
+  const { shop } = await requireShop();
+  const id = String(form.get("id") ?? "");
+  const dates = String(form.get("dates") ?? "")
+    .split(",")
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .slice(0, 400);
+  await db
+    .update(products)
+    .set({ blockedDates: [...new Set(dates)].sort() })
+    .where(and(eq(products.id, id), eq(products.shopId, shop.id), eq(products.kind, "stay")));
+  revalidatePath(`/shop/manage/products/${id}/calendar`);
+  redirect(`/shop/manage/products/${id}/calendar?saved=1`);
 }

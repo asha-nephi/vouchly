@@ -3,16 +3,15 @@
 import { redirect } from "next/navigation";
 import { and, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, orderItems, orders, payments, products, shops } from "@/db/schema";
+import { deliverySettings, orderItems, orders, products, shops } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { readBasket } from "@/lib/basket";
-import { AREAS, naira } from "@/lib/catalog";
-import { holdMode, makeOrderCode, nextDeliveryDay, ourShareKobo, payEmail } from "@/lib/orders";
-import { initializePayment, paystackReady } from "@/lib/paystack";
+import { AREAS } from "@/lib/catalog";
+import { holdMode, nextDeliveryDay } from "@/lib/orders";
+import { paystackReady } from "@/lib/paystack";
+import { newOrderCode, startPayment } from "@/lib/start-payment";
 
 export type CheckoutState = { error?: string; values?: Record<string, string> } | undefined;
-
-const siteUrl = () => process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
 
 export async function placeOrder(_: CheckoutState, form: FormData): Promise<CheckoutState> {
   const user = await requireUser();
@@ -52,7 +51,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const rows = await db
     .select()
     .from(products)
-    .where(and(inArray(products.id, ids), eq(products.shopId, shop.id), eq(products.isActive, true), eq(products.removed, false)));
+    .where(and(inArray(products.id, ids), eq(products.shopId, shop.id), eq(products.kind, "item"), eq(products.isActive, true), eq(products.removed, false)));
   if (!rows.length) return fail("The items in your basket aren't available any more.");
   const lines = rows.map((p) => ({ p, qty: basket.items[p.id] }));
   const itemsKobo = lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0);
@@ -86,19 +85,11 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const deliveryFeeKobo =
     method === "drop_off" ? d.dropOffFeeKobo : method === "rider" && d.riderPayer === "fee_in_order" ? (d.riderAreaFees.default ?? 0) : 0;
   const totalKobo = itemsKobo + deliveryFeeKobo;
-  const feeKobo = ourShareKobo(itemsKobo);
 
   if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
   // Save the order first, then send the buyer to Paystack.
-  let code = makeOrderCode();
-  for (let i = 0; i < 5; i++) {
-    const [clash] = await db.select({ id: orders.id }).from(orders).where(eq(orders.code, code)).limit(1);
-    if (!clash) break;
-    code = makeOrderCode();
-  }
-  const reference = `${code}-${Date.now().toString(36)}`;
-
+  const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
     .values({
@@ -116,29 +107,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   await db.insert(orderItems).values(
     lines.map((l) => ({ orderId: order.id, productId: l.p.id, name: l.p.name, size: l.p.size, quantity: l.qty, priceKobo: l.p.priceKobo })),
   );
-  await db.insert(payments).values({
-    orderId: order.id,
-    paystackReference: reference,
-    amountKobo: totalKobo,
-    feeKobo,
-    sellerKobo: totalKobo - feeKobo,
-  });
-
-  let url: string;
-  try {
-    const res = await initializePayment({
-      email: payEmail(user.phone, user.email),
-      amountKobo: totalKobo,
-      reference,
-      callbackUrl: `${siteUrl()}/checkout/done`,
-      subaccount: shop.paystackSubaccount,
-      ourShareKobo: feeKobo,
-      metadata: { order: code, shop: shop.name },
-    });
-    url = res.authorization_url;
-  } catch {
-    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
-    return fail(`We couldn't start the payment of ${naira(totalKobo)}. Please try again.`);
-  }
-  redirect(url);
+  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo, totalKobo });
+  if (!pay.url) return fail(pay.error!);
+  redirect(pay.url);
 }

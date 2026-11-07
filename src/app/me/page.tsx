@@ -20,7 +20,7 @@ export default async function Me() {
   const count = async (where: ReturnType<typeof and>) =>
     (await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where))[0]?.n ?? 0;
   const [newOrders, problems, unread] = await Promise.all([
-    shop ? count(and(eq(orders.shopId, shop.id), inArray(orders.status, ["paid", "disputed"]))) : 0,
+    shop ? count(and(eq(orders.shopId, shop.id), inArray(orders.status, ["paid", "disputed", "requested"]))) : 0,
     user.role === "admin" ? count(eq(orders.status, "disputed")) : 0,
     unreadCount(user.id),
   ]);

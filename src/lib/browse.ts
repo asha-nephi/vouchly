@@ -12,7 +12,8 @@ export type ShopCard = {
   ward: string;
   photo: string | null;
   productCount: number;
-  fromKobo: number;
+  fromKobo: number | null; // null when every listing is priced after a chat
+  kinds: string[]; // item, stay, service
   deliveryDays: number[];
   servesArea: boolean; // lives in, or drops off in, the buyer's area
   rating: number | null; // average stars
@@ -41,7 +42,8 @@ async function listShops(opts: { area: string; category?: string; q?: string; li
       dropOffAreas: deliverySettings.dropOffAreas,
       dropOffOn: deliverySettings.dropOffOn,
       productCount: sql<number>`count(${products.id})::int`,
-      fromKobo: sql<number>`min(${products.priceKobo})::int`,
+      fromKobo: sql<number | null>`min(nullif(${products.priceKobo}, 0))::int`,
+      kinds: sql<string[]>`array_agg(distinct ${products.kind}::text)`,
       firstPhoto: sql<string | null>`(array_agg(${products.photos}->>0 order by ${products.createdAt}))[1]`,
       rating: sql<number | null>`(select round(avg(r.stars)::numeric, 1)::float from ${reviews} r where r.shop_id = ${shops.id})`,
       reviewCount: sql<number>`(select count(*)::int from ${reviews} r where r.shop_id = ${shops.id})`,
@@ -72,6 +74,7 @@ async function listShops(opts: { area: string; category?: string; q?: string; li
       photo: r.cover ?? r.firstPhoto,
       productCount: r.productCount,
       fromKobo: r.fromKobo,
+      kinds: r.kinds ?? ["item"],
       deliveryDays: r.deliveryDays ?? [],
       rating: r.rating,
       reviewCount: r.reviewCount,

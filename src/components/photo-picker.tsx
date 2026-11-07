@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Shrinks a photo on the phone to WebP before upload (max 1200px), so it's small on slow data.
 async function shrink(file: File): Promise<File> {
@@ -41,6 +41,17 @@ export default function PhotoPicker({
     next.forEach((a) => dt.items.add(a.file));
     if (fileInput.current) fileInput.current.files = dt.files;
   }
+
+  // After a form error React resets the form, which empties the file input. Put the photos back.
+  const addedRef = useRef(added);
+  addedRef.current = added;
+  useEffect(() => {
+    const form = fileInput.current?.form;
+    if (!form) return;
+    const refill = () => setTimeout(() => sync(addedRef.current), 0);
+    form.addEventListener("reset", refill);
+    return () => form.removeEventListener("reset", refill);
+  }, []);
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []).slice(0, Math.max(room, 0));

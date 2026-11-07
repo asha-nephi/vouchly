@@ -3,7 +3,13 @@ import { categoryLabel, dayList, naira } from "@/lib/catalog";
 import type { ShopCard } from "@/lib/browse";
 import Photo from "@/components/photo";
 
-const deliveryText = (days: number[]) => (days.length ? `Delivers ${dayList(days, true)}` : "");
+const deliveryText = (s: ShopCard) => (s.kinds.includes("item") && s.deliveryDays.length ? `Delivers ${dayList(s.deliveryDays, true)}` : "");
+
+// "from ₦3,000", "from ₦45,000 a night", "Price after a chat"
+function fromText(s: ShopCard) {
+  if (s.fromKobo === null) return "Price after a chat";
+  return `from ${naira(s.fromKobo)}${s.kinds.length === 1 && s.kinds[0] === "stay" ? " a night" : ""}`;
+}
 
 // "★ 4.8 (12)" once a shop has reviews.
 export function Stars({ rating, count }: { rating: number | null; count: number }) {
@@ -29,7 +35,7 @@ export function ShopTile({ s }: { s: ShopCard }) {
           <Stars rating={s.rating} count={s.reviewCount} />
         </p>
         <p className="truncate text-[13px] text-muted">
-          {categoryLabel(s.category)} · from {naira(s.fromKobo)}
+          {categoryLabel(s.category)} · {fromText(s)}
         </p>
         <p className="truncate text-xs font-bold text-accent">Verified member · {s.ward}</p>
       </div>
@@ -50,9 +56,9 @@ export function ShopRow({ s }: { s: ShopCard }) {
           <Stars rating={s.rating} count={s.reviewCount} />
         </p>
         <p className="truncate text-[13px] text-muted">
-          {s.productCount} {s.productCount === 1 ? "item" : "items"} · from {naira(s.fromKobo)}
+          {s.productCount} {s.kinds.every((k) => k === "item") ? (s.productCount === 1 ? "item" : "items") : s.productCount === 1 ? "listing" : "listings"} · {fromText(s)}
         </p>
-        <p className="truncate text-xs text-muted">{[s.area, deliveryText(s.deliveryDays)].filter(Boolean).join(" · ")}</p>
+        <p className="truncate text-xs text-muted">{[s.area, deliveryText(s)].filter(Boolean).join(" · ")}</p>
         <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-accent">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4" />
