@@ -4,7 +4,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, products } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
-import { categoryLabel, cutoffLabel, DAYS, naira } from "@/lib/catalog";
+import { categoryLabel, cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { myShop } from "@/lib/shops";
 import { toggleShopOpen } from "../actions";
 import { Note } from "@/components/ui";
@@ -27,7 +27,7 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
   const ways = delivery
     ? [delivery.pickupOn && "Pickup", delivery.dropOffOn && "Drop-off", delivery.riderOn && "Rider"].filter(Boolean).join(" · ")
     : "Not set";
-  const days = delivery ? delivery.deliveryDays.map((d) => DAYS[d]).join(", ") : "";
+  const days = delivery ? dayList(delivery.deliveryDays) : "";
 
   return (
     <main className="mx-auto min-h-dvh max-w-md pb-10">

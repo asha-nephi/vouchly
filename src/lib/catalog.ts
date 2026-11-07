@@ -19,6 +19,16 @@ export const AREAS = [
 
 export const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+// [1,2,3,4,5] → "Monday to Friday", [5,6] → "Friday & Saturday", [1,3,6] → "Monday, Wednesday & Saturday"
+export function dayList(days: number[], short = false): string {
+  const names = short ? DAYS : DAY_NAMES;
+  const d = [...new Set(days)].sort((a, b) => a - b);
+  if (!d.length) return "";
+  if (d.length >= 3 && d.every((v, i) => i === 0 || v === d[i - 1] + 1)) return `${names[d[0]]} to ${names[d[d.length - 1]]}`;
+  const list = d.map((i) => names[i]);
+  return list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")} & ${list[list.length - 1]}`;
+}
+
 export const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 export const CUTOFF_TIMES = ["12:00", "15:00", "18:00", "20:00", "22:00"] as const;
 
