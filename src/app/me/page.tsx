@@ -24,6 +24,7 @@ export default async function Me() {
     user.role === "admin" ? count(eq(orders.status, "disputed")) : 0,
     unreadCount(user.id),
   ]);
+  const site = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
   const initials = user.name
     .split(" ")
     .map((w) => w[0])
@@ -92,12 +93,22 @@ export default async function Me() {
           <Note>You can open a shop once you&apos;re confirmed.</Note>
         )}
 
-        <section className={`${card} flex items-center gap-3 p-4`}>
-          <div className="flex-1">
-            <p className="text-[15px] font-bold">Invite a member</p>
-            <p className="mt-0.5 text-[13px] text-muted">Share your code with someone you trust.</p>
+        <section className={`${card} p-4`}>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <p className="text-[15px] font-bold">Invite a member</p>
+              <p className="mt-0.5 text-[13px] text-muted">Share your code with someone you trust.</p>
+            </div>
+            <span className="rounded-xl bg-soft px-3 py-2 text-[17px] font-extrabold tracking-widest text-deep">{user.inviteCode}</span>
           </div>
-          <span className="rounded-xl bg-soft px-3 py-2 text-[17px] font-extrabold tracking-widest text-deep">{user.inviteCode}</span>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(`Join me on Vouchly, where members in Lagos buy and sell from each other: ${site}/?code=${user.inviteCode}`)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex h-11 items-center justify-center rounded-full bg-[#1b6b3a] text-sm font-bold text-white"
+          >
+            Share invite on WhatsApp
+          </a>
         </section>
 
         <section className={`${card} px-4`}>

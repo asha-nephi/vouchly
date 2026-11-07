@@ -86,3 +86,22 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+
+/* Landing page: the "Vouched" stamp lands once on the example card. */
+@keyframes vouch-stamp {
+  0% {
+    opacity: 0;
+    scale: 1.9;
+  }
+  60% {
+    opacity: 1;
+    scale: 0.92;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+.vouch-stamp {
+  animation: vouch-stamp 520ms cubic-bezier(0.2, 0.8, 0.3, 1.2) 450ms both;
+}
