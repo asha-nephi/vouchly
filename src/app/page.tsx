@@ -5,7 +5,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
-import { Logo } from "@/components/logo";
 
 export const dynamic = "force-dynamic";
 
@@ -148,8 +147,8 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
     <div className="min-h-dvh bg-bg">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED) }} />
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-        <Link href="/" aria-label="Vouchly home">
-          <Logo />
+        <Link href="/" className="text-xl font-extrabold tracking-tight text-ink">
+          Vouchly
         </Link>
         <Link href="/login" className="flex h-10 items-center rounded-full bg-white px-4 text-sm font-bold shadow-[0_1px_3px_rgba(20,33,61,0.1)]">
           Log in
