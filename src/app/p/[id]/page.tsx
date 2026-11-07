@@ -8,6 +8,7 @@ import { basketStart } from "@/lib/basket-view";
 import { cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { BasketBar, BasketProvider, Stepper } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
+import Photo from "@/components/photo";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +44,11 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     <BasketProvider initialQty={basket.qty} initialCount={basket.count} initialTotal={basket.totalKobo}>
       <main className="mx-auto min-h-dvh max-w-md pb-44">
         <div className="relative">
-          <div className="flex h-[300px] snap-x snap-mandatory overflow-x-auto bg-chip [scrollbar-width:none]">
+          <div className="flex h-[300px] snap-x snap-mandatory overflow-x-auto bg-chip [scrollbar-width:none] md:h-[420px]">
             {p.photos.map((src, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={src} src={src} alt={i === 0 ? p.name : ""} className="h-full w-full shrink-0 snap-center object-cover" />
+              <div key={src} className="relative h-full w-full shrink-0 snap-center">
+                <Photo src={src} alt={i === 0 ? p.name : ""} sizes="(min-width: 1200px) 52rem, (min-width: 768px) 44rem, 100vw" priority={i === 0} />
+              </div>
             ))}
           </div>
           <Link
@@ -78,11 +80,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </div>
 
           <Link href={`/s/${shop.slug}`} className="flex items-center gap-3 rounded-[18px] bg-white p-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
-            <span className="size-10 shrink-0 overflow-hidden rounded-full bg-soft">
-              {shop.coverPhoto && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={shop.coverPhoto} alt="" className="size-full object-cover" />
-              )}
+            <span className="relative size-10 shrink-0 overflow-hidden rounded-full bg-soft">
+{shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="40px" />}
             </span>
             <span className="flex-1">
               <span className="block text-[15px] font-bold">{shop.name}</span>

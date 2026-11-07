@@ -1,3 +1,4 @@
+import { cache } from "react";
 import "server-only";
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { cookies } from "next/headers";
@@ -40,7 +41,8 @@ export async function endSession() {
 }
 
 // The signed-in member, or null.
-export async function currentUser() {
+// Looked up once per page, even when several parts ask.
+export const currentUser = cache(async function currentUser() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const rows = await db
@@ -50,7 +52,7 @@ export async function currentUser() {
     .where(and(eq(sessions.tokenHash, hash(token)), gt(sessions.expiresAt, new Date())))
     .limit(1);
   return rows[0]?.user ?? null;
-}
+});
 
 export async function requireUser() {
   const user = await currentUser();

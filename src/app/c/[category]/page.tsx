@@ -27,15 +27,19 @@ export default async function Category({ params }: { params: Promise<{ category:
             No {cat.label.toLowerCase()} shops in {area} yet.
           </p>
         )}
-        {near.map((s) => (
-          <ShopRow key={s.id} s={s} />
-        ))}
+        <div className="cards">
+          {near.map((s) => (
+            <ShopRow key={s.id} s={s} />
+          ))}
+        </div>
         {more.length > 0 && (
           <>
             <h2 className="pt-2 text-[15px] font-bold text-muted">More in Lagos</h2>
-            {more.map((s) => (
-              <ShopRow key={s.id} s={s} />
-            ))}
+            <div className="cards">
+              {more.map((s) => (
+                <ShopRow key={s.id} s={s} />
+              ))}
+            </div>
           </>
         )}
       </div>

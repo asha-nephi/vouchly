@@ -17,7 +17,6 @@ export default function CodeForm({ initialError }: { initialError?: string }) {
           maxLength={6}
           pattern="[0-9]{6}"
           required
-          autoFocus
           placeholder="••••••"
           className="h-16 rounded-2xl border-2 border-ink bg-white text-center text-[28px] font-extrabold tracking-[0.5em] outline-none placeholder:text-[#c8ceda]"
         />

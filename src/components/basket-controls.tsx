@@ -56,13 +56,13 @@ export function BasketProvider({
     <BasketCtx.Provider value={{ qty, count, totalKobo, pending, change: (id, n) => send(id, n) }}>
       {children}
       {error && (
-        <p role="alert" className="fixed inset-x-4 bottom-24 z-30 mx-auto max-w-md rounded-2xl bg-[#fbebeb] px-4 py-3 text-[13px] font-semibold text-[#b42318]">
+        <p role="alert" className="fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-2xl bg-[#fbebeb] px-4 py-3 text-[13px] font-semibold text-[#b42318]">
           {error}
         </p>
       )}
       {conflict && (
         <div role="dialog" aria-modal="true" aria-labelledby="conflict-title" className="fixed inset-0 z-40 flex items-end bg-ink/40">
-          <div className="mx-auto w-full max-w-md rounded-t-3xl bg-white p-5 pb-8">
+          <div className="mx-auto w-full max-w-md rounded-t-3xl bg-white p-5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
             <p id="conflict-title" className="text-lg font-extrabold">
               Start a new basket?
             </p>
@@ -143,7 +143,7 @@ export function BasketBar() {
   const { count, totalKobo, pending } = useBasket();
   if (count === 0) return null;
   return (
-    <div className="fixed inset-x-0 bottom-[76px] z-20 px-4">
+    <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 px-4">
       <Link
         href="/basket"
         className={`mx-auto flex h-[54px] max-w-md items-center justify-between rounded-2xl bg-ink px-[18px] text-[15px] font-bold text-white shadow-[0_6px_24px_rgba(20,33,61,0.25)] ${pending ? "opacity-80" : ""}`}

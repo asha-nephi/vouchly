@@ -5,6 +5,7 @@ import { placeOrder } from "./actions";
 import { AREAS } from "@/lib/catalog";
 import { ErrorText, Field, Note, PrimaryButton } from "@/components/ui";
 import { Select } from "@/components/form-bits";
+import Photo from "@/components/photo";
 
 type Line = { id: string; name: string; size: string | null; photo: string | null; priceKobo: number; qty: number };
 type Options = {
@@ -113,11 +114,8 @@ export default function CheckoutForm(props: {
       <section className="rounded-[18px] bg-white px-3.5 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
         {lines.map((l, i) => (
           <div key={l.id} className={`flex items-center gap-3 py-2.5 ${i < lines.length - 1 ? "border-b border-[#eef0f4]" : ""}`}>
-            <span className="size-11 shrink-0 overflow-hidden rounded-[10px] bg-chip">
-              {l.photo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={l.photo} alt="" className="size-full object-cover" />
-              )}
+            <span className="relative size-11 shrink-0 overflow-hidden rounded-[10px] bg-chip">
+{l.photo && <Photo src={l.photo} sizes="44px" />}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-bold">{[l.name, l.size].filter(Boolean).join(" · ")}</span>

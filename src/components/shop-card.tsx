@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { categoryLabel, dayList, naira } from "@/lib/catalog";
 import type { ShopCard } from "@/lib/browse";
+import Photo from "@/components/photo";
 
 const deliveryText = (days: number[]) => (days.length ? `Delivers ${dayList(days, true)}` : "");
 
@@ -8,7 +9,7 @@ const deliveryText = (days: number[]) => (days.length ? `Delivers ${dayList(days
 export function Stars({ rating, count }: { rating: number | null; count: number }) {
   if (!rating || !count) return null;
   return (
-    <span className="text-xs font-bold text-[#1d2433]">
+    <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#1d2433]">
       <span className="text-[#e9a23b]" aria-hidden="true">★</span> {rating.toFixed(1)} <span className="font-semibold text-muted">({count})</span>
       <span className="sr-only"> stars from {count} reviews</span>
     </span>
@@ -19,11 +20,8 @@ export function Stars({ rating, count }: { rating: number | null; count: number 
 export function ShopTile({ s }: { s: ShopCard }) {
   return (
     <Link href={`/s/${s.slug}`} className="flex w-[220px] shrink-0 snap-start flex-col gap-2.5">
-      <div className="h-[140px] w-full overflow-hidden rounded-[18px] bg-soft">
-        {s.photo && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.photo} alt="" loading="lazy" className="size-full object-cover" />
-        )}
+      <div className="relative h-[140px] w-full overflow-hidden rounded-[18px] bg-soft">
+{s.photo && <Photo src={s.photo} sizes="220px" />}
       </div>
       <div className="px-0.5">
         <p className="flex items-center justify-between gap-2">
@@ -43,11 +41,8 @@ export function ShopTile({ s }: { s: ShopCard }) {
 export function ShopRow({ s }: { s: ShopCard }) {
   return (
     <Link href={`/s/${s.slug}`} className="flex items-center gap-3 rounded-[20px] bg-white p-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
-      <div className="size-[72px] shrink-0 overflow-hidden rounded-[14px] bg-soft">
-        {s.photo && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.photo} alt="" loading="lazy" className="size-full object-cover" />
-        )}
+      <div className="relative size-[72px] shrink-0 overflow-hidden rounded-[14px] bg-soft">
+{s.photo && <Photo src={s.photo} sizes="72px" />}
       </div>
       <div className="min-w-0 flex-1">
         <p className="flex items-center justify-between gap-2">

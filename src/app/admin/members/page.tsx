@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { maskPhone } from "@/lib/phone";
 import { confirmMember } from "../../actions";
 import { BackBar } from "@/components/ui";
+import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -55,9 +56,9 @@ export default async function Members() {
             ) : (
               <form action={confirmMember}>
                 <input type="hidden" name="id" value={r.id} />
-                <button type="submit" className="h-10 rounded-full bg-ink px-4 text-[13px] font-bold text-white">
+                <SubmitButton pendingText="…" className="h-10 rounded-full bg-ink px-4 text-[13px] font-bold text-white">
                   Confirm
-                </button>
+                </SubmitButton>
               </form>
             )}
           </div>

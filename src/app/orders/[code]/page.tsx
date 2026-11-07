@@ -11,6 +11,8 @@ import { STATUS, timeline } from "@/lib/order-status";
 import { BackBar, Note } from "@/components/ui";
 import { markReceived } from "../actions";
 import { CancelForm, ProblemForm, ReviewForm } from "./forms";
+import Photo from "@/components/photo";
+import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -100,11 +102,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       <BackBar title={`Order ${o.code}`} href="/orders" />
       <div className="flex flex-col gap-4 px-4">
         <section className="flex items-center gap-3.5 rounded-[20px] bg-ink p-4 text-white">
-          <span className="size-14 shrink-0 overflow-hidden rounded-[14px] bg-deep">
-            {shop.coverPhoto && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.coverPhoto} alt="" className="size-full object-cover" />
-            )}
+          <span className="relative size-14 shrink-0 overflow-hidden rounded-[14px] bg-deep">
+{shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="56px" />}
           </span>
           <div>
             <p className="text-lg font-extrabold">{s.label}</p>
@@ -220,9 +219,9 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             </Note>
             <form action={markReceived}>
               <input type="hidden" name="code" value={o.code} />
-              <button type="submit" className="h-[54px] w-full rounded-2xl bg-ink text-[15px] font-bold text-white">
+              <SubmitButton className="h-[54px] w-full rounded-2xl bg-ink text-[15px] font-bold text-white">
                 I&apos;ve received it
-              </button>
+              </SubmitButton>
             </form>
           </>
         )}

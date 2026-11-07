@@ -46,8 +46,8 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
             <input
               name="q"
               type="search"
+              enterKeyHint="search"
               defaultValue={query}
-              autoFocus={!query}
               placeholder="Tigernut, plumber, shortlet…"
               className="w-full bg-transparent text-[15px] font-semibold outline-none placeholder:font-normal placeholder:text-[#8a93a5]"
             />
@@ -71,7 +71,11 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
             <p className="mt-1 text-[13px] text-muted">Try a shorter word, or a different category.</p>
           </div>
         ) : (
-          results.map((s) => <ShopRow key={s.id} s={s} />)
+          <div className="cards">
+            {results.map((s) => (
+              <ShopRow key={s.id} s={s} />
+            ))}
+          </div>
         )}
       </div>
       <TabBar active="Search" />

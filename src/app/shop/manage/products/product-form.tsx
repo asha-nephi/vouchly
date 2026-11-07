@@ -5,6 +5,7 @@ import { deleteProduct, saveProduct } from "../../actions";
 import { ErrorText, Field, Note, PrimaryButton } from "@/components/ui";
 import { Radio, Switch } from "@/components/form-bits";
 import PhotoPicker from "@/components/photo-picker";
+import SubmitButton from "@/components/submit-button";
 
 type Product = {
   id: string;
@@ -76,9 +77,9 @@ export default function ProductForm({ product, first }: { product?: Product; fir
       {product && (
         <form action={deleteProduct} className="px-4 pb-8">
           <input type="hidden" name="id" value={product.id} />
-          <button type="submit" className="h-[50px] w-full rounded-2xl text-[14px] font-bold text-[#b42318]">
+          <SubmitButton className="h-[50px] w-full rounded-2xl text-[14px] font-bold text-[#b42318]">
             Remove product
-          </button>
+          </SubmitButton>
         </form>
       )}
     </>

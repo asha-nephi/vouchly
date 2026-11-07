@@ -7,6 +7,7 @@ import { myShop } from "@/lib/shops";
 import { logout } from "../actions";
 import { Footer, Note } from "@/components/ui";
 import TabBar from "@/components/tab-bar";
+import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -119,9 +120,9 @@ export default async function Me() {
             Contact us <span aria-hidden="true">›</span>
           </Link>
           <form action={logout}>
-            <button type="submit" className="w-full py-4 text-left text-[15px] font-semibold text-[#b42318]">
+            <SubmitButton className="w-full py-4 text-left text-[15px] font-semibold text-[#b42318]">
               Log out
-            </button>
+            </SubmitButton>
           </form>
         </section>
       </div>

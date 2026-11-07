@@ -10,6 +10,8 @@ import { BasketProvider, Stepper } from "@/components/basket-controls";
 import { Note } from "@/components/ui";
 import TabBar from "@/components/tab-bar";
 import { clearBasket } from "./actions";
+import Photo from "@/components/photo";
+import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -54,19 +56,16 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
           <div className="flex items-baseline justify-between">
             <h1 className="text-[26px] font-extrabold tracking-tight">Basket</h1>
             <form action={clearBasket}>
-              <button type="submit" className="text-[13px] font-bold text-muted">
+              <SubmitButton pendingText="…" className="text-[13px] font-bold text-muted">
                 Clear
-              </button>
+              </SubmitButton>
             </form>
           </div>
 
           {shop && (
             <Link href={`/s/${shop.slug}`} className="flex items-center gap-3 rounded-[18px] bg-white p-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
-              <span className="size-11 shrink-0 overflow-hidden rounded-[12px] bg-soft">
-                {shop.coverPhoto && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={shop.coverPhoto} alt="" className="size-full object-cover" />
-                )}
+              <span className="relative size-11 shrink-0 overflow-hidden rounded-[12px] bg-soft">
+{shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="44px" />}
               </span>
               <span className="flex-1">
                 <span className="block text-[15px] font-bold">{shop.name}</span>
@@ -87,11 +86,8 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
           <section className="flex flex-col gap-2.5">
             {live.map(({ product: p }) => (
               <div key={p.id} className="flex items-center gap-3 rounded-[20px] bg-white p-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
-                <div className="size-[56px] shrink-0 overflow-hidden rounded-[14px] bg-chip">
-                  {p.photos[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.photos[0]} alt="" className="size-full object-cover" />
-                  )}
+                <div className="relative size-[56px] shrink-0 overflow-hidden rounded-[14px] bg-chip">
+{p.photos[0] && <Photo src={p.photos[0]} sizes="56px" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-bold">{p.name}</p>

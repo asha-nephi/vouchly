@@ -10,6 +10,7 @@ import { myShop } from "@/lib/shops";
 import { BackBar, Note } from "@/components/ui";
 import { advanceOrder } from "../actions";
 import { RefundForm, RiderForm } from "./forms";
+import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -117,9 +118,9 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
           <form action={advanceOrder}>
             <input type="hidden" name="code" value={o.code} />
             <input type="hidden" name="to" value={next.to} />
-            <button type="submit" className="h-[54px] w-full rounded-2xl bg-ink text-[15px] font-bold text-white">
+            <SubmitButton className="h-[54px] w-full rounded-2xl bg-ink text-[15px] font-bold text-white">
               {next.label}
-            </button>
+            </SubmitButton>
           </form>
         )}
         {(next?.rider || (o.method === "rider" && o.status === "confirmed")) && <RiderForm code={o.code} estimate={d?.riderEstimate ?? undefined} />}

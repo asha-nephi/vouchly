@@ -18,3 +18,71 @@ body {
   color: var(--color-ink);
   font-family: "Manrope Variable", system-ui, sans-serif;
 }
+
+/* Pages are one column on phones. Wider screens get a wider column. */
+@media (min-width: 768px) {
+  :root {
+    --container-md: 44rem;
+  }
+}
+@media (min-width: 1200px) {
+  :root {
+    --container-md: 52rem;
+  }
+}
+
+/* Card lists: one column on phones, two on wider screens. */
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* lets long names shorten instead of pushing out */
+  gap: 0.625rem;
+}
+@media (min-width: 768px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent; /* no grey flash on tap */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+a,
+button,
+label,
+input,
+select,
+textarea {
+  touch-action: manipulation; /* no double-tap zoom delay */
+}
+
+/* A small press effect so taps feel answered. */
+button:not(:disabled),
+a {
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+a:active {
+  opacity: 0.75;
+}
+
+/* Inputs at 16px so iPhones don't zoom in when typing. */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -4,6 +4,7 @@ import { maskPhone } from "@/lib/phone";
 import { resendCode } from "../actions";
 import { BackBar, Note } from "@/components/ui";
 import CodeForm from "./code-form";
+import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,9 @@ export default async function Verify({ searchParams }: { searchParams: Promise<{
         <CodeForm initialError={e} />
         <form action={resendCode} className="text-sm">
           <span className="text-muted">Didn&apos;t get it? </span>
-          <button type="submit" className="font-bold text-accent">
+          <SubmitButton className="font-bold text-accent">
             Send a new code
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </main>
