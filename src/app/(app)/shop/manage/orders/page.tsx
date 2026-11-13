@@ -20,6 +20,7 @@ const METHOD = {
   rider: "Rider",
   check_in: "Stay",
   visit: "Visit",
+  download: "Download",
 } as const;
 
 export default async function ShopOrders({

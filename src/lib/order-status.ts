@@ -19,6 +19,7 @@ export function statusLabel(status: string, method: string, seller = false) {
     const m: Record<string, string> = { paid: seller ? "New booking" : "Booked", confirmed: "Accepted", ready: "Check-in details sent", received: "Checked in" };
     if (m[status]) return m[status];
   }
+  if (method === "download" && status === "received") return seller ? "Sold" : "Ready to download";
   if (method === "visit") {
     const m: Record<string, string> = {
       paid: seller ? "New job" : "Booked",

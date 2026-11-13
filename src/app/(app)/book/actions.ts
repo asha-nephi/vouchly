@@ -147,6 +147,53 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
   redirect(pay.url);
 }
 
+// Buy a digital product. Free ones are delivered at once without payment.
+export async function buyDigital(_: BookState, form: FormData): Promise<BookState> {
+  const me = await currentUser();
+  const values = guestValues(form);
+  const fail = (error: string): BookState => ({ error, values });
+  const [row] = await db
+    .select({ p: products, shop: shops })
+    .from(products)
+    .innerJoin(shops, eq(shops.id, products.shopId))
+    .where(and(eq(products.id, String(form.get("productId") ?? "")), eq(products.kind, "digital"), eq(products.isActive, true), eq(products.removed, false)))
+    .limit(1);
+  if (!row || !row.p.fileId) return fail("This product isn't available any more.");
+  const { p, shop } = row;
+  if (!shop.isOpen) return fail("This shop is closed for now.");
+  if (me && shop.ownerId === me.id) return fail("You can't buy your own product.");
+  const free = p.priceKobo === 0;
+  if (!free && !holdMode() && !shop.paystackSubaccount) return fail(`${shop.name} hasn't set up payments yet.`);
+  if (!free && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
+
+  const who = await buyerFor(form);
+  if ("error" in who) return fail(who.error);
+  const user = who.user;
+  const code = await newOrderCode();
+  const [order] = await db
+    .insert(orders)
+    .values({
+      code,
+      accessToken: makeToken(),
+      buyerId: user.id,
+      shopId: shop.id,
+      deliveryDay: new Date(),
+      method: "download",
+      itemsKobo: p.priceKobo,
+      status: free ? "received" : "awaiting_payment",
+      receivedAt: free ? new Date() : null,
+    })
+    .returning({ id: orders.id });
+  await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: null, quantity: 1, priceKobo: p.priceKobo });
+  if (free) {
+    await notify(shop.ownerId, "New download", `${user.name} got “${p.name}” for free.`, `/shop/manage/orders/${code}`);
+    redirect(`/orders/${code}?placed=1`);
+  }
+  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: p.priceKobo, totalKobo: p.priceKobo });
+  if (!pay.url) return fail(pay.error!);
+  redirect(pay.url);
+}
+
 // Buyer pays the price the seller quoted.
 export async function payQuote(_: BookState, form: FormData): Promise<BookState> {
   const user = await requireBuyer();

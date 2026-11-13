@@ -5,11 +5,13 @@ import { deleteProduct, saveProduct } from "../../actions";
 import { ErrorText, Field, Note, PrimaryButton } from "@/components/ui";
 import { ChipChecks, Radio, Select, Switch } from "@/components/form-bits";
 import PhotoPicker from "@/components/photo-picker";
+import FileInput from "@/components/file-input";
 import SubmitButton from "@/components/submit-button";
 import { AREAS, DAYS } from "@/lib/catalog";
 import { AMENITIES, CHECK_TIMES, timeLabel } from "@/lib/listings";
+import { FILE_ACCEPT, fileLabel } from "@/lib/file-types";
 
-type Kind = "item" | "stay" | "service";
+type Kind = "item" | "stay" | "service" | "digital";
 type Product = {
   id: string;
   kind: Kind;
@@ -34,12 +36,15 @@ type Product = {
   priceUnit: string | null;
   serviceAreas: string[];
   workDays: number[];
+  fileName: string | null;
+  fileSize: number | null;
 };
 
 const KINDS = [
   { value: "item", title: "A product", detail: "Food, drinks, clothes, things you make or sell" },
   { value: "stay", title: "A stay", detail: "Shortlet, apartment or room guests book by the night" },
-  { value: "service", title: "A service", detail: "Plumbing, carpentry, cleaning, repairs, makeup…" },
+  { value: "service", title: "A service", detail: "Plumbing, carpentry, cleaning, repairs, catering, makeup…" },
+  { value: "digital", title: "A digital product", detail: "E-book, guide, templates, audio. Buyers download it right after paying" },
 ] as const;
 
 const area = "rounded-[14px] border border-[#d5dae4] bg-white px-3.5 py-3 leading-relaxed outline-none placeholder:text-[#8a93a5] focus:border-ink";
@@ -55,7 +60,7 @@ function TextBox({ label, name, defaultValue, placeholder, optional = true }: { 
   );
 }
 
-export default function ProductForm({ product, first, defaultKind = "item" }: { product?: Product; first?: boolean; defaultKind?: Kind }) {
+export default function ProductForm({ product, first, defaultKind = "item", maxFileMb = 10 }: { product?: Product; first?: boolean; defaultKind?: Kind; maxFileMb?: number }) {
   const [state, action, pending] = useActionState(saveProduct, undefined);
   const v = state?.values;
   const [kind, setKind] = useState<Kind>((v?.kind as Kind) ?? product?.kind ?? defaultKind);
@@ -103,12 +108,14 @@ export default function ProductForm({ product, first, defaultKind = "item" }: { 
           keepName="keep"
           existing={product?.photos}
           max={kind === "stay" ? 6 : 3}
-          label={kind === "stay" ? "Photos (up to 6: rooms, bathroom, outside)" : "Photos (up to 3)"}
+          label={kind === "stay" ? "Photos (up to 6: rooms, bathroom, outside)" : kind === "digital" ? "Cover picture (up to 3)" : "Photos (up to 3)"}
         />
         <Field
-          label={kind === "stay" ? "Listing name" : kind === "service" ? "Service name" : "Product name"}
+          label={kind === "stay" ? "Listing name" : kind === "service" ? "Service name" : kind === "digital" ? "Title" : "Product name"}
           name="name"
-          placeholder={kind === "stay" ? "e.g. 2-bed flat in Ikeja GRA" : kind === "service" ? "e.g. AC servicing" : "e.g. Tigernut + dates"}
+          placeholder={
+            kind === "stay" ? "e.g. 2-bed flat in Ikeja GRA" : kind === "service" ? "e.g. AC servicing" : kind === "digital" ? "e.g. Mission prep journal (PDF)" : "e.g. Tigernut + dates"
+          }
           defaultValue={v?.name ?? product?.name}
         />
 
@@ -168,6 +175,41 @@ export default function ProductForm({ product, first, defaultKind = "item" }: { 
               placeholder="e.g. Flat 3, 12 Isaac John Street, GRA Ikeja"
               hint="Only guests with an accepted booking see this."
               defaultValue={v?.privateAddress ?? product?.privateAddress ?? ""}
+            />
+          </>
+        )}
+
+        {kind === "digital" && (
+          <>
+            <Field
+              label="Price (₦)"
+              name="price"
+              inputMode="numeric"
+              placeholder="2500"
+              hint="Put 0 to give it away free. Free downloads help new buyers find you."
+              defaultValue={v?.price ?? (product ? String(product.priceKobo / 100) : "")}
+            />
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-bold">The file buyers get</span>
+              {product?.fileName && (
+                <span className="rounded-[14px] bg-soft px-3.5 py-2.5 text-[13px] font-semibold text-deep">
+                  Now: {product.fileName} ({fileLabel(product.fileName, product.fileSize)}). Choose a new file below to replace it.
+                </span>
+              )}
+              <FileInput
+                name="file"
+                accept={FILE_ACCEPT}
+                required={!product?.fileName}
+                className="rounded-[14px] border border-[#d5dae4] bg-white px-3.5 py-3 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-ink file:px-3.5 file:py-2 file:text-[13px] file:font-bold file:text-white"
+              />
+              <span className="text-xs text-muted">PDF, EPUB, ZIP, MP3, DOCX, XLSX or PPTX, up to {maxFileMb} MB. Kept private until someone pays.</span>
+            </label>
+            <TextBox
+              label="What's inside"
+              name="about"
+              defaultValue={v?.about ?? product?.about ?? ""}
+              placeholder="e.g. 40 pages of daily study plans, scripture lists and journaling prompts for future missionaries."
+              optional={false}
             />
           </>
         )}

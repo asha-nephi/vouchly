@@ -8,6 +8,8 @@ export const CATEGORIES = [
   { id: "home_care", label: "Home care" },
   { id: "events", label: "Events" },
   { id: "tech", label: "Tech" },
+  { id: "learning", label: "Learning & digital" },
+  { id: "chefs", label: "Chefs & catering" },
 ] as const;
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 export const categoryLabel = (id: string) => CATEGORIES.find((c) => c.id === id)?.label ?? id;

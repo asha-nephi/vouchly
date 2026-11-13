@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { AREAS, CATEGORIES, CUTOFF_TIMES, DAY_KEYS, slugify, toKobo, type CategoryId } from "@/lib/catalog";
 import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
 import { AMENITIES, CHECK_TIMES } from "@/lib/listings";
+import { saveFile } from "@/lib/files";
 import { myShop } from "@/lib/shops";
 
 export type ShopFormState = { error?: string; values?: Record<string, string>; saved?: boolean } | undefined;
@@ -101,7 +102,7 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
   const { user, shop } = await requireShop();
   const id = String(form.get("id") ?? "");
   const str = (k: string, max = 200) => String(form.get(k) ?? "").trim().slice(0, max);
-  const kind = (["item", "stay", "service"] as const).find((k) => k === form.get("kind")) ?? "item";
+  const kind = (["item", "stay", "service", "digital"] as const).find((k) => k === form.get("kind")) ?? "item";
   const name = str("name", 80);
   const priceType = kind === "service" && form.get("priceType") === "quote" ? "quote" : "fixed";
   const on = (k: string) => form.get(k) === "on";
@@ -141,7 +142,8 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
   };
 
   if (name.length < 2) return fail(kind === "item" ? "Please enter the product name." : "Please give your listing a name.");
-  const priceKobo = kind === "service" && priceType === "quote" ? 0 : toKobo(values.price);
+  const priceKobo =
+    kind === "service" && priceType === "quote" ? 0 : kind === "digital" && values.price.replace(/[₦,\s]/g, "") === "0" ? 0 : toKobo(values.price);
   if (priceKobo === null) return fail("Please enter a price in naira, like 2500.");
 
   const maxPerDay = kind === "item" && values.maxPerDay ? Number(values.maxPerDay) : null;
@@ -152,6 +154,14 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     if (values.privateAddress.length < 6) return fail("Please add the full address. Only guests with an accepted booking see it.");
   }
   if (kind === "service" && !workDays.length) return fail("Please pick at least one day you work.");
+  if (kind === "digital" && values.about.length < 10) return fail("Please say what's inside, so buyers know what they get.");
+
+  // The digital file: a new upload, or keep the one already there.
+  const upload = form.get("file");
+  const [existing] = id ? await db.select({ fileId: products.fileId, fileName: products.fileName, fileSize: products.fileSize }).from(products).where(and(eq(products.id, id), eq(products.shopId, shop.id))).limit(1) : [];
+  let file = existing?.fileId ? { id: existing.fileId, name: existing.fileName ?? "", bytes: existing.fileSize ?? 0 } : null;
+  const newUpload = kind === "digital" && upload instanceof File && upload.size > 0 ? upload : null;
+  if (kind === "digital" && !newUpload && !file) return fail("Please add the file buyers will download.");
 
   const kept = form.getAll("keep").map(String).filter(isOurPhoto);
   const most = kind === "stay" ? 6 : 3;
@@ -163,6 +173,15 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
   }
   const photos = [...kept, ...added].slice(0, most);
   if (!photos.length) return fail("Please add at least one photo. Buyers trust what they can see.");
+
+  // Store the file last, once everything else is fine.
+  if (newUpload) {
+    try {
+      file = await saveFile(user.id, newUpload);
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+  }
 
   const n = (k: string) => (values[k] ? Number(values[k]) : null);
   const data = {
@@ -188,6 +207,9 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     priceUnit: kind === "service" && priceType === "fixed" ? values.priceUnit || null : null,
     serviceAreas: kind === "service" ? serviceAreas : [],
     workDays: kind === "service" ? workDays : [1, 2, 3, 4, 5, 6],
+    fileId: kind === "digital" ? file!.id : null,
+    fileName: kind === "digital" ? file!.name : null,
+    fileSize: kind === "digital" ? file!.bytes : null,
   } as const;
   if (id) {
     await db.update(products).set(data).where(and(eq(products.id, id), eq(products.shopId, shop.id)));

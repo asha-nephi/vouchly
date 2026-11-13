@@ -17,7 +17,7 @@ import SubmitButton from "@/components/submit-button";
 export const dynamic = "force-dynamic";
 
 const card = "rounded-[20px] bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]";
-const METHOD = { pickup: "Buyer picks up", drop_off: "You drop it off", rider: "Send with a rider", check_in: "Stay", visit: "Visit" } as const;
+const METHOD = { pickup: "Buyer picks up", drop_off: "You drop it off", rider: "Send with a rider", check_in: "Stay", visit: "Visit", download: "Digital download" } as const;
 
 export default async function SellerOrder({ params }: { params: Promise<{ code: string }> }) {
   const user = await requireUser();
@@ -121,6 +121,13 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
                 {o.guests ? ` · ${o.guests} ${o.guests === 1 ? "guest" : "guests"}` : ""}
               </p>
               {o.checkInInfo && <p className="mt-2 whitespace-pre-line rounded-[14px] bg-soft px-3 py-2.5 text-[13px]">You sent: {o.checkInInfo}</p>}
+            </>
+          ) : o.method === "download" ? (
+            <>
+              <p className="text-[13px] font-bold text-muted">Digital download</p>
+              <p className="mt-1 font-bold">
+                Bought {deliveryDayLabel(o.deliveryDay)} · downloaded {o.downloads} {o.downloads === 1 ? "time" : "times"}
+              </p>
             </>
           ) : o.method === "visit" ? (
             <>

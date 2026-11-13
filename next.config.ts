@@ -4,8 +4,8 @@ import type { NextConfig } from "next";
 const r2 = process.env.R2_PUBLIC_URL ? new URL(process.env.R2_PUBLIC_URL) : null;
 
 const nextConfig: NextConfig = {
-  // Room for a few shrunk photos per form.
-  experimental: { serverActions: { bodySizeLimit: "5mb" } },
+  // Room for photos and digital product files.
+  experimental: { serverActions: { bodySizeLimit: "30mb" } },
   poweredByHeader: false,
   images: {
     formats: ["image/webp"], // quick to make on a small server

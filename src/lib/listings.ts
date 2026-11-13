@@ -38,10 +38,12 @@ export function timeLabel(t: string | null) {
   return `${hr}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
 }
 
-export const KIND_LABEL = { item: "Product", stay: "Stay", service: "Service" } as const;
+export const KIND_LABEL = { item: "Product", stay: "Stay", service: "Service", digital: "Digital" } as const;
 
 type ListingLike = {
-  kind: "item" | "stay" | "service";
+  kind: "item" | "stay" | "service" | "digital";
+  fileName?: string | null;
+  fileSize?: number | null;
   priceKobo: number;
   priceType: "fixed" | "quote";
   priceUnit: string | null;
@@ -58,6 +60,7 @@ const money = (kobo: number) => `₦${(kobo / 100).toLocaleString("en-NG", { max
 export function priceText(p: ListingLike) {
   if (p.kind === "stay") return `${money(p.priceKobo)} a night`;
   if (p.kind === "service") return p.priceType === "quote" ? "Price after a chat" : [money(p.priceKobo), p.priceUnit].filter(Boolean).join(" ");
+  if (p.kind === "digital" && p.priceKobo === 0) return "Free";
   return money(p.priceKobo);
 }
 
@@ -66,5 +69,6 @@ export function listingLine(p: ListingLike) {
   if (p.kind === "stay")
     return [p.guests && `${p.guests} ${p.guests === 1 ? "guest" : "guests"}`, p.bedrooms && `${p.bedrooms} ${p.bedrooms === 1 ? "bedroom" : "bedrooms"}`].filter(Boolean).join(" · ");
   if (p.kind === "service") return ["Service", p.serviceAreas.length ? p.serviceAreas.slice(0, 3).join(", ") + (p.serviceAreas.length > 3 ? "…" : "") : "All of Lagos"].join(" · ");
+  if (p.kind === "digital") return ["Instant download", p.fileName?.split(".").pop()?.toUpperCase()].filter(Boolean).join(" · ");
   return [p.size, p.sellMode === "preorder" ? "Pre-order" : "In stock"].filter(Boolean).join(" · ");
 }

@@ -5,11 +5,12 @@ import { sql } from "drizzle-orm";
 
 // Money is stored in kobo (₦1 = 100 kobo) so there are no rounding errors.
 
-export const category = pgEnum("category", ["food", "stays", "repairs", "fashion", "home_care", "events", "tech"]);
+export const category = pgEnum("category", ["food", "stays", "repairs", "fashion", "home_care", "events", "tech", "learning", "chefs"]);
 export const sellMode = pgEnum("sell_mode", ["preorder", "in_stock"]);
 // check_in = a stay booking, visit = a service at the buyer's place.
-export const deliveryMethod = pgEnum("delivery_method", ["pickup", "drop_off", "rider", "check_in", "visit"]);
-export const productKind = pgEnum("product_kind", ["item", "stay", "service"]);
+// download = a digital product, sent at once.
+export const deliveryMethod = pgEnum("delivery_method", ["pickup", "drop_off", "rider", "check_in", "visit", "download"]);
+export const productKind = pgEnum("product_kind", ["item", "stay", "service", "digital"]);
 export const priceType = pgEnum("price_type", ["fixed", "quote"]);
 export const riderPayer = pgEnum("rider_payer", ["buyer_on_arrival", "fee_in_order"]);
 export const orderStatus = pgEnum("order_status", [
@@ -56,6 +57,18 @@ export const otpCodes = pgTable("otp_codes", {
 // Photos are kept in the database for now (already shrunk on the phone).
 // Swap src/lib/photos.ts to Cloudflare R2 later without touching anything else.
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
+// Paid files for digital products. Never public: downloads go through a check.
+export const files = pgTable("files", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull(),
+  r2Key: text("r2_key"), // set when stored on Cloudflare R2
+  data: bytea("data"), // set when stored in the database
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const photos = pgTable("photos", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -118,6 +131,10 @@ export const products = pgTable("products", {
   priceUnit: text("price_unit"), // e.g. "per visit"
   serviceAreas: jsonb("service_areas").$type<string[]>().notNull().default([]),
   workDays: jsonb("work_days").$type<number[]>().notNull().default([1, 2, 3, 4, 5, 6]),
+  // Digital products
+  fileId: uuid("file_id"),
+  fileName: text("file_name"),
+  fileSize: integer("file_size"),
   isActive: boolean("is_active").notNull().default(true), // seller paused it
   removed: boolean("removed").notNull().default(false), // seller deleted it
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -164,6 +181,7 @@ export const orders = pgTable("orders", {
   timeSlot: text("time_slot"),
   quoteNote: text("quote_note"),
   quotedAt: timestamp("quoted_at", { withTimezone: true }),
+  downloads: integer("downloads").notNull().default(0),
   accessToken: text("access_token"), // private link so a guest can open the order anywhere
   autoClosed: boolean("auto_closed").notNull().default(false), // marked received after the 48h window
   problem: text("problem"), // what the buyer reported

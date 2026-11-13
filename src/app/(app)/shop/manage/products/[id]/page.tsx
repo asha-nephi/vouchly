@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { myShop } from "@/lib/shops";
 import { BackBar } from "@/components/ui";
 import ProductForm from "../product-form";
+import { MAX_FILE_MB } from "@/lib/files";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
           Calendar: block dates <span aria-hidden="true">→</span>
         </Link>
       )}
-      <ProductForm product={product} />
+      <ProductForm maxFileMb={MAX_FILE_MB} product={product} />
     </main>
   );
 }

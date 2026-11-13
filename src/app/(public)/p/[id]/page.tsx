@@ -15,6 +15,8 @@ import { timeLabel } from "@/lib/listings";
 import { holdMode } from "@/lib/orders";
 import ServiceBooking from "./service-booking";
 import StayBooking from "./stay-booking";
+import DigitalBuy from "./digital-buy";
+import { fileLabel } from "@/lib/file-types";
 import { BasketBar, BasketProvider, Stepper } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
@@ -58,7 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     ? "This is your listing."
     : !shop.isOpen || !p.isActive
       ? "Not available to book right now."
-      : !holdMode() && !shop.paystackSubaccount
+      : !holdMode() && !shop.paystackSubaccount && !(p.kind === "digital" && p.priceKobo === 0)
         ? `${shop.name} hasn't set up payments yet.`
         : undefined;
   const today = todayKey();
@@ -68,7 +70,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     for (let k = addDays(today, 1); serviceDays.length < 14 && k <= addDays(today, 60); k = addDays(k, 1)) if (p.workDays.includes(weekday(k))) serviceDays.push(k);
   }
   const unit = p.kind === "stay" ? "a night" : p.kind === "service" ? (p.priceUnit ?? "") : (p.size ?? "");
-  const price = p.kind === "service" && p.priceType === "quote" ? "Price after a quick chat" : naira(p.priceKobo);
+  const price = p.kind === "service" && p.priceType === "quote" ? "Price after a quick chat" : p.kind === "digital" && p.priceKobo === 0 ? "Free" : naira(p.priceKobo);
 
   const facts = [
     d && { title: "Delivery", body: `${dayList(d.deliveryDays)} · order by ${cutoffLabel(d.orderCutoff)}` },
@@ -157,7 +159,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               ))}
             </div>
           )}
-          {p.kind !== "item" && (
+          {(p.kind === "stay" || p.kind === "service") && (
             <section className="rounded-[18px] bg-white px-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
               {(p.kind === "stay"
                 ? [
@@ -195,6 +197,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               disabled={blocked}
               guest={!me}
             />
+          )}
+          {p.kind === "digital" && (
+            <DigitalBuy productId={p.id} priceKobo={p.priceKobo} fileText={fileLabel(p.fileName, p.fileSize)} guest={!me} disabled={blocked} />
           )}
           {mine && p.kind === "stay" && (
             <Link href={`/shop/manage/products/${p.id}/calendar`} className="text-center text-sm font-bold text-accent">
