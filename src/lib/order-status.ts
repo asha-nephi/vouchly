@@ -20,6 +20,14 @@ export function statusLabel(status: string, method: string, seller = false) {
     if (m[status]) return m[status];
   }
   if (method === "download" && status === "received") return seller ? "Sold" : "Ready to download";
+  if (method === "session") {
+    const m: Record<string, string> = { paid: seller ? "New booking" : "Booked", confirmed: "Accepted", ready: seller ? "Details sent" : "Ready", received: "Done" };
+    if (m[status]) return m[status];
+  }
+  if (method === "event") {
+    const m: Record<string, string> = { ready: seller ? "Ticket sold" : "Ticket ready", received: seller ? "Ticket sold" : "Done" };
+    if (m[status]) return m[status];
+  }
   if (method === "visit") {
     const m: Record<string, string> = {
       paid: seller ? "New job" : "Booked",
@@ -49,7 +57,15 @@ const FLOW = ["paid", "confirmed", "preparing", "ready", "received"] as const;
 export function timeline(status: string, method: string) {
   let steps: { key: string; label: string }[];
   let order: string[];
-  if (method === "check_in") {
+  if (method === "session") {
+    steps = [
+      { key: "paid", label: "Paid" },
+      { key: "confirmed", label: "Accepted" },
+      { key: "ready", label: "Meeting details sent" },
+      { key: "received", label: "Session done" },
+    ];
+    order = ["paid", "confirmed", "ready", "received"];
+  } else if (method === "check_in") {
     steps = [
       { key: "paid", label: "Paid" },
       { key: "confirmed", label: "Host accepted" },
@@ -102,6 +118,12 @@ export const TO_DO = [...OPEN, "disputed", "requested", "quoted"] as const;
 // The seller's next step for an order, if any.
 // form: "rider" needs rider details, "checkin" needs check-in details.
 export function sellerNext(status: string, method: string): { to: string; label: string; form?: "rider" | "checkin" } | null {
+  if (method === "session") {
+    if (status === "paid") return { to: "confirmed", label: "Accept booking" };
+    if (status === "confirmed") return { to: "ready", label: "Send meeting details", form: "checkin" };
+    return null;
+  }
+  if (method === "event" || method === "download") return null;
   if (method === "check_in") {
     if (status === "paid") return { to: "confirmed", label: "Accept booking" };
     if (status === "confirmed") return { to: "ready", label: "Send check-in details", form: "checkin" };
@@ -128,6 +150,10 @@ export function buyerMessage(to: string, shop: string, method: string) {
   if (method === "check_in") {
     if (to === "confirmed") return `${shop} accepted your booking.`;
     if (to === "ready") return `${shop} sent your check-in details.`;
+  }
+  if (method === "session") {
+    if (to === "confirmed") return `${shop} accepted your session booking.`;
+    if (to === "ready") return `${shop} sent your session details.`;
   }
   if (method === "visit") {
     if (to === "confirmed") return `${shop} accepted your job.`;

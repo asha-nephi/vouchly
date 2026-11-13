@@ -236,7 +236,17 @@ export default async function ShopPage({
                   <Stepper productId={p.id} name={p.name} disabled={!canBuy} />
                 ) : (
                   <Link href={`/p/${p.id}`} className="flex h-10 shrink-0 items-center rounded-full bg-ink px-4 text-sm font-bold text-white">
-                    {p.kind === "stay" ? "Book" : p.kind === "digital" ? (p.priceKobo === 0 ? "Get" : "Buy") : p.priceType === "quote" ? "Ask" : "Book"}
+                    {p.kind === "stay" || p.kind === "session"
+                      ? "Book"
+                      : p.kind === "event"
+                        ? "Tickets"
+                        : p.kind === "digital"
+                          ? p.priceKobo === 0
+                            ? "Get"
+                            : "Buy"
+                          : p.priceType === "quote"
+                            ? "Ask"
+                            : "Book"}
                   </Link>
                 )}
               </div>

@@ -21,6 +21,8 @@ const METHOD = {
   check_in: "Stay",
   visit: "Visit",
   download: "Download",
+  session: "Session",
+  event: "Tickets",
 } as const;
 
 export default async function ShopOrders({

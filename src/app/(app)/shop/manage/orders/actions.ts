@@ -92,10 +92,16 @@ export async function sendCheckIn(_: OrderFormState, form: FormData): Promise<Or
   const code = String(form.get("code") ?? "");
   const info = String(form.get("info") ?? "").trim().slice(0, 1500);
   const { shop, order } = await sellerOrder(code);
-  if (order.method !== "check_in" || order.status !== "confirmed") return { error: "Check-in details can't be sent now." };
-  if (info.length < 10) return { error: "Please add the directions and how to get in.", values: { info } };
+  const session = order.method === "session";
+  if (!["check_in", "session"].includes(order.method) || order.status !== "confirmed") return { error: "These details can't be sent now." };
+  if (info.length < 10) return { error: session ? "Please add the meeting link or where to meet." : "Please add the directions and how to get in.", values: { info } };
   await db.update(orders).set({ status: "ready", checkInInfo: info }).where(and(eq(orders.id, order.id), eq(orders.status, "confirmed")));
-  await notify(order.buyerId, "Check-in details", `${shop.name} sent the address and how to get in.`, `/orders/${code}`);
+  await notify(
+    order.buyerId,
+    session ? "Session details" : "Check-in details",
+    session ? `${shop.name} sent the details for your session.` : `${shop.name} sent the address and how to get in.`,
+    `/orders/${code}`,
+  );
   revalidatePath(`/shop/manage/orders/${code}`);
   return undefined;
 }

@@ -105,3 +105,16 @@ textarea {
 .vouch-stamp {
   animation: vouch-stamp 520ms cubic-bezier(0.2, 0.8, 0.3, 1.2) 450ms both;
 }
+
+/* Top bar shown while a page is loading. */
+@keyframes nav-progress {
+  0% {
+    translate: -100% 0;
+  }
+  100% {
+    translate: 300% 0;
+  }
+}
+.nav-progress {
+  animation: nav-progress 900ms ease-in-out infinite;
+}

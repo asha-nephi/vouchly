@@ -62,25 +62,37 @@ export function RefundForm({ code, problem }: { code: string; problem?: boolean 
 const area = "rounded-[14px] border border-[#d5dae4] bg-white px-3.5 py-3 outline-none placeholder:text-[#8a93a5] focus:border-ink";
 
 // Host's directions and how to get in. Shows the guest the full address too.
-export function CheckInForm({ code, address }: { code: string; address: string | null }) {
+export function CheckInForm({ code, address, session, link }: { code: string; address: string | null; session?: boolean; link?: string | null }) {
   const [state, action, pending] = useActionState(sendCheckIn, undefined);
   return (
     <form action={action} className="flex flex-col gap-3 rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
       <input type="hidden" name="code" value={code} />
-      <p className="text-[15px] font-extrabold">Send check-in details</p>
+      <p className="text-[15px] font-extrabold">{session ? "Send meeting details" : "Send check-in details"}</p>
       <p className="-mt-1.5 text-[13px] text-muted">
-        {address ? `The guest will also see your address: ${address}.` : "Add the full address here, since your listing doesn't have one."}
+        {session
+          ? link
+            ? `They'll also see your meeting link: ${link}.`
+            : address
+              ? `They'll also see your address: ${address}.`
+              : "Add the meeting link or where to meet."
+          : address
+            ? `The guest will also see your address: ${address}.`
+            : "Add the full address here, since your listing doesn't have one."}
       </p>
       <textarea
         name="info"
         rows={4}
         required
         defaultValue={state?.values?.info}
-        placeholder="e.g. Flat 3, second floor. The gate man is Musa (0803…). Key is with him. Wi-Fi: Vouchly123"
+        placeholder={
+          session
+            ? "e.g. Here's our Google Meet link: https://meet.google.com/… Please bring your CV."
+            : "e.g. Flat 3, second floor. The gate man is Musa (0803…). Key is with him. Wi-Fi: Vouchly123"
+        }
         className={area}
       />
       <ErrorText message={state?.error} />
-      <PrimaryButton pending={pending}>Send to guest</PrimaryButton>
+      <PrimaryButton pending={pending}>{session ? "Send to client" : "Send to guest"}</PrimaryButton>
     </form>
   );
 }

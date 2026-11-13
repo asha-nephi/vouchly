@@ -9,8 +9,9 @@ export const category = pgEnum("category", ["food", "stays", "repairs", "fashion
 export const sellMode = pgEnum("sell_mode", ["preorder", "in_stock"]);
 // check_in = a stay booking, visit = a service at the buyer's place.
 // download = a digital product, sent at once.
-export const deliveryMethod = pgEnum("delivery_method", ["pickup", "drop_off", "rider", "check_in", "visit", "download"]);
-export const productKind = pgEnum("product_kind", ["item", "stay", "service", "digital"]);
+// session = a 1-on-1 booking at a set time, event = tickets to a class or event.
+export const deliveryMethod = pgEnum("delivery_method", ["pickup", "drop_off", "rider", "check_in", "visit", "download", "session", "event"]);
+export const productKind = pgEnum("product_kind", ["item", "stay", "service", "digital", "session", "event"]);
 export const priceType = pgEnum("price_type", ["fixed", "quote"]);
 export const riderPayer = pgEnum("rider_payer", ["buyer_on_arrival", "fee_in_order"]);
 export const orderStatus = pgEnum("order_status", [
@@ -135,6 +136,14 @@ export const products = pgTable("products", {
   fileId: uuid("file_id"),
   fileName: text("file_name"),
   fileSize: integer("file_size"),
+  // Sessions and events
+  online: boolean("online").notNull().default(true), // online meeting, or in person
+  durationMins: smallint("duration_mins"),
+  startHour: text("start_hour"), // sessions: first start time, "09:00"
+  endHour: text("end_hour"), // sessions: finish by, "17:00"
+  eventAt: timestamp("event_at", { withTimezone: true }),
+  seats: integer("seats"),
+  meetingLink: text("meeting_link"), // shown only to people who booked
   isActive: boolean("is_active").notNull().default(true), // seller paused it
   removed: boolean("removed").notNull().default(false), // seller deleted it
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

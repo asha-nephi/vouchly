@@ -13,7 +13,19 @@ export default async function NewProduct({ searchParams }: { searchParams: Promi
   if (!shop) redirect("/sell");
   const { first, kind } = await searchParams;
   // Start with what this kind of shop usually lists.
-  const guess = kind === "stay" || kind === "service" || kind === "item" || kind === "digital" ? kind : shop.category === "stays" ? "stay" : ["repairs", "home_care", "events", "chefs"].includes(shop.category) ? "service" : shop.category === "learning" ? "digital" : "item";
+  const kinds = ["item", "stay", "service", "digital", "session", "event"] as const;
+  const asked = kinds.find((k) => k === kind);
+  const guess =
+    asked ??
+    (shop.category === "stays"
+      ? "stay"
+      : ["repairs", "home_care", "chefs"].includes(shop.category)
+        ? "service"
+        : shop.category === "events"
+          ? "event"
+          : shop.category === "learning"
+            ? "digital"
+            : "item");
   return (
     <main className="mx-auto min-h-dvh max-w-md">
       <BackBar title="Add a listing" href="/shop/manage" />

@@ -26,6 +26,11 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
   return (
     <main className="mx-auto min-h-dvh max-w-md">
       <BackBar title="Edit listing" href="/shop/manage" />
+      {product.kind === "event" && (
+        <Link href={`/shop/manage/products/${product.id}/attendees`} className="mx-4 mb-2 flex items-center justify-between rounded-[18px] bg-soft px-4 py-3 text-[15px] font-bold text-deep">
+          Who&apos;s coming <span aria-hidden="true">→</span>
+        </Link>
+      )}
       {product.kind === "stay" && (
         <Link href={`/shop/manage/products/${product.id}/calendar`} className="mx-4 mb-2 flex items-center justify-between rounded-[18px] bg-soft px-4 py-3 text-[15px] font-bold text-deep">
           Calendar: block dates <span aria-hidden="true">→</span>

@@ -26,7 +26,7 @@ import {
 } from "@/lib/orders";
 import { statusLabel, timeline } from "@/lib/order-status";
 import { dateToKey, nightsBetween, shortDay } from "@/lib/dates";
-import { slotLabel, timeLabel } from "@/lib/listings";
+import { eventWhen, slotLabel, timeLabel } from "@/lib/listings";
 import { dropRequest } from "@/app/(app)/book/actions";
 import PayQuote from "./pay-quote";
 import { BackBar, Note } from "@/components/ui";
@@ -80,10 +80,12 @@ export default async function OrderPage({
   const visit = o.method === "visit";
   const digital = o.method === "download";
   const canDownload = digital && ["received", "disputed"].includes(o.status);
-  const booking = stay || visit;
+  const session = o.method === "session";
+  const event = o.method === "event";
+  const booking = stay || visit || session || event;
   // Full address and check-in details show once the host has sent them.
   const [listing] =
-    stay && items[0] && ["ready", "received", "disputed"].includes(o.status)
+    (stay || session || event) && items[0] && ["ready", "received", "disputed"].includes(o.status)
       ? await db
           .select()
           .from(products)
@@ -120,11 +122,14 @@ export default async function OrderPage({
     stay && o.checkOut
       ? nightsBetween(dateToKey(o.deliveryDay), dateToKey(o.checkOut))
       : 0;
-  const dayText =
-    stay && o.checkOut
+  const dayText = session || event
+    ? eventWhen(o.deliveryDay)
+    : stay && o.checkOut
       ? `${shortDay(dateToKey(o.deliveryDay))} → ${shortDay(dateToKey(o.checkOut))}`
       : deliveryDayLabel(o.deliveryDay);
-  const doneLabel = stay
+  const doneLabel = session
+    ? "The session is done"
+    : stay
     ? "I've checked in"
     : visit
       ? "The job is done"
@@ -132,6 +137,10 @@ export default async function OrderPage({
   const hold = holdMode();
   const where = digital
     ? "Digital download"
+    : session
+    ? `${listing ? (listing.online ? "Online" : "In person") : ""} session, ${dayText}`.trim()
+    : event
+    ? `${items[0]?.size ?? "Ticket"}, ${dayText}`
     : stay
       ? `Stay in ${shop.area} · ${nights} ${nights === 1 ? "night" : "nights"}${o.guests ? ` · ${o.guests} ${o.guests === 1 ? "guest" : "guests"}` : ""}`
       : visit
@@ -179,6 +188,10 @@ export default async function OrderPage({
           <p className="text-[15px] leading-relaxed text-muted">
             {digital
               ? `${total ? `You paid ${naira(total)}. ` : ""}Download it now, or any time from your orders.`
+              : event
+              ? `${total ? `You paid ${naira(total)}. ` : ""}Your ${(items[0]?.quantity ?? 1) > 1 ? (total ? "tickets are" : "seats are") : total ? "ticket is" : "seat is"} ready. Show code ${o.code} when you arrive.`
+              : session
+              ? `You paid ${naira(total)}. ${shop.name} will accept and send the meeting details.`
               : o.status === "requested"
                 ? `${shop.name} will look at your request and send you a price. You only pay if you accept it.`
                 : hold
@@ -194,14 +207,16 @@ export default async function OrderPage({
               ["Order", o.code],
               ["From", shop.name],
               [
-                stay
+                session || event
+                  ? "When"
+                  : stay
                   ? "Dates"
                   : visit
                     ? "Visit"
                     : digital
                       ? "Bought"
                       : "Delivery day",
-                stay
+                stay || session || event
                   ? dayText
                   : visit
                     ? `${deliveryDayLabel(o.deliveryDay)}, ${slotLabel(o.timeSlot)}`
@@ -283,6 +298,7 @@ export default async function OrderPage({
         )}
 
         {!digital &&
+          !event &&
           ![
             "awaiting_payment",
             "cancelled",
@@ -476,6 +492,47 @@ export default async function OrderPage({
             </form>
           </section>
         )}
+        {event && ["ready", "received", "disputed"].includes(o.status) && (
+          <section className="overflow-hidden rounded-[24px] bg-ink text-white">
+            <div className="p-5">
+              <p className="text-xs font-bold text-[#afc0ff]">{items[0]?.size ?? "Ticket"}</p>
+              <p className="mt-1 text-xl font-extrabold">{items[0]?.name}</p>
+              <p className="mt-1 text-[15px] text-[#c9d1e3]">{dayText}</p>
+            </div>
+            <div className="border-t border-dashed border-white/25 p-5">
+              <p className="text-xs font-bold text-[#afc0ff]">Show this at the door</p>
+              <p className="mt-1 text-[28px] font-extrabold tracking-widest">{o.code}</p>
+              {listing && (
+                <p className="mt-2 break-words text-sm text-[#dce4fb]">
+                  {listing.online ? (
+                    listing.meetingLink ? (
+                      <a href={listing.meetingLink} target="_blank" rel="noreferrer" className="font-bold text-white underline">
+                        Join online: {listing.meetingLink}
+                      </a>
+                    ) : (
+                      "Online. The host will share the link here before it starts."
+                    )
+                  ) : (
+                    listing.privateAddress
+                  )}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+        {session && ["ready", "received", "disputed"].includes(o.status) && (o.checkInInfo || listing?.meetingLink || listing?.privateAddress) && (
+          <section className="rounded-[20px] bg-soft p-4 text-sm">
+            <p className="text-xs font-bold text-deep">Session details</p>
+            <p className="mt-1 text-[15px] font-extrabold">{dayText}</p>
+            {listing?.online && listing.meetingLink && (
+              <a href={listing.meetingLink} target="_blank" rel="noreferrer" className="mt-1 block break-words font-bold text-accent underline">
+                {listing.meetingLink}
+              </a>
+            )}
+            {listing && !listing.online && listing.privateAddress && <p className="mt-1 font-bold">{listing.privateAddress}</p>}
+            {o.checkInInfo && <p className="mt-1.5 whitespace-pre-line leading-relaxed">{o.checkInInfo}</p>}
+          </section>
+        )}
         {canDownload && (
           <a
             href={`/api/download/${o.code}`}
@@ -540,7 +597,7 @@ export default async function OrderPage({
           <Note>{o.problemResolution}</Note>
         )}
 
-        {open && (
+        {open && !event && (
           <>
             <Note>
               {hold ? (

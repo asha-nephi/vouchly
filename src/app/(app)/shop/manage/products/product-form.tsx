@@ -8,10 +8,10 @@ import PhotoPicker from "@/components/photo-picker";
 import FileInput from "@/components/file-input";
 import SubmitButton from "@/components/submit-button";
 import { AREAS, DAYS } from "@/lib/catalog";
-import { AMENITIES, CHECK_TIMES, timeLabel } from "@/lib/listings";
+import { AMENITIES, CHECK_TIMES, DAY_HOURS, DURATIONS, durationLabel, timeLabel } from "@/lib/listings";
 import { FILE_ACCEPT, fileLabel } from "@/lib/file-types";
 
-type Kind = "item" | "stay" | "service" | "digital";
+type Kind = "item" | "stay" | "service" | "digital" | "session" | "event";
 type Product = {
   id: string;
   kind: Kind;
@@ -38,6 +38,13 @@ type Product = {
   workDays: number[];
   fileName: string | null;
   fileSize: number | null;
+  online: boolean;
+  durationMins: number | null;
+  startHour: string | null;
+  endHour: string | null;
+  eventAt: Date | null;
+  seats: number | null;
+  meetingLink: string | null;
 };
 
 const KINDS = [
@@ -45,6 +52,8 @@ const KINDS = [
   { value: "stay", title: "A stay", detail: "Shortlet, apartment or room guests book by the night" },
   { value: "service", title: "A service", detail: "Plumbing, carpentry, cleaning, repairs, catering, makeup…" },
   { value: "digital", title: "A digital product", detail: "E-book, guide, templates, audio. Buyers download it right after paying" },
+  { value: "session", title: "A 1-on-1 session", detail: "Coaching, tutoring, CV reviews, lessons. Buyers pick a time" },
+  { value: "event", title: "A class or event", detail: "Workshops, cooking classes, seminars. Set seats and sell tickets" },
 ] as const;
 
 const area = "rounded-[14px] border border-[#d5dae4] bg-white px-3.5 py-3 leading-relaxed outline-none placeholder:text-[#8a93a5] focus:border-ink";
@@ -65,6 +74,7 @@ export default function ProductForm({ product, first, defaultKind = "item", maxF
   const v = state?.values;
   const [kind, setKind] = useState<Kind>((v?.kind as Kind) ?? product?.kind ?? defaultKind);
   const [priceType, setPriceType] = useState(v?.priceType ?? product?.priceType ?? "fixed");
+  const [online, setOnline] = useState(v?.online ? v.online === "on" : (product?.online ?? true));
   const mode = v?.sellMode ?? product?.sellMode ?? "preorder";
   const list = (key: string, saved: string[] | undefined) => (v?.[key] !== undefined ? v[key].split("|") : (saved ?? []));
   const amenities = list("amenities", product?.amenities);
@@ -111,10 +121,16 @@ export default function ProductForm({ product, first, defaultKind = "item", maxF
           label={kind === "stay" ? "Photos (up to 6: rooms, bathroom, outside)" : kind === "digital" ? "Cover picture (up to 3)" : "Photos (up to 3)"}
         />
         <Field
-          label={kind === "stay" ? "Listing name" : kind === "service" ? "Service name" : kind === "digital" ? "Title" : "Product name"}
+          label={kind === "stay" ? "Listing name" : kind === "service" ? "Service name" : kind === "item" ? "Product name" : "Title"}
           name="name"
           placeholder={
-            kind === "stay" ? "e.g. 2-bed flat in Ikeja GRA" : kind === "service" ? "e.g. AC servicing" : kind === "digital" ? "e.g. Mission prep journal (PDF)" : "e.g. Tigernut + dates"
+            kind === "stay" ? "e.g. 2-bed flat in Ikeja GRA" : kind === "service" ? "e.g. AC servicing" : kind === "digital"
+                  ? "e.g. Mission prep journal (PDF)"
+                  : kind === "session"
+                    ? "e.g. CV review and interview practice"
+                    : kind === "event"
+                      ? "e.g. Bread baking class"
+                      : "e.g. Tigernut + dates"
           }
           defaultValue={v?.name ?? product?.name}
         />
@@ -211,6 +227,109 @@ export default function ProductForm({ product, first, defaultKind = "item", maxF
               placeholder="e.g. 40 pages of daily study plans, scripture lists and journaling prompts for future missionaries."
               optional={false}
             />
+          </>
+        )}
+
+        {(kind === "session" || kind === "event") && (
+          <>
+            <Field
+              label={kind === "session" ? "Price a session (₦)" : "Ticket price (₦)"}
+              name="price"
+              inputMode="numeric"
+              placeholder={kind === "session" ? "10000" : "5000"}
+              hint={kind === "event" ? "Put 0 for a free event. People still reserve a seat." : undefined}
+              defaultValue={v?.price ?? (product ? String(product.priceKobo / 100) : "")}
+            />
+            <TextBox
+              label={kind === "session" ? "What you'll cover" : "About the event"}
+              name="about"
+              optional={false}
+              defaultValue={v?.about ?? product?.about ?? ""}
+              placeholder={kind === "session" ? "e.g. Interview practice and CV review for your first job after your mission." : "e.g. Learn to bake 3 kinds of bread. All ingredients provided."}
+            />
+            <input type="hidden" name="online" value={online ? "on" : "off"} />
+            <p className="text-[15px] font-extrabold">Where?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { on: true, label: "Online", detail: "Zoom, Meet, WhatsApp" },
+                { on: false, label: "In person", detail: "At an address" },
+              ].map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  onClick={() => setOnline(o.on)}
+                  aria-pressed={online === o.on}
+                  className={`rounded-[18px] px-4 py-3 text-left ${online === o.on ? "bg-ink text-white" : "bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]"}`}
+                >
+                  <span className="block text-[15px] font-bold">{o.label}</span>
+                  <span className={`block text-xs ${online === o.on ? "text-[#c9d1e3]" : "text-muted"}`}>{o.detail}</span>
+                </button>
+              ))}
+            </div>
+            {online ? (
+              <Field
+                label="Meeting link"
+                name="meetingLink"
+                placeholder="https://meet.google.com/…"
+                required={false}
+                hint={kind === "session" ? "Optional. You can also send a link to each person when you accept." : "Only people with a ticket see it. You can add it later."}
+                defaultValue={v?.meetingLink ?? product?.meetingLink ?? ""}
+              />
+            ) : (
+              <Field
+                label="Full address"
+                name="privateAddress"
+                placeholder="e.g. 12 Isaac John Street, GRA Ikeja"
+                hint="Only people who booked see this."
+                defaultValue={v?.privateAddress ?? product?.privateAddress ?? ""}
+              />
+            )}
+            {kind === "session" ? (
+              <>
+                <Select
+                  label="How long is a session?"
+                  name="durationMins"
+                  defaultValue={v?.durationMins ?? String(product?.durationMins ?? 60)}
+                  options={DURATIONS.map((d) => ({ value: String(d), label: durationLabel(d) }))}
+                />
+                <p className="text-[15px] font-extrabold">When are you free?</p>
+                <ChipChecks items={DAYS.map((d, i) => ({ key: String(i), label: d }))} prefix="workday:" checked={(k) => days.includes(Number(k))} />
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Select label="From" name="startHour" defaultValue={v?.startHour ?? product?.startHour ?? "09:00"} options={DAY_HOURS.map((t) => ({ value: t, label: timeLabel(t) }))} />
+                  <Select label="Until" name="endHour" defaultValue={v?.endHour ?? product?.endHour ?? "17:00"} options={DAY_HOURS.map((t) => ({ value: t, label: timeLabel(t) }))} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-bold">Date</span>
+                    <input
+                      type="date"
+                      name="eventDate"
+                      required
+                      defaultValue={v?.eventDate ?? (product?.eventAt ? new Date(product.eventAt.getTime() + 3600_000).toISOString().slice(0, 10) : "")}
+                      className="h-[50px] rounded-[14px] border border-[#d5dae4] bg-white px-3.5 outline-none focus:border-ink"
+                    />
+                  </label>
+                  <Select
+                    label="Starts at"
+                    name="eventTime"
+                    defaultValue={v?.eventTime ?? (product?.eventAt ? new Date(product.eventAt.getTime() + 3600_000).toISOString().slice(11, 16) : "10:00")}
+                    options={DAY_HOURS.map((t) => ({ value: t, label: timeLabel(t) }))}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field label="Seats" name="seats" inputMode="numeric" placeholder="30" defaultValue={num("seats", product?.seats)} />
+                  <Select
+                    label="Length"
+                    name="durationMins"
+                    defaultValue={v?.durationMins ?? String(product?.durationMins ?? 120)}
+                    options={[60, 90, 120, 180, 240, 300, 480].map((d) => ({ value: String(d), label: durationLabel(d) }))}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
 

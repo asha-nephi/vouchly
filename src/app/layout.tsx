@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/manrope";
 import "./globals.css";
+import NavProgress from "@/components/nav-progress";
 
 const SITE = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
 const TITLE = "Vouchly: buy from people your ward can vouch for";
@@ -42,7 +43,10 @@ export const viewport: Viewport = { themeColor: "#14213d", width: "device-width"
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en-NG">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <NavProgress />
+        {children}
+      </body>
     </html>
   );
 }

@@ -11,11 +11,14 @@ import { basketStart } from "@/lib/basket-view";
 import { AREAS, cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { takenNights } from "@/lib/bookings";
 import { addDays, todayKey, weekday } from "@/lib/dates";
-import { timeLabel } from "@/lib/listings";
+import { durationLabel, eventWhen, timeLabel } from "@/lib/listings";
 import { holdMode } from "@/lib/orders";
 import ServiceBooking from "./service-booking";
 import StayBooking from "./stay-booking";
 import DigitalBuy from "./digital-buy";
+import EventTickets from "./event-tickets";
+import SessionBooking from "./session-booking";
+import { sessionSlots, ticketsTaken } from "@/lib/sessions";
 import { fileLabel } from "@/lib/file-types";
 import { BasketBar, BasketProvider, Stepper } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
@@ -60,7 +63,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     ? "This is your listing."
     : !shop.isOpen || !p.isActive
       ? "Not available to book right now."
-      : !holdMode() && !shop.paystackSubaccount && !(p.kind === "digital" && p.priceKobo === 0)
+      : p.kind === "event" && p.eventAt && p.eventAt.getTime() < Date.now()
+        ? "This event has already happened."
+      : !holdMode() && !shop.paystackSubaccount && !((p.kind === "digital" || p.kind === "event") && p.priceKobo === 0)
         ? `${shop.name} hasn't set up payments yet.`
         : undefined;
   const today = todayKey();
@@ -69,8 +74,11 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (p.kind === "service") {
     for (let k = addDays(today, 1); serviceDays.length < 14 && k <= addDays(today, 60); k = addDays(k, 1)) if (p.workDays.includes(weekday(k))) serviceDays.push(k);
   }
-  const unit = p.kind === "stay" ? "a night" : p.kind === "service" ? (p.priceUnit ?? "") : (p.size ?? "");
-  const price = p.kind === "service" && p.priceType === "quote" ? "Price after a quick chat" : p.kind === "digital" && p.priceKobo === 0 ? "Free" : naira(p.priceKobo);
+  const slots = p.kind === "session" ? await sessionSlots(p) : [];
+  const left = p.kind === "event" && p.seats ? p.seats - (await ticketsTaken(p.id)) : 0;
+  const unit = p.kind === "session" ? "a session" : p.kind === "stay" ? "a night" : p.kind === "service" ? (p.priceUnit ?? "") : (p.size ?? "");
+  const price =
+    p.kind === "service" && p.priceType === "quote" ? "Price after a quick chat" : (p.kind === "digital" || p.kind === "event") && p.priceKobo === 0 ? "Free" : naira(p.priceKobo);
 
   const facts = [
     d && { title: "Delivery", body: `${dayList(d.deliveryDays)} · order by ${cutoffLabel(d.orderCutoff)}` },
@@ -198,6 +206,24 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               guest={!me}
             />
           )}
+          {(p.kind === "session" || p.kind === "event") && (
+            <section className="rounded-[18px] bg-white px-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
+              {[
+                p.kind === "event" && { title: "When", body: `${eventWhen(p.eventAt)}${p.durationMins ? `, for ${durationLabel(p.durationMins)}` : ""}` },
+                p.kind === "session" && { title: "Length", body: durationLabel(p.durationMins) },
+                { title: "Where", body: p.online ? "Online. You get the link after booking." : `In person in ${shop.area}, Lagos. You get the address after booking.` },
+              ]
+                .filter((f): f is { title: string; body: string } => !!f)
+                .map((f, i, all) => (
+                  <div key={f.title} className={`py-3 ${i < all.length - 1 ? "border-b border-[#eef0f4]" : ""}`}>
+                    <p className="text-sm font-bold">{f.title}</p>
+                    <p className="text-[13px] text-muted">{f.body}</p>
+                  </div>
+                ))}
+            </section>
+          )}
+          {p.kind === "session" && <SessionBooking productId={p.id} priceKobo={p.priceKobo} slots={slots} guest={!me} disabled={blocked} />}
+          {p.kind === "event" && <EventTickets productId={p.id} priceKobo={p.priceKobo} left={left} guest={!me} disabled={blocked} />}
           {p.kind === "digital" && (
             <DigitalBuy productId={p.id} priceKobo={p.priceKobo} fileText={fileLabel(p.fileName, p.fileSize)} guest={!me} disabled={blocked} />
           )}

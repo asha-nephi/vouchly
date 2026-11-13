@@ -10,7 +10,8 @@ import { buyerFor, guestValues } from "@/lib/guest";
 import { takenNights } from "@/lib/bookings";
 import { AREAS, naira } from "@/lib/catalog";
 import { addDays, isDayKey, keyToDate, nightsBetween, nightsOf, shortDay, todayKey, weekday } from "@/lib/dates";
-import { TIME_SLOTS } from "@/lib/listings";
+import { durationLabel, TIME_SLOTS } from "@/lib/listings";
+import { lagosAt, sessionSlots, ticketsTaken } from "@/lib/sessions";
 import { notify } from "@/lib/notify";
 import { holdMode } from "@/lib/orders";
 import { paystackReady } from "@/lib/paystack";
@@ -190,6 +191,105 @@ export async function buyDigital(_: BookState, form: FormData): Promise<BookStat
     redirect(`/orders/${code}?placed=1`);
   }
   const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: p.priceKobo, totalKobo: p.priceKobo });
+  if (!pay.url) return fail(pay.error!);
+  redirect(pay.url);
+}
+
+// The listing and shop for a session or event.
+async function listing(productId: string, kind: "session" | "event") {
+  const [row] = await db
+    .select({ p: products, shop: shops })
+    .from(products)
+    .innerJoin(shops, eq(shops.id, products.shopId))
+    .where(and(eq(products.id, productId), eq(products.kind, kind), eq(products.isActive, true), eq(products.removed, false)))
+    .limit(1);
+  return row ?? null;
+}
+
+// Book a 1-on-1 session at a free time.
+export async function bookSession(_: BookState, form: FormData): Promise<BookState> {
+  const me = await currentUser();
+  const values = { day: String(form.get("day") ?? ""), time: String(form.get("time") ?? ""), note: String(form.get("note") ?? "").trim().slice(0, 500), ...guestValues(form) };
+  const fail = (error: string): BookState => ({ error, values });
+  const row = await listing(String(form.get("productId") ?? ""), "session");
+  if (!row) return fail("This session isn't available any more.");
+  const { p, shop } = row;
+  if (!shop.isOpen) return fail("This shop is closed for now.");
+  if (me && shop.ownerId === me.id) return fail("You can't book your own session.");
+  if (!holdMode() && !shop.paystackSubaccount) return fail(`${shop.name} hasn't set up payments yet.`);
+  if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
+  // The time must still be one of the open slots.
+  const open = await sessionSlots(p);
+  if (!open.some((d) => d.day === values.day && d.times.includes(values.time))) return fail("That time was just taken. Please pick another.");
+
+  const who = await buyerFor(form);
+  if ("error" in who) return fail(who.error);
+  const user = who.user;
+  const code = await newOrderCode();
+  const [order] = await db
+    .insert(orders)
+    .values({
+      code,
+      accessToken: makeToken(),
+      buyerId: user.id,
+      shopId: shop.id,
+      deliveryDay: lagosAt(values.day, values.time),
+      timeSlot: values.time,
+      method: "session",
+      note: values.note || null,
+      itemsKobo: p.priceKobo,
+    })
+    .returning({ id: orders.id });
+  await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: durationLabel(p.durationMins), quantity: 1, priceKobo: p.priceKobo });
+  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: p.priceKobo, totalKobo: p.priceKobo });
+  if (!pay.url) return fail(pay.error!);
+  redirect(pay.url);
+}
+
+// Tickets for a class or event. Free events reserve seats without payment.
+export async function buyTickets(_: BookState, form: FormData): Promise<BookState> {
+  const me = await currentUser();
+  const values = { qty: String(form.get("qty") ?? "1"), ...guestValues(form) };
+  const fail = (error: string): BookState => ({ error, values });
+  const row = await listing(String(form.get("productId") ?? ""), "event");
+  if (!row || !row.p.eventAt || !row.p.seats) return fail("This event isn't available any more.");
+  const { p, shop } = row;
+  if (p.eventAt!.getTime() < Date.now()) return fail("This event has already started.");
+  if (!shop.isOpen) return fail("This shop is closed for now.");
+  if (me && shop.ownerId === me.id) return fail("You can't buy tickets to your own event.");
+  const free = p.priceKobo === 0;
+  if (!free && !holdMode() && !shop.paystackSubaccount) return fail(`${shop.name} hasn't set up payments yet.`);
+  if (!free && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
+  const qty = Number(values.qty);
+  if (!Number.isInteger(qty) || qty < 1 || qty > 10) return fail("You can get 1 to 10 tickets at a time.");
+  const left = p.seats! - (await ticketsTaken(p.id));
+  if (left <= 0) return fail("Sorry, this event is sold out.");
+  if (qty > left) return fail(`Only ${left} ${left === 1 ? "seat is" : "seats are"} left.`);
+
+  const who = await buyerFor(form);
+  if ("error" in who) return fail(who.error);
+  const user = who.user;
+  const itemsKobo = p.priceKobo * qty;
+  const code = await newOrderCode();
+  const [order] = await db
+    .insert(orders)
+    .values({
+      code,
+      accessToken: makeToken(),
+      buyerId: user.id,
+      shopId: shop.id,
+      deliveryDay: p.eventAt!,
+      method: "event",
+      itemsKobo,
+      status: free ? "ready" : "awaiting_payment",
+    })
+    .returning({ id: orders.id });
+  await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: qty === 1 ? "1 ticket" : `${qty} tickets`, quantity: qty, priceKobo: p.priceKobo });
+  if (free) {
+    await notify(shop.ownerId, "New sign-up", `${user.name} reserved ${qty === 1 ? "a seat" : `${qty} seats`} for “${p.name}”.`, `/shop/manage/orders/${code}`);
+    redirect(`/orders/${code}?placed=1`);
+  }
+  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo, totalKobo: itemsKobo });
   if (!pay.url) return fail(pay.error!);
   redirect(pay.url);
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,7 +8,7 @@ import { naira } from "@/lib/catalog";
 import { deliveryDayLabel, holdMode, problemDeadline, shortDateTime, telLink, waLink } from "@/lib/orders";
 import { PROBLEMS, SELLER_STATUS, sellerNext, statusLabel, TONE } from "@/lib/order-status";
 import { dateToKey, nightsBetween, shortDay } from "@/lib/dates";
-import { slotLabel } from "@/lib/listings";
+import { eventWhen, slotLabel } from "@/lib/listings";
 import { myShop } from "@/lib/shops";
 import { BackBar, Note } from "@/components/ui";
 import { advanceOrder } from "../actions";
@@ -17,7 +18,7 @@ import SubmitButton from "@/components/submit-button";
 export const dynamic = "force-dynamic";
 
 const card = "rounded-[20px] bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]";
-const METHOD = { pickup: "Buyer picks up", drop_off: "You drop it off", rider: "Send with a rider", check_in: "Stay", visit: "Visit", download: "Digital download" } as const;
+const METHOD = { pickup: "Buyer picks up", drop_off: "You drop it off", rider: "Send with a rider", check_in: "Stay", visit: "Visit", download: "Digital download", session: "Session", event: "Event tickets" } as const;
 
 export default async function SellerOrder({ params }: { params: Promise<{ code: string }> }) {
   const user = await requireUser();
@@ -41,7 +42,7 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
   const pay = pays.find((p) => p.status !== "pending") ?? null;
   const fee = pay?.feeKobo ?? Math.round(o.itemsKobo * 0.05);
   const youGet = pay?.sellerKobo ?? o.itemsKobo + o.deliveryFeeKobo - fee;
-  const [listing] = o.method === "check_in" && items[0] ? await db.select().from(products).where(eq(products.id, items[0].productId)).limit(1) : [];
+  const [listing] = ["check_in", "session", "event"].includes(o.method) && items[0] ? await db.select().from(products).where(eq(products.id, items[0].productId)).limit(1) : [];
   const s = { label: statusLabel(o.status, o.method, true), tone: SELLER_STATUS[o.status].tone };
   const next = sellerNext(o.status, o.method);
   const canRefund = ["paid", "confirmed", "preparing", "ready", "on_the_way", "disputed"].includes(o.status);
@@ -122,6 +123,12 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
               </p>
               {o.checkInInfo && <p className="mt-2 whitespace-pre-line rounded-[14px] bg-soft px-3 py-2.5 text-[13px]">You sent: {o.checkInInfo}</p>}
             </>
+          ) : o.method === "session" || o.method === "event" ? (
+            <>
+              <p className="text-[13px] font-bold text-muted">{o.method === "session" ? "Session" : `Event · ticket code ${o.code}`}</p>
+              <p className="mt-1 font-bold">{eventWhen(o.deliveryDay)}</p>
+              {listing && <p className="mt-0.5 text-muted">{listing.online ? "Online" : listing.privateAddress}</p>}
+            </>
           ) : o.method === "download" ? (
             <>
               <p className="text-[13px] font-bold text-muted">Digital download</p>
@@ -168,7 +175,14 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
             <DeclineForm code={o.code} />
           </>
         )}
-        {next?.form === "checkin" && <CheckInForm code={o.code} address={listing?.privateAddress ?? null} />}
+        {next?.form === "checkin" && (
+          <CheckInForm code={o.code} address={listing?.privateAddress ?? null} session={o.method === "session"} link={listing?.meetingLink ?? null} />
+        )}
+        {o.method === "event" && listing && (
+          <Link href={`/shop/manage/products/${listing.id}/attendees`} className="flex h-[54px] items-center justify-center rounded-2xl bg-ink text-[15px] font-bold text-white">
+            See everyone coming
+          </Link>
+        )}
         {next && !next.form && (
           <form action={advanceOrder}>
             <input type="hidden" name="code" value={o.code} />

@@ -2,9 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products, shops } from "@/db/schema";
+import { deliverySettings, orderItems, orders, products, shops } from "@/db/schema";
+import { notify } from "@/lib/notify";
 import { requireUser } from "@/lib/auth";
 import { AREAS, CATEGORIES, CUTOFF_TIMES, DAY_KEYS, slugify, toKobo, type CategoryId } from "@/lib/catalog";
 import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
@@ -102,7 +103,7 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
   const { user, shop } = await requireShop();
   const id = String(form.get("id") ?? "");
   const str = (k: string, max = 200) => String(form.get(k) ?? "").trim().slice(0, max);
-  const kind = (["item", "stay", "service", "digital"] as const).find((k) => k === form.get("kind")) ?? "item";
+  const kind = (["item", "stay", "service", "digital", "session", "event"] as const).find((k) => k === form.get("kind")) ?? "item";
   const name = str("name", 80);
   const priceType = kind === "service" && form.get("priceType") === "quote" ? "quote" : "fixed";
   const on = (k: string) => form.get(k) === "on";
@@ -133,6 +134,14 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     amenities: amenities.join("|"),
     serviceAreas: serviceAreas.join("|"),
     workDays: workDays.join("|"),
+    online: form.get("online") === "off" ? "off" : "on",
+    meetingLink: str("meetingLink", 300),
+    durationMins: str("durationMins", 4),
+    startHour: str("startHour", 5),
+    endHour: str("endHour", 5),
+    eventDate: str("eventDate", 10),
+    eventTime: str("eventTime", 5),
+    seats: str("seats", 5),
   };
   const fail = (error: string): ShopFormState => ({ error, values });
   const count = (k: string, label: string, max: number, need = true) => {
@@ -143,7 +152,11 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
 
   if (name.length < 2) return fail(kind === "item" ? "Please enter the product name." : "Please give your listing a name.");
   const priceKobo =
-    kind === "service" && priceType === "quote" ? 0 : kind === "digital" && values.price.replace(/[₦,\s]/g, "") === "0" ? 0 : toKobo(values.price);
+    kind === "service" && priceType === "quote"
+      ? 0
+      : (kind === "digital" || kind === "event") && values.price.replace(/[₦,\s]/g, "") === "0"
+        ? 0
+        : toKobo(values.price);
   if (priceKobo === null) return fail("Please enter a price in naira, like 2500.");
 
   const maxPerDay = kind === "item" && values.maxPerDay ? Number(values.maxPerDay) : null;
@@ -155,6 +168,31 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
   }
   if (kind === "service" && !workDays.length) return fail("Please pick at least one day you work.");
   if (kind === "digital" && values.about.length < 10) return fail("Please say what's inside, so buyers know what they get.");
+
+  // Sessions and events
+  const online = values.online === "on";
+  const durationMins = Number(values.durationMins) || null;
+  let eventAt: Date | null = null;
+  if (kind === "session" || kind === "event") {
+    if (values.about.length < 10) return fail(kind === "session" ? "Please say what you'll cover in a session." : "Please say what the event is about.");
+    if (online && values.meetingLink && !/^https:\/\/\S+$/.test(values.meetingLink)) return fail("The meeting link should start with https://");
+    if (!online && values.privateAddress.length < 6) return fail("Please add the address. Only people who booked see it.");
+    if (!durationMins || durationMins < 15 || durationMins > 600) return fail("Please pick how long it lasts.");
+  }
+  if (kind === "session") {
+    if (!workDays.length) return fail("Please pick at least one day you're free.");
+    if (!values.startHour || !values.endHour || values.endHour <= values.startHour) return fail("Your finish time must be after your start time.");
+    const [sh, sm] = values.startHour.split(":").map(Number);
+    const [eh, em] = values.endHour.split(":").map(Number);
+    if (eh * 60 + em - (sh * 60 + sm) < durationMins!) return fail("Your free hours are shorter than one session.");
+  }
+  if (kind === "event") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(values.eventDate) || !/^\d{2}:\d{2}$/.test(values.eventTime)) return fail("Please pick the date and start time.");
+    eventAt = new Date(Date.parse(`${values.eventDate}T${values.eventTime}:00+01:00`));
+    if (Number.isNaN(eventAt.getTime()) || eventAt.getTime() < Date.now()) return fail("The event date must be in the future.");
+    const seats = Number(values.seats);
+    if (!Number.isInteger(seats) || seats < 1 || seats > 5000) return fail("Please add how many seats, from 1 to 5000.");
+  }
 
   // The digital file: a new upload, or keep the one already there.
   const upload = form.get("file");
@@ -202,11 +240,18 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     checkInTime: kind === "stay" && CHECK_TIMES.includes(values.checkInTime as never) ? values.checkInTime : null,
     checkOutTime: kind === "stay" && CHECK_TIMES.includes(values.checkOutTime as never) ? values.checkOutTime : null,
     rules: kind === "stay" ? values.rules || null : null,
-    privateAddress: kind === "stay" ? values.privateAddress : null,
+    privateAddress: kind === "stay" || ((kind === "session" || kind === "event") && !online) ? values.privateAddress : null,
     priceType,
     priceUnit: kind === "service" && priceType === "fixed" ? values.priceUnit || null : null,
     serviceAreas: kind === "service" ? serviceAreas : [],
-    workDays: kind === "service" ? workDays : [1, 2, 3, 4, 5, 6],
+    workDays: kind === "service" || kind === "session" ? workDays : [1, 2, 3, 4, 5, 6],
+    online,
+    durationMins: kind === "session" || kind === "event" ? durationMins : null,
+    startHour: kind === "session" ? values.startHour : null,
+    endHour: kind === "session" ? values.endHour : null,
+    eventAt,
+    seats: kind === "event" ? Number(values.seats) : null,
+    meetingLink: (kind === "session" || kind === "event") && online ? values.meetingLink || null : null,
     fileId: kind === "digital" ? file!.id : null,
     fileName: kind === "digital" ? file!.name : null,
     fileSize: kind === "digital" ? file!.bytes : null,
@@ -301,4 +346,21 @@ export async function saveBlockedDates(form: FormData): Promise<void> {
     .where(and(eq(products.id, id), eq(products.shopId, shop.id), eq(products.kind, "stay")));
   revalidatePath(`/shop/manage/products/${id}/calendar`);
   redirect(`/shop/manage/products/${id}/calendar?saved=1`);
+}
+
+// Sends one message to everyone with a ticket to an event.
+export async function messageAttendees(_: ShopFormState, form: FormData): Promise<ShopFormState> {
+  const { shop } = await requireShop();
+  const id = String(form.get("id") ?? "");
+  const text = String(form.get("message") ?? "").trim().slice(0, 600);
+  if (text.length < 3) return { error: "Please write your message.", values: { message: text } };
+  const [p] = await db.select().from(products).where(and(eq(products.id, id), eq(products.shopId, shop.id), eq(products.kind, "event"))).limit(1);
+  if (!p) return { error: "We couldn't find that event." };
+  const buyers = await db
+    .selectDistinct({ id: orders.buyerId, code: orders.code })
+    .from(orders)
+    .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
+    .where(and(eq(orderItems.productId, p.id), eq(orders.method, "event"), inArray(orders.status, ["ready", "received", "disputed"])));
+  for (const b of buyers) await notify(b.id, `${p.name}: message from ${shop.name}`, text, `/orders/${b.code}`);
+  return { values: { sent: String(buyers.length) } };
 }
