@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, orders, products } from "@/db/schema";
+import { deliverySettings, orders, payments, products } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { categoryLabel, cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { myShop } from "@/lib/shops";
@@ -26,7 +26,7 @@ export default async function MyShop({
   if (!shop) redirect("/sell");
   const { saved } = await searchParams;
 
-  const [items, [delivery], counts] = await Promise.all([
+  const [items, [delivery], counts, [week]] = await Promise.all([
     db
       .select()
       .from(products)
@@ -56,6 +56,11 @@ export default async function MyShop({
         ),
       )
       .groupBy(orders.status),
+    db
+      .select({ earned: sql<number>`coalesce(sum(${payments.sellerKobo}), 0)::int`, sales: sql<number>`count(*)::int` })
+      .from(payments)
+      .innerJoin(orders, eq(orders.id, payments.orderId))
+      .where(and(eq(orders.shopId, shop.id), inArray(payments.status, ["held", "released"]), gte(payments.createdAt, new Date(Date.now() - 7 * 86400_000)))),
   ]);
   const n = (s: string) => counts.find((c) => c.status === s)?.n ?? 0;
   const open = counts.reduce((a, c) => a + c.n, 0);
@@ -110,7 +115,20 @@ export default async function MyShop({
           </form>
         </section>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <Link href="/shop/manage/sales" className={`${card} flex items-center gap-3 p-4`}>
+          <span className="flex-1">
+            <span className="block text-[13px] font-bold text-muted">Earned this week</span>
+            <span className="block text-[22px] font-extrabold tracking-tight">{naira(week?.earned ?? 0)}</span>
+            <span className="block text-[13px] text-muted">
+              {week?.sales ?? 0} {week?.sales === 1 ? "sale" : "sales"}. See sales, top sellers and payouts
+            </span>
+          </span>
+          <span className="text-accent" aria-hidden="true">
+            →
+          </span>
+        </Link>
+
+        <div className="grid grid-cols-4 gap-2">
           {[
             {
               href: "/shop/manage/products/new",
@@ -118,9 +136,14 @@ export default async function MyShop({
               icon: "M12 5v14M5 12h14",
             },
             {
-              href: "/shop/manage/delivery",
-              label: "Delivery",
-              icon: "M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM15 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM7 17H3V6h11v11M14 9h4l3 4v4h-2",
+              href: "/shop/manage/sales",
+              label: "Sales",
+              icon: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+            },
+            {
+              href: "/shop/manage/discounts",
+              label: "Discounts",
+              icon: "M20 12l-8 8-9-9V3h8zM7.5 7.5h.01",
             },
             {
               href: "/shop/manage/edit",
@@ -131,7 +154,7 @@ export default async function MyShop({
             <Link
               key={a.href}
               href={a.href}
-              className={`${card} flex flex-col items-center gap-1.5 py-3.5`}
+              className={`${card} flex flex-col items-center gap-1.5 px-1 py-3.5 text-center`}
             >
               <span className="flex size-10 items-center justify-center rounded-xl bg-soft text-deep">
                 <svg
@@ -148,7 +171,7 @@ export default async function MyShop({
                   <path d={a.icon} />
                 </svg>
               </span>
-              <span className="text-[13px] font-bold">{a.label}</span>
+              <span className="text-xs font-bold leading-tight">{a.label}</span>
             </Link>
           ))}
         </div>

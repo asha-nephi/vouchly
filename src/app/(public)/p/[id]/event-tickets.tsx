@@ -5,6 +5,7 @@ import { buyTickets } from "@/app/(app)/book/actions";
 import GuestFields from "@/components/guest-fields";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
+import DiscountField from "@/components/discount-field";
 
 export default function EventTickets(p: { productId: string; priceKobo: number; left: number; guest?: boolean; disabled?: string }) {
   const [state, action, pending] = useActionState(buyTickets, undefined);
@@ -34,6 +35,7 @@ export default function EventTickets(p: { productId: string; priceKobo: number; 
         </span>
       </div>
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
+      {!free && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && (
         <PrimaryButton pending={pending}>

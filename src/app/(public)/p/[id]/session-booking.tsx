@@ -7,6 +7,7 @@ import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { shortDay } from "@/lib/dates";
 import { timeLabel } from "@/lib/listings";
+import DiscountField from "@/components/discount-field";
 
 const chip = "flex h-[52px] items-center justify-center rounded-2xl border text-[13px] font-bold";
 
@@ -69,6 +70,7 @@ export default function SessionBooking(p: { productId: string; priceKobo: number
         />
       </label>
       {p.guest && !p.disabled && <GuestFields values={v} />}
+      {!p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && <PrimaryButton pending={pending}>{time ? `Book ${shortDay(day)}, ${timeLabel(time)} · ${naira(p.priceKobo)}` : "Pick a time"}</PrimaryButton>}
       <p className="text-center text-xs text-muted">Paid safely through Paystack. Free cancellation until it&apos;s accepted.</p>

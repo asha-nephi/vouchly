@@ -59,6 +59,20 @@ export const otpCodes = pgTable("otp_codes", {
 // Swap src/lib/photos.ts to Cloudflare R2 later without touching anything else.
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
+// Discount codes a seller makes for their shop.
+export const discountCodes = pgTable("discount_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  shopId: uuid("shop_id").notNull().references(() => shops.id, { onDelete: "cascade" }),
+  code: text("code").notNull(), // stored in capitals
+  percentOff: smallint("percent_off"), // either this…
+  amountOffKobo: integer("amount_off_kobo"), // …or this
+  maxUses: integer("max_uses"),
+  used: integer("used").notNull().default(0),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("discount_codes_shop_code_idx").on(t.shopId, t.code)]);
+
 // Paid files for digital products. Never public: downloads go through a check.
 export const files = pgTable("files", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -191,6 +205,8 @@ export const orders = pgTable("orders", {
   quoteNote: text("quote_note"),
   quotedAt: timestamp("quoted_at", { withTimezone: true }),
   downloads: integer("downloads").notNull().default(0),
+  discountCode: text("discount_code"),
+  discountKobo: integer("discount_kobo").notNull().default(0), // itemsKobo is already after this
   accessToken: text("access_token"), // private link so a guest can open the order anywhere
   autoClosed: boolean("auto_closed").notNull().default(false), // marked received after the 48h window
   problem: text("problem"), // what the buyer reported

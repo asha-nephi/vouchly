@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { orderItems, orders, products, shops } from "@/db/schema";
 import { currentUser, makeToken, requireBuyer } from "@/lib/auth";
 import { buyerFor, guestValues } from "@/lib/guest";
+import { discountFor } from "@/lib/discounts";
 import { takenNights } from "@/lib/bookings";
 import { AREAS, naira } from "@/lib/catalog";
 import { addDays, isDayKey, keyToDate, nightsBetween, nightsOf, shortDay, todayKey, weekday } from "@/lib/dates";
@@ -41,6 +42,7 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
     checkOut: String(form.get("checkOut") ?? ""),
     guests: String(form.get("guests") ?? "1"),
     note: String(form.get("note") ?? "").trim().slice(0, 300),
+    discount: String(form.get("discount") ?? ""),
     ...guestValues(form),
   };
   const fail = (error: string): BookState => ({ error, values });
@@ -65,10 +67,12 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   if (clash) return fail(`${shortDay(clash)} is already booked. Please pick other dates.`);
   if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
+  const disc = await discountFor(shop.id, form.get("discount"), p.priceKobo * nights);
+  if ("error" in disc) return fail(disc.error);
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
   const user = who.user;
-  const itemsKobo = p.priceKobo * nights;
+  const itemsKobo = p.priceKobo * nights - disc.kobo;
   const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
@@ -83,6 +87,8 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
       method: "check_in",
       note: values.note || null,
       itemsKobo,
+      discountCode: disc.code,
+      discountKobo: disc.kobo,
     })
     .returning({ id: orders.id });
   await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: nights === 1 ? "1 night" : `${nights} nights`, quantity: nights, priceKobo: p.priceKobo });
@@ -99,6 +105,7 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
     area: String(form.get("area") ?? ""),
     address: String(form.get("address") ?? "").trim().slice(0, 200),
     details: String(form.get("details") ?? "").trim().slice(0, 1000),
+    discount: String(form.get("discount") ?? ""),
     ...guestValues(form),
   };
   const fail = (error: string): BookState => ({ error, values });
@@ -116,10 +123,12 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
 
   const quote = p.priceType === "quote";
   if (!quote && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
+  const disc = quote ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo);
+  if ("error" in disc) return fail(disc.error);
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
   const user = who.user;
-  const itemsKobo = quote ? 0 : p.priceKobo;
+  const itemsKobo = quote ? 0 : p.priceKobo - disc.kobo;
   const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
@@ -134,6 +143,8 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
       address: `${values.address}, ${values.area}`,
       note: values.details,
       itemsKobo,
+      discountCode: disc.code,
+      discountKobo: disc.kobo,
       status: quote ? "requested" : "awaiting_payment",
     })
     .returning({ id: orders.id });
@@ -151,7 +162,7 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
 // Buy a digital product. Free ones are delivered at once without payment.
 export async function buyDigital(_: BookState, form: FormData): Promise<BookState> {
   const me = await currentUser();
-  const values = guestValues(form);
+  const values = { discount: String(form.get("discount") ?? ""), ...guestValues(form) };
   const fail = (error: string): BookState => ({ error, values });
   const [row] = await db
     .select({ p: products, shop: shops })
@@ -167,6 +178,9 @@ export async function buyDigital(_: BookState, form: FormData): Promise<BookStat
   if (!free && !holdMode() && !shop.paystackSubaccount) return fail(`${shop.name} hasn't set up payments yet.`);
   if (!free && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
+  const disc = free ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo);
+  if ("error" in disc) return fail(disc.error);
+  const price = p.priceKobo - disc.kobo;
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
   const user = who.user;
@@ -180,7 +194,9 @@ export async function buyDigital(_: BookState, form: FormData): Promise<BookStat
       shopId: shop.id,
       deliveryDay: new Date(),
       method: "download",
-      itemsKobo: p.priceKobo,
+      itemsKobo: price,
+      discountCode: disc.code,
+      discountKobo: disc.kobo,
       status: free ? "received" : "awaiting_payment",
       receivedAt: free ? new Date() : null,
     })
@@ -190,7 +206,7 @@ export async function buyDigital(_: BookState, form: FormData): Promise<BookStat
     await notify(shop.ownerId, "New download", `${user.name} got “${p.name}” for free.`, `/shop/manage/orders/${code}`);
     redirect(`/orders/${code}?placed=1`);
   }
-  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: p.priceKobo, totalKobo: p.priceKobo });
+  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: price, totalKobo: price });
   if (!pay.url) return fail(pay.error!);
   redirect(pay.url);
 }
@@ -209,7 +225,7 @@ async function listing(productId: string, kind: "session" | "event") {
 // Book a 1-on-1 session at a free time.
 export async function bookSession(_: BookState, form: FormData): Promise<BookState> {
   const me = await currentUser();
-  const values = { day: String(form.get("day") ?? ""), time: String(form.get("time") ?? ""), note: String(form.get("note") ?? "").trim().slice(0, 500), ...guestValues(form) };
+  const values = { day: String(form.get("day") ?? ""), time: String(form.get("time") ?? ""), note: String(form.get("note") ?? "").trim().slice(0, 500), discount: String(form.get("discount") ?? ""), ...guestValues(form) };
   const fail = (error: string): BookState => ({ error, values });
   const row = await listing(String(form.get("productId") ?? ""), "session");
   if (!row) return fail("This session isn't available any more.");
@@ -222,6 +238,9 @@ export async function bookSession(_: BookState, form: FormData): Promise<BookSta
   const open = await sessionSlots(p);
   if (!open.some((d) => d.day === values.day && d.times.includes(values.time))) return fail("That time was just taken. Please pick another.");
 
+  const disc = await discountFor(shop.id, form.get("discount"), p.priceKobo);
+  if ("error" in disc) return fail(disc.error);
+  const price = p.priceKobo - disc.kobo;
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
   const user = who.user;
@@ -237,11 +256,13 @@ export async function bookSession(_: BookState, form: FormData): Promise<BookSta
       timeSlot: values.time,
       method: "session",
       note: values.note || null,
-      itemsKobo: p.priceKobo,
+      itemsKobo: price,
+      discountCode: disc.code,
+      discountKobo: disc.kobo,
     })
     .returning({ id: orders.id });
   await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: durationLabel(p.durationMins), quantity: 1, priceKobo: p.priceKobo });
-  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: p.priceKobo, totalKobo: p.priceKobo });
+  const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo: price, totalKobo: price });
   if (!pay.url) return fail(pay.error!);
   redirect(pay.url);
 }
@@ -249,7 +270,7 @@ export async function bookSession(_: BookState, form: FormData): Promise<BookSta
 // Tickets for a class or event. Free events reserve seats without payment.
 export async function buyTickets(_: BookState, form: FormData): Promise<BookState> {
   const me = await currentUser();
-  const values = { qty: String(form.get("qty") ?? "1"), ...guestValues(form) };
+  const values = { qty: String(form.get("qty") ?? "1"), discount: String(form.get("discount") ?? ""), ...guestValues(form) };
   const fail = (error: string): BookState => ({ error, values });
   const row = await listing(String(form.get("productId") ?? ""), "event");
   if (!row || !row.p.eventAt || !row.p.seats) return fail("This event isn't available any more.");
@@ -266,10 +287,12 @@ export async function buyTickets(_: BookState, form: FormData): Promise<BookStat
   if (left <= 0) return fail("Sorry, this event is sold out.");
   if (qty > left) return fail(`Only ${left} ${left === 1 ? "seat is" : "seats are"} left.`);
 
+  const disc = free ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo * qty);
+  if ("error" in disc) return fail(disc.error);
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
   const user = who.user;
-  const itemsKobo = p.priceKobo * qty;
+  const itemsKobo = p.priceKobo * qty - disc.kobo;
   const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
@@ -281,6 +304,8 @@ export async function buyTickets(_: BookState, form: FormData): Promise<BookStat
       deliveryDay: p.eventAt!,
       method: "event",
       itemsKobo,
+      discountCode: disc.code,
+      discountKobo: disc.kobo,
       status: free ? "ready" : "awaiting_payment",
     })
     .returning({ id: orders.id });

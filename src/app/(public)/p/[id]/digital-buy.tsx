@@ -5,6 +5,7 @@ import { buyDigital } from "@/app/(app)/book/actions";
 import GuestFields from "@/components/guest-fields";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
+import DiscountField from "@/components/discount-field";
 
 export default function DigitalBuy(p: { productId: string; priceKobo: number; fileText: string; guest?: boolean; disabled?: string }) {
   const [state, action, pending] = useActionState(buyDigital, undefined);
@@ -24,6 +25,7 @@ export default function DigitalBuy(p: { productId: string; priceKobo: number; fi
         </span>
       </div>
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
+      {!free && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && <PrimaryButton pending={pending}>{free ? "Get it free" : `Buy now · ${naira(p.priceKobo)}`}</PrimaryButton>}
       {!free && <p className="text-center text-xs text-muted">Paid safely through Paystack.</p>}

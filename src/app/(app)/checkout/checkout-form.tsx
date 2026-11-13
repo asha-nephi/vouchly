@@ -7,6 +7,7 @@ import { AREAS } from "@/lib/catalog";
 import { ErrorText, Field, Note, PrimaryButton } from "@/components/ui";
 import { Select } from "@/components/form-bits";
 import Photo from "@/components/photo";
+import DiscountField from "@/components/discount-field";
 
 type Line = { id: string; name: string; size: string | null; photo: string | null; priceKobo: number; qty: number };
 type Options = {
@@ -168,6 +169,8 @@ export default function CheckoutForm(props: {
           <span>{naira(items + fee)}</span>
         </div>
       </div>
+
+      <DiscountField value={state?.values?.discount} />
 
       <ErrorText message={state?.error} />
       <PrimaryButton pending={pending}>Pay {naira(items + fee)}</PrimaryButton>

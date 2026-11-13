@@ -64,6 +64,13 @@
       "when": 1794608075160,
       "tag": "0008_sessions_events",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794609179540,
+      "tag": "0009_discounts",
+      "breakpoints": true
     }
   ]
 }

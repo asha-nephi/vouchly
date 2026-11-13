@@ -8,6 +8,7 @@ import { ErrorText, Field, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { shortDay } from "@/lib/dates";
 import { TIME_SLOTS } from "@/lib/listings";
+import DiscountField from "@/components/discount-field";
 
 const chip =
   "flex h-[52px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-[#d5dae4] bg-white px-3 text-[13px] font-bold peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-accent";
@@ -68,6 +69,7 @@ export default function ServiceBooking(p: {
         />
       </label>
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
+      {!p.quote && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && <PrimaryButton pending={pending}>{p.quote ? "Ask for a price" : `Book and pay ${naira(p.priceKobo)}`}</PrimaryButton>}
       <p className="text-center text-xs text-muted">

@@ -7,6 +7,7 @@ import GuestFields from "@/components/guest-fields";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { nightsBetween, shortDay } from "@/lib/dates";
+import DiscountField from "@/components/discount-field";
 
 export default function StayBooking(p: { productId: string; priceKobo: number; minNights: number; maxGuests: number | null; taken: string[]; today: string; disabled?: string; guest?: boolean }) {
   const [state, action, pending] = useActionState(bookStay, undefined);
@@ -78,6 +79,7 @@ export default function StayBooking(p: { productId: string; priceKobo: number; m
       )}
       {tooShort && <p className="text-[13px] font-semibold text-[#b42318]">The shortest stay here is {p.minNights} nights.</p>}
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
+      {!p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && (
         <PrimaryButton pending={pending}>{nights > 0 && !tooShort ? `Book and pay ${naira(p.priceKobo * nights)}` : "Pick your dates"}</PrimaryButton>

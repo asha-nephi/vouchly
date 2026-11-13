@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { deliverySettings, orderItems, orders, products, shops } from "@/db/schema";
 import { currentUser, makeToken } from "@/lib/auth";
 import { buyerFor, guestValues } from "@/lib/guest";
+import { discountFor } from "@/lib/discounts";
 import { readBasket } from "@/lib/basket";
 import { AREAS } from "@/lib/catalog";
 import { holdMode, nextDeliveryDay } from "@/lib/orders";
@@ -23,7 +24,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const area = String(form.get("area") ?? "");
   const address = String(form.get("address") ?? "").trim();
   const note = String(form.get("note") ?? "").trim().slice(0, 300);
-  const values = { method, area, address, note, ...guestValues(form) };
+  const values = { method, area, address, note, discount: String(form.get("discount") ?? ""), ...guestValues(form) };
   const fail = (error: string): CheckoutState => ({ error, values });
 
   const [[shop], [d]] = await Promise.all([
@@ -55,7 +56,9 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
     .where(and(inArray(products.id, ids), eq(products.shopId, shop.id), eq(products.kind, "item"), eq(products.isActive, true), eq(products.removed, false)));
   if (!rows.length) return fail("The items in your basket aren't available any more.");
   const lines = rows.map((p) => ({ p, qty: basket.items[p.id] }));
-  const itemsKobo = lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0);
+  const disc = await discountFor(shop.id, form.get("discount"), lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0));
+  if ("error" in disc) return fail(disc.error);
+  const itemsKobo = lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0) - disc.kobo;
 
   const inStockOnly = lines.every((l) => l.p.sellMode === "in_stock");
   const day = nextDeliveryDay(d.deliveryDays, d.orderCutoff, new Date(), inStockOnly);
@@ -109,6 +112,8 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
       note: note || null,
       itemsKobo,
       deliveryFeeKobo,
+      discountCode: disc.code,
+      discountKobo: disc.kobo,
     })
     .returning({ id: orders.id });
   await db.insert(orderItems).values(

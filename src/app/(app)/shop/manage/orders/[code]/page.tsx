@@ -97,6 +97,12 @@ export default async function SellerOrder({ params }: { params: Promise<{ code: 
               <span className="font-bold">{naira(it.priceKobo * it.quantity)}</span>
             </div>
           ))}
+          {o.discountKobo > 0 && (
+            <div className="flex justify-between border-b border-[#eef0f4] py-3 text-sm text-[#1b6b3a]">
+              <span>Discount{o.discountCode ? ` (${o.discountCode})` : ""}</span>
+              <span className="font-bold">−{naira(o.discountKobo)}</span>
+            </div>
+          )}
           {o.deliveryFeeKobo > 0 && (
             <div className="flex justify-between border-b border-[#eef0f4] py-3 text-sm">
               <span>Delivery</span>
