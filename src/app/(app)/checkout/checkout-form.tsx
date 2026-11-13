@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import GuestFields from "@/components/guest-fields";
 import { placeOrder } from "./actions";
 import { AREAS } from "@/lib/catalog";
 import { ErrorText, Field, Note, PrimaryButton } from "@/components/ui";
@@ -23,6 +24,7 @@ export default function CheckoutForm(props: {
   options: Options;
   defaultArea: string;
   hold: boolean;
+  guest?: boolean;
 }) {
   const { shopName, dayLabel, lines, options, hold } = props;
   const [state, action, pending] = useActionState(placeOrder, undefined);
@@ -63,6 +65,7 @@ export default function CheckoutForm(props: {
 
   return (
     <form action={action} className="flex flex-col gap-4 px-4 pb-8 pt-1">
+      {props.guest && <GuestFields values={state?.values} />}
       <div className="flex items-center gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-white">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#afc0ff" strokeWidth="2" aria-hidden="true">
           <path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM3 10h18M8 3v4M16 3v4" />

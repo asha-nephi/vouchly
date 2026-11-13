@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, orders, payments, reviews, shops, users } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireBuyer } from "@/lib/auth";
 import { refundOrder } from "@/lib/after-order";
 import { notify } from "@/lib/notify";
 import { orderDeadline, problemDeadline } from "@/lib/orders";
@@ -14,7 +14,7 @@ export type BuyerFormState = { error?: string; values?: Record<string, string>; 
 
 // Loads one of this buyer's orders, with the seller.
 async function buyerOrder(code: string) {
-  const user = await requireUser();
+  const user = await requireBuyer();
   const [row] = await db
     .select({ order: orders, shop: shops })
     .from(orders)

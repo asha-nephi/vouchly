@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { and, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, orderItems, orders, products, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { currentUser, makeToken } from "@/lib/auth";
+import { buyerFor, guestValues } from "@/lib/guest";
 import { readBasket } from "@/lib/basket";
 import { AREAS } from "@/lib/catalog";
 import { holdMode, nextDeliveryDay } from "@/lib/orders";
@@ -14,7 +15,7 @@ import { newOrderCode, startPayment } from "@/lib/start-payment";
 export type CheckoutState = { error?: string; values?: Record<string, string> } | undefined;
 
 export async function placeOrder(_: CheckoutState, form: FormData): Promise<CheckoutState> {
-  const user = await requireUser();
+  const me = await currentUser();
   const basket = await readBasket();
   if (!basket) redirect("/basket");
 
@@ -22,7 +23,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const area = String(form.get("area") ?? "");
   const address = String(form.get("address") ?? "").trim();
   const note = String(form.get("note") ?? "").trim().slice(0, 300);
-  const values = { method, area, address, note };
+  const values = { method, area, address, note, ...guestValues(form) };
   const fail = (error: string): CheckoutState => ({ error, values });
 
   const [[shop], [d]] = await Promise.all([
@@ -31,7 +32,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   ]);
   if (!shop || !d) return fail("This shop isn't ready to take orders yet.");
   if (!shop.isOpen) return fail("This shop has closed for now.");
-  if (shop.ownerId === user.id) return fail("You can't order from your own shop.");
+  if (me && shop.ownerId === me.id) return fail("You can't order from your own shop.");
   // Pilot: Paystack pays sellers straight into their account, so they need one set up.
   if (!holdMode() && !shop.paystackSubaccount) return fail(`${shop.name} hasn't set up payments yet, so they can't take orders.`);
 
@@ -88,12 +89,18 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
 
   if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
+  // Signed-in buyer, or a guest made from the name and phone they typed.
+  const who = await buyerFor(form);
+  if ("error" in who) return fail(who.error);
+  const user = who.user;
+
   // Save the order first, then send the buyer to Paystack.
   const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
     .values({
       code,
+      accessToken: makeToken(),
       buyerId: user.id,
       shopId: shop.id,
       deliveryDay: day,

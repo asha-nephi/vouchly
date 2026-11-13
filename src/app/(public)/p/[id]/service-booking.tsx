@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { bookService } from "@/app/(app)/book/actions";
 import { Select } from "@/components/form-bits";
+import GuestFields from "@/components/guest-fields";
 import { ErrorText, Field, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { shortDay } from "@/lib/dates";
@@ -20,6 +21,7 @@ export default function ServiceBooking(p: {
   areas: string[];
   defaultArea: string;
   disabled?: string;
+  guest?: boolean;
 }) {
   const [state, action, pending] = useActionState(bookService, undefined);
   const v = state?.values;
@@ -65,6 +67,7 @@ export default function ServiceBooking(p: {
           className="rounded-[14px] border border-[#d5dae4] bg-white px-3.5 py-3 outline-none placeholder:text-[#8a93a5] focus:border-ink"
         />
       </label>
+      {p.guest && !p.disabled && <GuestFields values={state?.values} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && <PrimaryButton pending={pending}>{p.quote ? "Ask for a price" : `Book and pay ${naira(p.priceKobo)}`}</PrimaryButton>}
       <p className="text-center text-xs text-muted">

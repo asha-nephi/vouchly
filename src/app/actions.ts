@@ -2,9 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { otpCodes, users } from "@/db/schema";
+import { notifications, orders, otpCodes, reviews, users } from "@/db/schema";
 import { endSession, hash, makeInviteCode, makeOtp, requireUser, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { sendCode, smsTestMode } from "@/lib/sms";
@@ -63,7 +63,7 @@ export async function startSignup(_: FormState, form: FormData): Promise<FormSta
   if (ward.length < 2) return fail("Please enter your ward or branch.");
   if (!invite) return fail("Please enter the invite code a member gave you.");
 
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+  const [existing] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
   if (existing) return fail("This phone number already has an account. Please log in instead.");
 
   // The very first account uses the founder code from Render settings.
@@ -75,7 +75,7 @@ export async function startSignup(_: FormState, form: FormData): Promise<FormSta
     if (admin) return fail("That invite code isn't valid. Please check it with the member who invited you.");
     founder = true;
   } else {
-    const [inviter] = await db.select({ id: users.id }).from(users).where(eq(users.inviteCode, invite)).limit(1);
+    const [inviter] = await db.select({ id: users.id }).from(users).where(and(eq(users.inviteCode, invite), eq(users.isGuest, false))).limit(1);
     if (!inviter) return fail("That invite code isn't valid. Please check it with the member who invited you.");
     invitedById = inviter.id;
   }
@@ -91,7 +91,7 @@ export async function startLogin(_: FormState, form: FormData): Promise<FormStat
   const phone = normalizePhone(raw);
   if (!phone) return { error: "Please enter a valid Nigerian phone number, like 0803 123 4567.", values };
 
-  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+  const [user] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
   if (!user) return { error: "We couldn't find an account with that number. Join with an invite code instead.", values };
 
   const err = await issueCode(phone);
@@ -122,9 +122,10 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   await db.update(otpCodes).set({ usedAt: new Date() }).where(eq(otpCodes.id, otp.id));
 
   let userId: string;
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+  const [existing] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
   if (existing) {
     userId = existing.id;
+    await adoptGuestOrders(phone, userId);
   } else if (otp.signup) {
     const s = otp.signup;
     const [created] = await db
@@ -141,6 +142,8 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
       })
       .returning({ id: users.id });
     userId = created.id;
+    // The phone is now verified, so any guest orders made with it become theirs.
+    await adoptGuestOrders(phone, userId);
   } else {
     return { error: "Something went wrong. Please start again." };
   }
@@ -181,4 +184,13 @@ export async function confirmMember(form: FormData): Promise<void> {
     .set({ confirmed: true, confirmedById: me.id, confirmedAt: new Date() })
     .where(and(eq(users.id, id), eq(users.confirmed, false)));
   redirect("/admin/members");
+}
+
+async function adoptGuestOrders(phone: string, userId: string) {
+  const guests = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, true)));
+  if (!guests.length) return;
+  const ids = guests.map((g) => g.id);
+  await db.update(orders).set({ buyerId: userId }).where(inArray(orders.buyerId, ids));
+  await db.update(reviews).set({ authorId: userId }).where(inArray(reviews.authorId, ids));
+  await db.update(notifications).set({ userId }).where(inArray(notifications.userId, ids));
 }

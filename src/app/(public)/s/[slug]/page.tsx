@@ -1,11 +1,13 @@
+import type { Metadata } from "next";
+import { clip, shareMeta } from "@/lib/share-meta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, products, reviews, shops, users } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { currentUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
-import { cutoffLabel, dayList, naira } from "@/lib/catalog";
+import { categoryLabel, cutoffLabel, dayList, naira } from "@/lib/catalog";
 import {
   BasketBar,
   BasketProvider,
@@ -13,16 +15,34 @@ import {
 } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
+import ShareButton from "@/components/share-button";
 import { listingLine, priceText } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const [shop] = await db.select().from(shops).where(eq(shops.slug, slug)).limit(1);
+  if (!shop) return { title: "Shop not found" };
+  const [first] = await db
+    .select({ photos: products.photos })
+    .from(products)
+    .where(and(eq(products.shopId, shop.id), eq(products.isActive, true), eq(products.removed, false)))
+    .limit(1);
+  return shareMeta({
+    title: `${shop.name} on Vouchly`,
+    description: clip(shop.about) || `${categoryLabel(shop.category)} in ${shop.area}, Lagos, from a confirmed member. Order and pay safely on Vouchly.`,
+    path: `/s/${shop.slug}`,
+    photo: shop.coverPhoto ?? first?.photos[0],
+  });
+}
 
 export default async function ShopPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const me = await requireUser();
+  const me = await currentUser();
   const { slug } = await params;
   const [row] = await db
     .select({ shop: shops, ward: users.ward })
@@ -32,7 +52,7 @@ export default async function ShopPage({
     .limit(1);
   if (!row) notFound();
   const { shop, ward } = row;
-  const isMine = shop.ownerId === me.id;
+  const isMine = shop.ownerId === me?.id;
 
   const [items, [d], basket, shopReviews, [score]] = await Promise.all([
     db
@@ -96,7 +116,7 @@ export default async function ShopPage({
         <div className="relative h-[220px] bg-soft md:h-[300px]">
           {shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="(min-width: 1200px) 52rem, (min-width: 768px) 44rem, 100vw" priority />}
           <Link
-            href={isMine ? "/shop/manage" : "/home"}
+            href={isMine ? "/shop/manage" : me && !me.isGuest ? "/home" : "/"}
             aria-label="Back"
             className="absolute left-4 top-4 flex size-11 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(20,33,61,0.12)]"
           >
@@ -112,6 +132,12 @@ export default async function ShopPage({
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </Link>
+          <ShareButton
+            title={shop.name}
+            text={`${shop.name} on Vouchly`}
+            path={`/s/${shop.slug}`}
+            className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(20,33,61,0.12)]"
+          />
         </div>
         <div className="relative -mt-9 px-4">
           <section className="flex flex-col gap-2 rounded-3xl bg-white p-[18px] shadow-[0_1px_3px_rgba(20,33,61,0.08)]">

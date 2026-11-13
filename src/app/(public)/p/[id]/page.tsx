@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
+import { clip, shareMeta } from "@/lib/share-meta";
+import { priceText } from "@/lib/listings";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, products, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { currentUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
 import { AREAS, cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { takenNights } from "@/lib/bookings";
@@ -15,11 +18,26 @@ import StayBooking from "./stay-booking";
 import { BasketBar, BasketProvider, Stepper } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
+import ShareButton from "@/components/share-button";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/.test(id)) return { title: "Not found" };
+  const [row] = await db.select({ p: products, shop: shops }).from(products).innerJoin(shops, eq(shops.id, products.shopId)).where(eq(products.id, id)).limit(1);
+  if (!row || row.p.removed) return { title: "Not found" };
+  const { p, shop } = row;
+  return shareMeta({
+    title: `${p.name} · ${priceText(p)}`,
+    description: clip(p.about) || `From ${shop.name} in ${shop.area}, Lagos. Pay safely on Vouchly.`,
+    path: `/p/${p.id}`,
+    photo: p.photos[0],
+  });
+}
+
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const me = await requireUser();
+  const me = await currentUser();
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [row] = await db
@@ -28,14 +46,14 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     .innerJoin(shops, eq(shops.id, products.shopId))
     .where(and(eq(products.id, id), eq(products.removed, false)))
     .limit(1);
-  if (!row || (!row.product.isActive && row.shop.ownerId !== me.id)) notFound();
+  if (!row || (!row.product.isActive && row.shop.ownerId !== me?.id)) notFound();
   const { product: p, shop } = row;
   const [[d], basket] = await Promise.all([
     db.select().from(deliverySettings).where(eq(deliverySettings.shopId, shop.id)).limit(1),
     basketStart(),
   ]);
-  const canBuy = shop.isOpen && p.isActive && shop.ownerId !== me.id;
-  const mine = shop.ownerId === me.id;
+  const canBuy = shop.isOpen && p.isActive && shop.ownerId !== me?.id;
+  const mine = shop.ownerId === me?.id;
   const blocked = mine
     ? "This is your listing."
     : !shop.isOpen || !p.isActive
@@ -82,6 +100,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </Link>
+          <ShareButton title={p.name} text={`${p.name} from ${shop.name} on Vouchly`} path={`/p/${p.id}`} className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(20,33,61,0.12)]" />
           {p.photos.length > 1 && (
             <span className="absolute bottom-3 right-3 rounded-full bg-ink/80 px-2.5 py-1 text-xs font-bold text-white">
               {p.photos.length} photos · swipe
@@ -162,7 +181,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             </section>
           )}
           {p.kind === "stay" && (
-            <StayBooking productId={p.id} priceKobo={p.priceKobo} minNights={p.minNights} maxGuests={p.guests} taken={taken} today={today} disabled={blocked} />
+            <StayBooking productId={p.id} priceKobo={p.priceKobo} minNights={p.minNights} maxGuests={p.guests} taken={taken} today={today} disabled={blocked} guest={!me} />
           )}
           {p.kind === "service" && (
             <ServiceBooking
@@ -172,8 +191,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               priceUnit={p.priceUnit}
               days={serviceDays}
               areas={p.serviceAreas.length ? p.serviceAreas : [...AREAS]}
-              defaultArea={me.area ?? "Ikeja"}
+              defaultArea={me?.area ?? shop.area}
               disabled={blocked}
+              guest={!me}
             />
           )}
           {mine && p.kind === "stay" && (
@@ -195,7 +215,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
           {p.kind === "item" && !canBuy && (
             <p className="rounded-[14px] bg-chip px-4 py-3 text-[13px] font-semibold">
-              {shop.ownerId === me.id ? "This is your product." : "Not available to order right now."}
+              {mine ? "This is your product." : "Not available to order right now."}
             </p>
           )}
           {p.kind === "item" && canBuy && (

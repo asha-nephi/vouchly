@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { currentUser } from "@/lib/auth";
+import { currentMember } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -130,7 +130,7 @@ function VouchCard() {
 }
 
 export default async function Landing({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
-  if (await currentUser()) redirect("/home");
+  if (await currentMember()) redirect("/home");
   // Opened from a member's invite link: say who invited them.
   const inviter = await inviterFor((await searchParams).code);
   const joinHref = inviter ? `/join?code=${inviter.code}` : "/join";

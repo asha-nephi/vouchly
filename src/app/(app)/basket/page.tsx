@@ -2,7 +2,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { currentMember } from "@/lib/auth";
 import { readBasket } from "@/lib/basket";
 import { productsByIds } from "@/lib/browse";
 import { cutoffLabel, dayList, naira } from "@/lib/catalog";
@@ -16,7 +16,6 @@ import SubmitButton from "@/components/submit-button";
 export const dynamic = "force-dynamic";
 
 export default async function BasketPage({ searchParams }: { searchParams: Promise<{ payment?: string }> }) {
-  await requireUser();
   const { payment } = await searchParams;
   const basket = await readBasket();
 
@@ -28,7 +27,7 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
           <div className="mt-6 rounded-[22px] border-[1.5px] border-dashed border-[#c8ceda] p-8 text-center">
             <p className="text-[15px] font-bold">Your basket is empty</p>
             <p className="mt-1 text-[13px] text-muted">Find something from a member near you.</p>
-            <Link href="/home" className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-sm font-bold text-white">
+            <Link href={(await currentMember()) ? "/home" : "/"} className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-sm font-bold text-white">
               Browse shops
             </Link>
           </div>

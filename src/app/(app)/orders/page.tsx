@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { orders, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireBuyer } from "@/lib/auth";
 import { maybeSettle } from "@/lib/after-order";
 import { naira } from "@/lib/catalog";
 import { deliveryDayLabel } from "@/lib/orders";
@@ -13,7 +13,7 @@ import Photo from "@/components/photo";
 export const dynamic = "force-dynamic";
 
 export default async function MyOrders() {
-  const user = await requireUser();
+  const user = await requireBuyer();
   await maybeSettle();
   const rows = await db
     .select({ order: orders, shopName: shops.name, photo: shops.coverPhoto })
@@ -66,12 +66,19 @@ export default async function MyOrders() {
   return (
     <main className="mx-auto min-h-dvh max-w-md pb-28">
       <div className="flex flex-col gap-3 px-4 pt-5">
-        <h1 className="text-[26px] font-extrabold tracking-tight">My orders</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-[26px] font-extrabold tracking-tight">My orders</h1>
+          {user.isGuest && (
+            <Link href="/notifications" className="text-[13px] font-bold text-accent">
+              Notifications
+            </Link>
+          )}
+        </div>
         {rows.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[#c8ceda] p-8 text-center">
             <p className="text-[15px] font-bold">No orders yet</p>
             <Link
-              href="/home"
+              href={user.isGuest ? "/" : "/home"}
               className="mt-3 inline-flex h-11 items-center rounded-full bg-ink px-5 text-sm font-bold text-white"
             >
               Browse shops

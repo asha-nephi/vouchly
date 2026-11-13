@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { products, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireBuyer } from "@/lib/auth";
 import { basketCount, readBasket, writeBasket } from "@/lib/basket";
 
 export type BasketResult =
@@ -13,7 +13,6 @@ export type BasketResult =
 
 // Sets how many of a product are in the basket (0 removes it).
 export async function setBasketQty(productId: string, qty: number, replace = false): Promise<BasketResult> {
-  await requireUser();
   if (!/^[0-9a-f-]{36}$/.test(productId) || !Number.isInteger(qty) || qty < 0 || qty > 99) {
     return { ok: false, error: "Something went wrong. Please try again." };
   }
@@ -45,7 +44,6 @@ export async function setBasketQty(productId: string, qty: number, replace = fal
 }
 
 export async function clearBasket(): Promise<void> {
-  await requireUser();
   await writeBasket(null);
   revalidatePath("/basket");
 }

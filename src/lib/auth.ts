@@ -54,8 +54,26 @@ export const currentUser = cache(async function currentUser() {
   return rows[0]?.user ?? null;
 });
 
+// A signed-in member (not a guest buyer).
+export async function currentMember() {
+  const user = await currentUser();
+  return user && !user.isGuest ? user : null;
+}
+
+// Member-only pages. Guests are sent to create an account.
 export async function requireUser() {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.isGuest) redirect("/join?from=guest");
+  return user;
+}
+
+// Pages a guest buyer may use too (their basket, checkout and orders).
+export async function requireBuyer() {
   const user = await currentUser();
   if (!user) redirect("/login");
   return user;
 }
+
+// A long random code for private links.
+export const makeToken = () => randomBytes(18).toString("base64url");

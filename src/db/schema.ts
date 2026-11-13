@@ -1,6 +1,7 @@
 import {
   pgTable, pgEnum, uuid, text, integer, boolean, timestamp, smallint, jsonb, uniqueIndex, index, customType,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // Money is stored in kobo (₦1 = 100 kobo) so there are no rounding errors.
 
@@ -32,8 +33,13 @@ export const users = pgTable("users", {
   confirmed: boolean("confirmed").notNull().default(false),
   confirmedById: uuid("confirmed_by_id"),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  isGuest: boolean("is_guest").notNull().default(false), // bought through a shared link, no account
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("users_phone_idx").on(t.phone), uniqueIndex("users_invite_code_idx").on(t.inviteCode)]);
+}, (t) => [
+  // One account per phone for members. Guests can repeat.
+  uniqueIndex("users_phone_idx").on(t.phone).where(sql`${t.isGuest} = false`),
+  uniqueIndex("users_invite_code_idx").on(t.inviteCode),
+]);
 
 // One-time sign-in codes. A sign-up keeps the form details in `signup` until the code is checked.
 export const otpCodes = pgTable("otp_codes", {
@@ -158,6 +164,7 @@ export const orders = pgTable("orders", {
   timeSlot: text("time_slot"),
   quoteNote: text("quote_note"),
   quotedAt: timestamp("quoted_at", { withTimezone: true }),
+  accessToken: text("access_token"), // private link so a guest can open the order anywhere
   autoClosed: boolean("auto_closed").notNull().default(false), // marked received after the 48h window
   problem: text("problem"), // what the buyer reported
   problemAt: timestamp("problem_at", { withTimezone: true }),

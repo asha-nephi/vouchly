@@ -13,9 +13,11 @@ import {
 export default function JoinForm({
   code,
   inviter,
+  fromGuest,
 }: {
   code?: string;
   inviter?: string;
+  fromGuest?: boolean;
 }) {
   const [state, action, pending] = useActionState(startSignup, undefined);
   return (
@@ -28,6 +30,11 @@ export default function JoinForm({
         <span className="w-fit rounded-full bg-chip px-2.5 py-1 text-xs font-bold text-[#3a4458]">
           Step 1 of 2
         </span>
+        {fromGuest && (
+          <Note>
+            You can buy from any shop link as a guest. To browse all of Vouchly or open your own shop, create an account with an invite code from a member.
+          </Note>
+        )}
         <h2 className="text-[22px] font-extrabold tracking-tight">
           Tell us who you are
         </h2>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireBuyer } from "@/lib/auth";
 import SubmitButton from "@/components/submit-button";
 import TabBar from "@/components/tab-bar";
 import { BackBar } from "@/components/ui";
@@ -33,14 +33,14 @@ function when(d: Date, now: Date) {
 }
 
 export default async function Notifications() {
-  const user = await requireUser();
+  const user = await requireBuyer();
   const rows = await db.select().from(notifications).where(eq(notifications.userId, user.id)).orderBy(desc(notifications.createdAt)).limit(60);
   const now = new Date();
   const unread = rows.filter((r) => !r.read).length;
 
   return (
     <main className="mx-auto min-h-dvh max-w-md pb-28">
-      <BackBar title="Notifications" href="/home" />
+      <BackBar title="Notifications" href={user.isGuest ? "/orders" : "/home"} />
       <div className="flex flex-col gap-2.5 px-4">
         {unread > 0 && (
           <div className="flex items-center justify-between">

@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { orderItems, orders, products, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { currentUser, makeToken, requireBuyer } from "@/lib/auth";
+import { buyerFor, guestValues } from "@/lib/guest";
 import { takenNights } from "@/lib/bookings";
 import { AREAS, naira } from "@/lib/catalog";
 import { addDays, isDayKey, keyToDate, nightsBetween, nightsOf, shortDay, todayKey, weekday } from "@/lib/dates";
@@ -18,7 +19,7 @@ import { newOrderCode, startPayment } from "@/lib/start-payment";
 export type BookState = { error?: string; values?: Record<string, string> } | undefined;
 
 // The listing and its shop, if it can be booked by this person.
-async function bookable(productId: string, kind: "stay" | "service", userId: string) {
+async function bookable(productId: string, kind: "stay" | "service", userId: string | undefined) {
   const [row] = await db
     .select({ p: products, shop: shops })
     .from(products)
@@ -27,21 +28,22 @@ async function bookable(productId: string, kind: "stay" | "service", userId: str
     .limit(1);
   if (!row) return { error: "This listing isn't available any more." };
   if (!row.shop.isOpen) return { error: "This shop is closed for now." };
-  if (row.shop.ownerId === userId) return { error: "You can't book your own listing." };
+  if (userId && row.shop.ownerId === userId) return { error: "You can't book your own listing." };
   if (!holdMode() && !row.shop.paystackSubaccount) return { error: `${row.shop.name} hasn't set up payments yet, so they can't take bookings.` };
   return row;
 }
 
 export async function bookStay(_: BookState, form: FormData): Promise<BookState> {
-  const user = await requireUser();
+  const me = await currentUser();
   const values = {
     checkIn: String(form.get("checkIn") ?? ""),
     checkOut: String(form.get("checkOut") ?? ""),
     guests: String(form.get("guests") ?? "1"),
     note: String(form.get("note") ?? "").trim().slice(0, 300),
+    ...guestValues(form),
   };
   const fail = (error: string): BookState => ({ error, values });
-  const found = await bookable(String(form.get("productId") ?? ""), "stay", user.id);
+  const found = await bookable(String(form.get("productId") ?? ""), "stay", me?.id);
   if ("error" in found) return fail(found.error!);
   const { p, shop } = found;
 
@@ -62,12 +64,16 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   if (clash) return fail(`${shortDay(clash)} is already booked. Please pick other dates.`);
   if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
+  const who = await buyerFor(form);
+  if ("error" in who) return fail(who.error);
+  const user = who.user;
   const itemsKobo = p.priceKobo * nights;
   const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
     .values({
       code,
+      accessToken: makeToken(),
       buyerId: user.id,
       shopId: shop.id,
       deliveryDay: keyToDate(checkIn),
@@ -85,16 +91,17 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
 }
 
 export async function bookService(_: BookState, form: FormData): Promise<BookState> {
-  const user = await requireUser();
+  const me = await currentUser();
   const values = {
     day: String(form.get("day") ?? ""),
     slot: String(form.get("slot") ?? ""),
     area: String(form.get("area") ?? ""),
     address: String(form.get("address") ?? "").trim().slice(0, 200),
     details: String(form.get("details") ?? "").trim().slice(0, 1000),
+    ...guestValues(form),
   };
   const fail = (error: string): BookState => ({ error, values });
-  const found = await bookable(String(form.get("productId") ?? ""), "service", user.id);
+  const found = await bookable(String(form.get("productId") ?? ""), "service", me?.id);
   if ("error" in found) return fail(found.error!);
   const { p, shop } = found;
 
@@ -108,12 +115,16 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
 
   const quote = p.priceType === "quote";
   if (!quote && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
+  const who = await buyerFor(form);
+  if ("error" in who) return fail(who.error);
+  const user = who.user;
   const itemsKobo = quote ? 0 : p.priceKobo;
   const code = await newOrderCode();
   const [order] = await db
     .insert(orders)
     .values({
       code,
+      accessToken: makeToken(),
       buyerId: user.id,
       shopId: shop.id,
       deliveryDay: keyToDate(values.day),
@@ -138,7 +149,7 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
 
 // Buyer pays the price the seller quoted.
 export async function payQuote(_: BookState, form: FormData): Promise<BookState> {
-  const user = await requireUser();
+  const user = await requireBuyer();
   const code = String(form.get("code") ?? "");
   const [row] = await db
     .select({ order: orders, shop: shops })
@@ -165,7 +176,7 @@ export async function payQuote(_: BookState, form: FormData): Promise<BookState>
 
 // Buyer cancels a request, or says no to a quote. Nothing was paid yet.
 export async function dropRequest(form: FormData): Promise<void> {
-  const user = await requireUser();
+  const user = await requireBuyer();
   const code = String(form.get("code") ?? "");
   const [row] = await db
     .select({ order: orders, shop: shops })

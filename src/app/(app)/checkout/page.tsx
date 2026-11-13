@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, products, shops } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { currentUser } from "@/lib/auth";
 import { readBasket } from "@/lib/basket";
 import { nextDeliveryDay, deliveryDayLabel, holdMode } from "@/lib/orders";
 import { BackBar } from "@/components/ui";
@@ -11,7 +11,7 @@ import CheckoutForm from "./checkout-form";
 export const dynamic = "force-dynamic";
 
 export default async function Checkout() {
-  const user = await requireUser();
+  const user = await currentUser();
   const basket = await readBasket();
   if (!basket) redirect("/basket");
 
@@ -36,7 +36,8 @@ export default async function Checkout() {
         shopName={shop.name}
         dayLabel={day ? deliveryDayLabel(day) : null}
         lines={lines}
-        defaultArea={user.area ?? shop.area}
+        defaultArea={user?.area ?? shop.area}
+        guest={!user}
         hold={holdMode()}
         options={{
           pickup: d.pickupOn ? { spot: d.pickupSpot ?? shop.area, hours: d.pickupHours } : null,

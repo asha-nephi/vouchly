@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, orderItems, orders, payments, products, reviews, shops, users } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireBuyer } from "@/lib/auth";
 import { naira } from "@/lib/catalog";
 import { maybeSettle } from "@/lib/after-order";
 import { deliveryDayLabel, holdMode, orderDeadline, problemDeadline, shortDateTime, telLink, waLink } from "@/lib/orders";
@@ -13,6 +13,7 @@ import { slotLabel, timeLabel } from "@/lib/listings";
 import { dropRequest } from "@/app/(app)/book/actions";
 import PayQuote from "./pay-quote";
 import { BackBar, Note } from "@/components/ui";
+import SaveLink from "@/components/save-link";
 import { markReceived } from "../actions";
 import { CancelForm, ProblemForm, ReviewForm } from "./forms";
 import Photo from "@/components/photo";
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
 const card = "rounded-[20px] bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]";
 
 export default async function OrderPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ placed?: string }> }) {
-  const user = await requireUser();
+  const user = await requireBuyer();
   const { code } = await params;
   const { placed } = await searchParams;
   await maybeSettle();
@@ -74,6 +75,9 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         ? `Seller drops it off: ${o.address}`
         : `Rider to: ${o.address}`;
 
+  // Guests open their order through a private link.
+  const saveUrl = user.isGuest && o.accessToken ? `${process.env.SITE_URL ?? "https://vouchly-af24.onrender.com"}/o/${o.accessToken}` : null;
+
   if (placed && o.status !== "awaiting_payment") {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col">
@@ -110,13 +114,17 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               </div>
             ))}
           </section>
+          {saveUrl && <SaveLink url={saveUrl} code={o.code} />}
         </div>
         <div className="flex flex-col gap-2.5 px-4 pb-8 pt-6">
           <Link href={`/orders/${o.code}`} className="flex h-[54px] items-center justify-center rounded-2xl bg-ink text-[15px] font-bold text-white">
             {booking ? "See my booking" : "Track my order"}
           </Link>
-          <Link href="/home" className="flex h-[54px] items-center justify-center rounded-2xl border border-[#d5dae4] bg-white text-[15px] font-bold">
-            Back to home
+          <Link
+            href={user.isGuest ? "/orders" : "/home"}
+            className="flex h-[54px] items-center justify-center rounded-2xl border border-[#d5dae4] bg-white text-[15px] font-bold"
+          >
+            {user.isGuest ? "My orders" : "Back to home"}
           </Link>
         </div>
       </main>
@@ -127,6 +135,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     <main className="mx-auto min-h-dvh max-w-md pb-10">
       <BackBar title={`Order ${o.code}`} href="/orders" />
       <div className="flex flex-col gap-4 px-4">
+        {saveUrl && <SaveLink url={saveUrl} code={o.code} />}
         <section className="flex items-center gap-3.5 rounded-[20px] bg-ink p-4 text-white">
           <span className="relative size-14 shrink-0 overflow-hidden rounded-[14px] bg-deep">
 {shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="56px" />}
