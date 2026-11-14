@@ -102,15 +102,29 @@ export async function browse(area: string, category?: string, kind?: KindFilter)
 
 export const searchShops = (area: string, q: string, category?: string, kind?: KindFilter) => listShops({ area, q, category, kind });
 
-export async function publicFreshListings(limit = 3) {
-  return db
-    .select({ product: products, shopName: shops.name, confirmed: users.confirmed })
-    .from(products)
-    .innerJoin(shops, eq(shops.id, products.shopId))
-    .innerJoin(users, eq(users.id, shops.ownerId))
-    .where(and(eq(products.isActive, true), eq(products.removed, false), eq(shops.isOpen, true)))
-    .orderBy(desc(products.createdAt))
-    .limit(limit);
+// Real listings for the landing page: one pro, two products and one class.
+export async function landingPicks() {
+  const base = () =>
+    db
+      .select({
+        product: products,
+        shopName: shops.name,
+        confirmed: users.confirmed,
+        ward: users.ward,
+        rating: sql<number | null>`(select round(avg(r.stars)::numeric, 1)::float from ${reviews} r where r.shop_id = ${shops.id})`,
+        reviewCount: sql<number>`(select count(*)::int from ${reviews} r where r.shop_id = ${shops.id})`,
+      })
+      .from(products)
+      .innerJoin(shops, eq(shops.id, products.shopId))
+      .innerJoin(users, eq(users.id, shops.ownerId));
+  const live = and(eq(products.isActive, true), eq(products.removed, false), eq(shops.isOpen, true));
+  const [pros, goods, events, sessionRows] = await Promise.all([
+    base().where(and(live, eq(products.kind, "service"))).orderBy(desc(users.confirmed), desc(products.createdAt)).limit(1),
+    base().where(and(live, inArray(products.kind, ["item", "stay", "digital"]))).orderBy(desc(products.createdAt)).limit(2),
+    base().where(and(live, eq(products.kind, "event"), gt(products.eventAt, new Date()))).orderBy(asc(products.eventAt)).limit(1),
+    base().where(and(live, eq(products.kind, "session"))).orderBy(desc(products.createdAt)).limit(1),
+  ]);
+  return { pro: pros[0] ?? null, goods, cls: events[0] ?? sessionRows[0] ?? null };
 }
 
 // Products for a list of ids (used by the basket).
