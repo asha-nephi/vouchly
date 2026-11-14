@@ -9,12 +9,12 @@ import { ListingTile, ProCard } from "@/components/listing-cards";
 import AutoSubmit from "@/components/auto-submit";
 
 // Products / Services / Online as a segmented control. Phones only; computers use the top bar tabs.
-export function SectionSwitch({ section, action, q }: { section: Section; action: string; q?: string }) {
+export function SectionSwitch({ section, action, q, area }: { section: Section; action: string; q?: string; area?: string }) {
   return (
     <nav aria-label="Sections" className="grid grid-cols-3 gap-1 rounded-[14px] bg-[#EEF0F4] p-1 lg:hidden">
       {SECTION_IDS.map((s) => {
         const on = s === section;
-        const params = new URLSearchParams({ s, ...(q ? { q } : {}) });
+        const params = new URLSearchParams({ s, ...(q ? { q } : {}), ...(area ? { area } : {}) });
         return (
           <Link key={s} href={`${action}?${params}`} aria-current={on ? "page" : undefined} className={`flex h-10 items-center justify-center rounded-[10px] text-sm ${on ? "bg-white font-extrabold shadow-[0_1px_2px_rgba(20,33,61,0.12)]" : "font-bold text-muted"}`}>
             {SECTIONS[s].label}
@@ -29,6 +29,7 @@ export function SectionSwitch({ section, action, q }: { section: Section; action
 function Sort({ action, section, f }: { action: string; section: Section; f: Filters }) {
   const keep: [string, string][] = [["s", section]];
   if (f.q) keep.push(["q", f.q]);
+  if (f.area) keep.push(["area", f.area]);
   for (const k of ["cat", "trade", "when", "r4", "how", "pr", "type", "where", "date"] as const) {
     const v = f[k];
     if (v) keep.push([k, v === true ? "1" : String(v)]);
@@ -68,7 +69,7 @@ export default async function BrowseView({ section, area, f, action, showShops }
   const title = f.q ? `Results for “${f.q}”` : section === "online" ? what : `${what} near ${area}`;
   const unit = section === "services" ? (n === 1 ? "vouched pro" : "vouched pros") : n === 1 ? "listing" : "listings";
   const sortNote = section === "services" && (!f.sort || f.sort === "soon") ? " · sorted by soonest available" : "";
-  const clear = `${action}?${new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}) })}`;
+  const clear = `${action}?${new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}), ...(f.area ? { area: f.area } : {}) })}`;
 
   return (
     <div className="lg:flex lg:items-start lg:gap-7">

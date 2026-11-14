@@ -72,6 +72,7 @@ function Fields({ section, f, counts, trades }: { section: Section; f: Filters; 
     <>
       <input type="hidden" name="s" value={section} />
       {f.q && <input type="hidden" name="q" value={f.q} />}
+      {f.area && <input type="hidden" name="area" value={f.area} />}
       {f.sort && <input type="hidden" name="sort" value={f.sort} />}
       {section === "services" && (
         <>
@@ -125,7 +126,7 @@ export function FilterSidebar({ action, section, f, counts, trades }: { action: 
 // Phones: a "Filters" button that opens a bottom sheet. No JavaScript needed.
 export function FilterSheet({ action, section, f, counts, trades }: { action: string; section: Section; f: Filters; counts: Count[]; trades: TradeCount[] }) {
   const n = filterCount(f);
-  const clear = new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}) });
+  const clear = new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}), ...(f.area ? { area: f.area } : {}) });
   return (
     <details className="sheet lg:hidden">
       <summary className="flex h-11 cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-bold">

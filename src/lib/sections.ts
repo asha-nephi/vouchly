@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { deliverySettings, orders, products, reviews, shops, users } from "@/db/schema";
 import { addDays, dateToKey, keyToDate, todayKey, weekday } from "@/lib/dates";
 import { TIME_SLOTS } from "@/lib/listings";
+import { AREAS } from "@/lib/catalog";
 
 // The three ways buyers browse, and which listing kinds each holds.
 export const SECTIONS = {
@@ -59,6 +60,7 @@ export async function freeDays(pros: { id: string; shopId: string; workDays: num
 // What the filter sidebar (or phone sheet) can ask for. Every value comes from the URL.
 export type Filters = {
   q: string;
+  area?: string; // picked in the URL; otherwise the member's own area
   cat?: string; // shop category
   trade?: string; // services: what the pro does, from their sign-up chips
   when?: "tomorrow" | "week"; // services
@@ -80,6 +82,7 @@ export function readFilters(p: Params): Filters {
   const price = (Array.isArray(p.price) ? p.price : p.price ? [p.price] : []).filter((x): x is "fixed" | "quote" => x === "fixed" || x === "quote");
   return {
     q: one(p.q).trim().slice(0, 60),
+    area: (AREAS as readonly string[]).includes(one(p.area)) ? one(p.area) : undefined,
     cat: one(p.cat) || undefined,
     trade: one(p.trade).slice(0, 40) || undefined,
     when: pick(p.when, ["tomorrow", "week"] as const),
