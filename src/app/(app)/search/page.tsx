@@ -1,33 +1,35 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { browse, searchShops } from "@/lib/browse";
+import { browse, KIND_FILTERS, searchShops, type KindFilter } from "@/lib/browse";
 import { CATEGORIES } from "@/lib/catalog";
 import { ShopRow } from "@/components/shop-card";
 import TabBar from "@/components/tab-bar";
 
 export const dynamic = "force-dynamic";
 
-export default async function Search({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string }> }) {
+export default async function Search({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string; kind?: string }> }) {
   const user = await requireUser();
   const area = user.area ?? "Ikeja";
-  const { q = "", cat } = await searchParams;
+  const { q = "", cat, kind: kindParam } = await searchParams;
+  const kind = kindParam && kindParam in KIND_FILTERS ? (kindParam as KindFilter) : undefined;
   const category = CATEGORIES.some((c) => c.id === cat) ? cat : undefined;
   const query = q.trim().slice(0, 60);
 
   const results = query
-    ? await searchShops(area, query, category)
-    : await browse(area, category).then((r) => [...r.near, ...r.more]);
+    ? await searchShops(area, query, category, kind)
+    : await browse(area, category, kind).then((r) => [...r.near, ...r.more]);
 
-  const chip = (id: string | undefined, label: string) => {
-    const on = id === category;
+  // A chip filters by category, or by kind (Classes, Downloads).
+  const chip = (id: string | undefined, label: string, byKind = false) => {
+    const on = byKind ? id === kind : !kind && id === category;
     const params = new URLSearchParams();
     if (query) params.set("q", query);
-    if (id) params.set("cat", id);
+    if (id) params.set(byKind ? "kind" : "cat", id);
     return (
       <Link
         key={label}
         href={`/search?${params}`}
-        className={`flex h-[38px] shrink-0 items-center rounded-full px-3.5 text-[13px] ${on ? "bg-ink font-bold text-white" : "border border-[#d5dae4] bg-white font-semibold"}`}
+        className={`flex h-11 shrink-0 items-center rounded-full px-4 text-[13px] ${on ? "bg-ink font-bold text-white" : "border border-line bg-white font-semibold"}`}
       >
         {label}
       </Link>
@@ -53,10 +55,13 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
             />
           </label>
           {category && <input type="hidden" name="cat" value={category} />}
+          {kind && <input type="hidden" name="kind" value={kind} />}
         </form>
 
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+        <div className="hide-scroll -mx-4 flex gap-2 overflow-x-auto px-4">
           {chip(undefined, "All")}
+          {chip("class", "Classes", true)}
+          {chip("digital", "Downloads", true)}
           {CATEGORIES.map((c) => chip(c.id, c.label))}
         </div>
 
