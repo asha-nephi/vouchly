@@ -10,6 +10,7 @@ import SubmitButton from "@/components/submit-button";
 import { AREAS, DAYS } from "@/lib/catalog";
 import { AMENITIES, CHECK_TIMES, DAY_HOURS, DURATIONS, durationLabel, timeLabel } from "@/lib/listings";
 import { FILE_ACCEPT, fileLabel } from "@/lib/file-types";
+import AiWriter from "./ai-writer";
 
 type Kind = "item" | "stay" | "service" | "digital" | "session" | "event";
 type Product = {
@@ -23,6 +24,8 @@ type Product = {
   maxPerDay: number | null;
   isActive: boolean;
   about: string | null;
+  tags: string[];
+  included: string[];
   guests: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -75,12 +78,16 @@ export default function ProductForm({
   defaultKind = "item",
   maxFileMb = 10,
   firstKinds,
+  aiOn = false,
+  similar = {},
 }: {
   product?: Product;
   first?: boolean;
   defaultKind?: Kind;
   maxFileMb?: number;
   firstKinds?: string[];
+  aiOn?: boolean;
+  similar?: Partial<Record<Kind, string>>;
 }) {
   const [state, action, pending] = useActionState(saveProduct, undefined);
   const v = state?.values;
@@ -93,6 +100,8 @@ export default function ProductForm({
   const areas = list("serviceAreas", product?.serviceAreas);
   const days = v?.workDays !== undefined ? v.workDays.split("|").map(Number) : (product?.workDays ?? [1, 2, 3, 4, 5, 6]);
   const num = (key: string, saved: number | null | undefined) => v?.[key] ?? (saved != null ? String(saved) : "");
+  // Prices come from real listings, never from AI.
+  const hint = similar[kind] ? <p className="-mt-2 text-xs font-semibold text-muted">Similar listings on Vouchly: {similar[kind]}</p> : null;
   const price = v?.price ?? (product && product.priceKobo ? String(product.priceKobo / 100) : "");
   const kindCard = (k: (typeof KINDS)[number]) => (
     <label key={k.value} className="cursor-pointer">
@@ -158,6 +167,7 @@ export default function ProductForm({
           }
           defaultValue={v?.name ?? product?.name}
         />
+        {aiOn && <AiWriter kind={kind} />}
 
         {kind === "item" && (
           <>
@@ -165,6 +175,8 @@ export default function ProductForm({
               <Field label="Price (₦)" name="price" inputMode="numeric" placeholder="3000" defaultValue={price} />
               <Field label="Size" name="size" placeholder="1 litre" required={false} defaultValue={v?.size ?? product?.size ?? ""} />
             </div>
+            {hint}
+            <TextBox label="About it" name="about" defaultValue={v?.about ?? product?.about ?? ""} placeholder="e.g. Made fresh every Friday with real ginger." />
             <p className="text-[15px] font-extrabold">How do people buy it?</p>
             <Radio name="sellMode" value="preorder" defaultChecked={mode === "preorder"} title="Pre-order for delivery day" detail="Buyers order ahead, you make it for your delivery day" />
             <Radio name="sellMode" value="in_stock" defaultChecked={mode === "in_stock"} title="In stock now" detail="Ready to pick up or deliver" />
@@ -186,6 +198,7 @@ export default function ProductForm({
               <Field label="Price a night (₦)" name="price" inputMode="numeric" placeholder="45000" defaultValue={price} />
               <Field label="Shortest stay (nights)" name="minNights" inputMode="numeric" placeholder="1" defaultValue={num("minNights", product?.minNights ?? 1)} />
             </div>
+            {hint}
             <div className="grid grid-cols-3 gap-2.5">
               <Field label="Guests" name="guests" inputMode="numeric" placeholder="4" defaultValue={num("guests", product?.guests)} />
               <Field label="Bedrooms" name="bedrooms" inputMode="numeric" placeholder="2" defaultValue={num("bedrooms", product?.bedrooms)} />
@@ -229,6 +242,7 @@ export default function ProductForm({
               hint="Put 0 to give it away free. Free downloads help new buyers find you."
               defaultValue={v?.price ?? (product ? String(product.priceKobo / 100) : "")}
             />
+            {hint}
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] font-bold">The file buyers get</span>
               {product?.fileName && (
@@ -264,6 +278,7 @@ export default function ProductForm({
               hint={kind === "event" ? "Put 0 for a free event. People still reserve a seat." : undefined}
               defaultValue={v?.price ?? (product ? String(product.priceKobo / 100) : "")}
             />
+            {hint}
             <TextBox
               label={kind === "session" ? "What you'll cover" : "About the event"}
               name="about"
@@ -379,7 +394,14 @@ export default function ProductForm({
                 <Field label="Price is" name="priceUnit" placeholder="per visit" required={false} defaultValue={v?.priceUnit ?? product?.priceUnit ?? ""} />
               </div>
             )}
+            {priceType === "fixed" && hint}
             <TextBox label="About the service" name="about" defaultValue={v?.about ?? product?.about ?? ""} placeholder="e.g. 10 years fixing leaks, blocked drains and new installations." />
+            <TextBox
+              label="What's included"
+              name="included"
+              defaultValue={v?.included ?? product?.included.join("\n") ?? ""}
+              placeholder={"One per line, e.g.\nChecking the unit\nCleaning the filters"}
+            />
             <p className="text-[15px] font-extrabold">Which days do you work?</p>
             <ChipChecks items={DAYS.map((d, i) => ({ key: String(i), label: d }))} prefix="workday:" checked={(k) => days.includes(Number(k))} />
             <p className="text-[15px] font-extrabold">Which areas do you cover?</p>
@@ -387,6 +409,15 @@ export default function ProductForm({
             <ChipChecks items={AREAS.map((a) => ({ key: a, label: a }))} prefix="servicearea:" checked={(k) => areas.includes(k)} />
           </>
         )}
+
+        <Field
+          label="Search words"
+          name="tags"
+          required={false}
+          placeholder="e.g. zobo, drink, ginger"
+          hint="Words buyers might type, split by commas. Not shown on your listing."
+          defaultValue={v?.tags ?? product?.tags.join(", ") ?? ""}
+        />
 
         {product && (
           <label className="flex items-center gap-3 rounded-[18px] bg-white px-4 py-3.5 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">

@@ -222,6 +222,19 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                   <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-[#3a4458] lg:mt-0 lg:max-w-[68ch] lg:text-base lg:leading-[1.65]">{p.about}</p>
                 </>
               )}
+              {p.kind === "service" && p.included.length > 0 && (
+                <div className="mt-5">
+                  <h2 className="mb-2 text-[15px] font-extrabold lg:text-xl">What&apos;s included</h2>
+                  <ul className="flex flex-col gap-1.5 text-[15px] text-[#3a4458]">
+                    {p.included.map((l) => (
+                      <li key={l} className="flex gap-2">
+                        <span aria-hidden="true" className="font-extrabold text-accent">✓</span>
+                        {l}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
 
             <Link href={`/s/${shop.slug}`} className="-mt-1 flex items-center gap-3 rounded-[18px] border border-line bg-white p-3 lg:hidden">

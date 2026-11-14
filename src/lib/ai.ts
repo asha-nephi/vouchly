@@ -117,14 +117,26 @@ export async function aiJSON(a: Ask): Promise<Record<string, unknown> | null> {
 }
 
 // Clean AI text before anyone sees it: no HTML, links, phone numbers or church names; cut to length.
+const BANNED = [
+  /\b(?:https?:\/\/|www\.)\S+|\b[\w-]+\.(?:com|ng|net|org|io)\b/i, // links
+  /\b[\w.-]+@[\w-]+\.[\w.]+\b/, // emails
+  /\+?\d[\d\s-]{6,}\d/, // phone numbers
+  /church of jesus christ|latter[- ]day saints?|\blds\b|\bmormons?\b/i,
+];
+
 export function cleanText(v: unknown, max: number): string {
   if (typeof v !== "string") return "";
+  // Drop any sentence or line with a link, phone, email or church name, so nothing is left half-cut.
   let s = v
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "")
-    .replace(/\b[\w.-]+@[\w-]+\.[\w.]+\b/g, "")
-    .replace(/\+?\d[\d\s-]{6,}\d/g, "")
-    .replace(/\b(?:the\s+)?church of jesus christ(?: of latter[- ]day saints)?\b|\blatter[- ]day saints?\b|\blds\b|\bmormons?\b/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .split("\n")
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/)
+        .filter((part) => !BANNED.some((b) => b.test(part)))
+        .join(" "),
+    )
+    .join("\n")
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")

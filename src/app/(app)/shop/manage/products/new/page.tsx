@@ -4,6 +4,8 @@ import { myShop } from "@/lib/shops";
 import { BackBar } from "@/components/ui";
 import ProductForm from "../product-form";
 import { MAX_FILE_MB } from "@/lib/files";
+import { aiReady } from "@/lib/ai";
+import { similarPrices } from "@/lib/ai-writer";
 import { FIRST_KINDS } from "@/lib/seller-types";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,7 @@ export default async function NewProduct({ searchParams }: { searchParams: Promi
   return (
     <main className="mx-auto min-h-dvh max-w-md">
       <BackBar title={shop.sellerType === "service" ? "Add a service" : "Add a product"} href="/shop/manage" />
-      <ProductForm maxFileMb={MAX_FILE_MB} first={first === "1"} defaultKind={guess} firstKinds={[...FIRST_KINDS[shop.sellerType]]} />
+      <ProductForm aiOn={aiReady()} similar={await similarPrices(shop.category)} maxFileMb={MAX_FILE_MB} first={first === "1"} defaultKind={guess} firstKinds={[...FIRST_KINDS[shop.sellerType]]} />
     </main>
   );
 }

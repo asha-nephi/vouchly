@@ -113,7 +113,7 @@ export async function sectionListings(section: Section, area: string, f: Filters
     eq(products.removed, false),
     eq(shops.isOpen, true),
     inArray(products.kind, kinds as (typeof products.kind.enumValues)[number][]),
-    like ? or(ilike(products.name, like), ilike(products.about, like), ilike(shops.name, like)) : undefined,
+    like ? or(ilike(products.name, like), ilike(products.about, like), ilike(shops.name, like), sql`${products.tags}::text ilike ${like}`) : undefined,
     f.cat ? eq(shops.category, f.cat as (typeof shops.category.enumValues)[number]) : undefined,
     // A past event is no longer for sale.
     or(ne(products.kind, "event"), gt(products.eventAt, now)),
