@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic"; // always lists the current shops
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE}/about`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${SITE}/join`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE}/contact`, changeFrequency: "yearly", priority: 0.3 },
   ];

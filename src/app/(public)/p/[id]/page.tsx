@@ -14,6 +14,7 @@ import { addDays, todayKey, weekday } from "@/lib/dates";
 import { durationLabel, eventWhen, timeLabel } from "@/lib/listings";
 import { holdMode, nextDeliveryDay } from "@/lib/orders";
 import { shopStats } from "@/lib/shop-stats";
+import { ldJson, listingJsonLd } from "@/lib/structured";
 import { initials, toneFor } from "@/lib/initials";
 import ServiceBooking from "./service-booking";
 import StayBooking from "./stay-booking";
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { p, shop } = row;
   return shareMeta({
     title: `${p.name} · ${priceText(p)}`,
-    description: clip(p.about) || `From ${shop.name} in ${shop.area}, Lagos. Pay safely on Vouchly.`,
+    description: clip(p.about) || `From ${shop.name}, a Latter-day Saint business in ${shop.area}, Lagos. Pay safely on Vouchly.`,
     path: `/p/${p.id}`,
     photo: p.photos[0],
   });
@@ -150,6 +151,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   return (
     <BasketProvider initialQty={basket.qty} initialCount={basket.count} initialTotal={basket.totalKobo}>
       <main className="mx-auto min-h-dvh max-w-md pb-36 lg:max-w-[1280px] lg:px-6 lg:pb-16 lg:pt-5">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson(listingJsonLd(p, shop, stats)) }} />
         <nav aria-label="Breadcrumb" className="mb-4 hidden text-[13px] font-bold text-muted lg:block">
           <Link href={`/home?s=${section}`} className="hover:text-ink">
             {sectionName}

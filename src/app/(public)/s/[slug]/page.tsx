@@ -17,6 +17,7 @@ import TilePhoto from "@/components/tile-photo";
 import { ctaLabel, priceText, tileTag } from "@/lib/listings";
 import { nextDeliveryDay } from "@/lib/orders";
 import { shopStats } from "@/lib/shop-stats";
+import { ldJson, shopJsonLd } from "@/lib/structured";
 import { initials, toneFor } from "@/lib/initials";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .limit(1);
   return shareMeta({
     title: `${shop.name} on Vouchly`,
-    description: clip(shop.about) || `${categoryLabel(shop.category)} in ${shop.area}, Lagos, from a confirmed member. Order and pay safely on Vouchly.`,
+    description: clip(shop.about) || `${categoryLabel(shop.category)} in ${shop.area}, Lagos, from a Latter-day Saint member vouched for by their ward. Order and pay safely on Vouchly.`,
     path: `/s/${shop.slug}`,
     photo: shop.coverPhoto ?? first?.photos[0],
   });
@@ -104,6 +105,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
   return (
     <BasketProvider initialQty={basket.qty} initialCount={basket.count} initialTotal={basket.totalKobo}>
       <main className="mx-auto min-h-dvh max-w-md pb-44 lg:max-w-[1280px] lg:px-6 lg:pb-16 lg:pt-6">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson(shopJsonLd(shop, stats)) }} />
         <div className="relative h-[168px] overflow-hidden md:h-[240px] lg:h-[280px] lg:rounded-[22px]" style={{ background: shop.coverPhoto ? undefined : toneFor(shop.name) }}>
           {shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="(min-width: 1024px) 1232px, (min-width: 768px) 44rem, 100vw" priority />}
           <Link
