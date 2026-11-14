@@ -69,6 +69,7 @@ Key files to understand before changing buying flows:
   - `requireBuyer()`: guests allowed
 - `src/app/(app)/book/actions.ts`: stays, services, digital, sessions, tickets, quotes.
 - `src/app/(app)/shop/actions.ts` → `saveProduct()`. It handles all six kinds.
+- `src/lib/ai.ts` → `aiJSON()`. The one AI switch every AI feature calls (see "AI help" below).
 
 Order delivery methods: `pickup`, `drop_off`, `rider`, `check_in`, `visit`, `download`, `session`, `event`.
 Statuses include `requested` and `quoted` (for quotes) as well as the normal paid → ready → received flow.
@@ -120,6 +121,29 @@ Important details:
 | `CRON_SECRET` | Protects `/api/cron/settle?key=...` |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` | Photo storage |
 | `R2_FILES_BUCKET` | Private bucket for digital product files. "vouchly-files" has been created but its keys are **not set yet**. Until they are, files are stored in the database with a 10MB limit; with R2 the limit is 25MB. |
+| `AI_PROVIDER` | `cloudflare` (Workers AI, now) or `anthropic` (Claude, later). Empty = AI off and all AI buttons hidden. |
+| `CF_ACCOUNT_ID`, `CF_AI_TOKEN` | Cloudflare account ID and an API token with Workers AI access (for `cloudflare`) |
+| `ANTHROPIC_API_KEY` | Claude key (for `anthropic`) |
+| `AI_MODEL_TEXT`, `AI_MODEL_VISION` | Optional. Defaults: `@cf/meta/llama-4-scout-17b-16e-instruct` (Cloudflare, text and photos) or `claude-haiku-5-5` (Claude) |
+| `AI_DAILY_LIMIT` | Optional. Whole-site AI uses a day, default 300 |
+| `AI_BASE_URL` | Tests only: point at `scripts/fake-ai.mjs` |
+
+## AI help
+
+Three features, all drafts the person edits. AI never saves, posts or sends anything.
+
+- **Listing writer** ("Write it for me" on the listing form): drafts name, description, search words and, for services, "What's included". It uses the seller's few words and the first new photo, shrunk to a 768px JPEG on the phone. Undo puts back what they typed. The "Similar listings on Vouchly: ₦x – ₦y" line comes from real prices (`similarPrices()`), never AI.
+- **Marketing kit** ("Make a post" on each listing in the seller area, and on the share-your-shop cards): WhatsApp status, Instagram caption or broadcast, in English or Pidgin. Code adds the exact link and "Pay safely on Vouchly". Up to 3 versions a day.
+- **Smart search** (`/search`): only for sentences (4+ words, or words like "need", "tomorrow", "near", "cheap"). The answer becomes normal filter URLs with `ai=1`, and every value is checked against our real lists. On any failure it quietly falls back to plain search.
+
+Rules:
+- Every feature must work, or hide, when `aiJSON()` returns `null`.
+- Prompts start from `AI_RULES`: plain words, no hype, no made-up facts, no phone numbers, links or church name.
+- AI text goes through `cleanText()`/`cleanList()`: no HTML, sentences with links, phones or the church name are dropped, and text is cut to length.
+- Go through `runAi()` in `src/lib/ai-use.ts`. It checks the cache, then the limits, then calls. Limits per Lagos day: 30 for each seller (writer and posts together), 20 smart searches for each buyer or IP, and `AI_DAILY_LIMIT` for the whole site. Over a limit, say "AI help is resting for today. Try again tomorrow, or write it yourself."
+- Answers are cached in `ai_cache`: smart search for 1 day per cleaned-up question, posts for 1 day per listing, type, language and version.
+- 20-second timeout. 429, 403 and "out of capacity" are logged and return `null`. A Meta "agree" licence error sends `{"prompt":"agree"}` once and retries.
+- Testing: run `node scripts/fake-ai.mjs 4011`, then start the app with `AI_PROVIDER=cloudflare CF_ACCOUNT_ID=x CF_AI_TOKEN=x AI_BASE_URL=http://localhost:4011`, or with `AI_PROVIDER=anthropic ANTHROPIC_API_KEY=x` and the same base URL. Words in the prompt make it misbehave: `BADJSON`, `SLOWAI` (25s), `LICENCE`, `MADEUP`.
 
 ## Known gotchas (learned the hard way)
 
@@ -156,11 +180,13 @@ Always test the error paths too: a wrong code, a sold-out event, a member's phon
   - Sales page with earnings, chart, top sellers and latest payments
   - Discount codes
   - Share-your-shop kit
+- AI help (as of 15 Nov 2026): listing writer, marketing kit, smart search. All are off until the Cloudflare settings are added.
 
 ## Still waiting on Nephi (not code)
 
 - **Upgrade the Render free database before 7 Dec 2026.** The free one is deleted on that date.
 - Set the R2 keys for `vouchly-files`.
+- Turn on AI help: in Render, set `AI_PROVIDER=cloudflare`, `CF_ACCOUNT_ID` and `CF_AI_TOKEN`.
 - Set up the Paystack webhook URL in the Paystack dashboard.
 - Register the business with the CAC.
 - Email alerts are planned for later.
