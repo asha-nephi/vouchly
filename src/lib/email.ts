@@ -1,4 +1,5 @@
 import "server-only";
+import { siteUrl } from "@/lib/site";
 
 export function emailReady(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
@@ -23,7 +24,7 @@ export async function sendEmail(to: string, subject: string, text: string, html:
 }
 
 export function emailUrl(path: string): string {
-  return new URL(path, process.env.SITE_URL ?? "http://localhost:3000").toString();
+  return new URL(path, siteUrl()).toString();
 }
 
 export function escapeHtml(value: string): string {

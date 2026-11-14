@@ -7,11 +7,12 @@ import { currentUser, startSession } from "@/lib/auth";
 import { createAuthToken } from "@/lib/email-auth";
 import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
 import { googleClient } from "@/lib/google";
+import { siteUrl } from "@/lib/site";
 
 const STATE_COOKIE = "vl_google_state";
 const PENDING_COOKIE = "vl_google_signup";
 
-const appUrl = (request: Request, path: string) => new URL(path, process.env.SITE_URL ?? new URL(request.url).origin);
+const appUrl = (request: Request, path: string) => new URL(path, siteUrl(new URL(request.url).origin));
 const backToLogin = (request: Request, reason: string) => NextResponse.redirect(appUrl(request, `/login?google=${reason}`));
 
 export async function GET(request: Request) {

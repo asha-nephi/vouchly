@@ -4,11 +4,12 @@ import { db } from "@/db";
 import { orderItems, orders, products, shops } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { readFile } from "@/lib/files";
+import { siteUrl } from "@/lib/site";
 
 // Sends a digital product's file, only to the buyer who paid (or the seller).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const user = await currentUser();
-  if (!user) return NextResponse.redirect(new URL("/login", process.env.SITE_URL ?? req.nextUrl.origin));
+  if (!user) return NextResponse.redirect(new URL("/login", siteUrl(req.nextUrl.origin)));
   const { code } = await params;
   const [row] = await db
     .select({ order: orders, fileId: products.fileId, ownerId: shops.ownerId })

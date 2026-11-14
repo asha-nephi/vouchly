@@ -4,8 +4,9 @@ import { db } from "@/db";
 import { authTokens, users } from "@/db/schema";
 import { currentUser, hash } from "@/lib/auth";
 import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
+import { siteUrl } from "@/lib/site";
 
-const appUrl = (request: Request, path: string) => new URL(path, process.env.SITE_URL ?? new URL(request.url).origin);
+const appUrl = (request: Request, path: string) => new URL(path, siteUrl(new URL(request.url).origin));
 
 // Email apps often open links before the person does, so this must not log anyone in
 // and must still say "verified" if the same link is opened again.
