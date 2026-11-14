@@ -28,13 +28,16 @@ const METHOD = {
 export default async function ShopOrders({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; show?: string }>;
 }) {
   const user = await requireUser();
   const shop = await myShop(user.id);
   if (!shop) redirect("/sell");
   await maybeSettle();
-  const done = (await searchParams).tab === "done";
+  const sp = await searchParams;
+  const done = sp.tab === "done";
+  // Service pros see price requests on their own.
+  const requests = !done && sp.show === "requests";
 
   const rows = await db
     .select({ order: orders, buyer: users.name })
@@ -43,7 +46,7 @@ export default async function ShopOrders({
     .where(
       and(
         eq(orders.shopId, shop.id),
-        inArray(orders.status, done ? ["received", "cancelled"] : [...TO_DO]),
+        inArray(orders.status, done ? ["received", "cancelled"] : requests ? ["requested", "quoted"] : [...TO_DO]),
       ),
     )
     .orderBy(
@@ -97,7 +100,7 @@ export default async function ShopOrders({
 
   return (
     <main className="mx-auto min-h-dvh max-w-md pb-10">
-      <BackBar title="Orders" href="/shop/manage" />
+      <BackBar title={requests ? "Price requests" : "Orders"} href="/shop/manage" />
       <div className="flex flex-col gap-4 px-4">
         <div className="flex rounded-full bg-white p-1 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
           {tab("/shop/manage/orders", "To do", !done)}
