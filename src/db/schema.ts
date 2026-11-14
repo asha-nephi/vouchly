@@ -163,7 +163,9 @@ export const products = pgTable("products", {
   sellMode: sellMode("sell_mode").notNull().default("preorder"),
   maxPerDay: integer("max_per_day"),
   kind: productKind("kind").notNull().default("item"),
-  about: text("about"), // longer description, used by stays and services
+  about: text("about"), // longer description
+  tags: jsonb("tags").$type<string[]>().notNull().default([]), // search words, never shown
+  included: jsonb("included").$type<string[]>().notNull().default([]), // services: what the price covers
   // Stays
   guests: smallint("guests"),
   bedrooms: smallint("bedrooms"),
@@ -296,3 +298,21 @@ export const notifications = pgTable("notifications", {
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("notifications_user_idx").on(t.userId, t.read)]);
+
+// AI uses per person (or per IP for guests) per feature per Lagos day.
+export const aiUsage = pgTable("ai_usage", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  ipHash: text("ip_hash"),
+  who: text("who").notNull(), // user id, or "ip:" + hash
+  feature: text("feature").notNull(), // writer | post | search
+  day: text("day").notNull(), // YYYY-MM-DD, Lagos
+  count: integer("count").notNull().default(0),
+}, (t) => [uniqueIndex("ai_usage_who_idx").on(t.who, t.feature, t.day), index("ai_usage_day_idx").on(t.day)]);
+
+// Saved AI answers, so the same question doesn't use the allowance twice.
+export const aiCache = pgTable("ai_cache", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
