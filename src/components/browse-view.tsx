@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { browse } from "@/lib/browse";
-import { categoryLabel } from "@/lib/catalog";
+import { categoryLabel, naira } from "@/lib/catalog";
 import { categoryCounts, proCards, sectionListings, tradeCounts, SECTIONS, SECTION_IDS, type Filters, type Section } from "@/lib/sections";
 import { ticketsTaken } from "@/lib/sessions";
 import { ShopRow } from "@/components/shop-card";
@@ -30,7 +30,7 @@ function Sort({ action, section, f }: { action: string; section: Section; f: Fil
   const keep: [string, string][] = [["s", section]];
   if (f.q) keep.push(["q", f.q]);
   if (f.area) keep.push(["area", f.area]);
-  for (const k of ["cat", "trade", "when", "r4", "how", "pr", "type", "where", "date"] as const) {
+  for (const k of ["cat", "trade", "when", "r4", "how", "pr", "type", "where", "date", "max"] as const) {
     const v = f[k];
     if (v) keep.push([k, v === true ? "1" : String(v)]);
   }
@@ -69,12 +69,39 @@ export default async function BrowseView({ section, area, f, action, showShops }
   const title = f.q ? `Results for “${f.q}”` : section === "online" ? what : `${what} near ${area}`;
   const unit = section === "services" ? (n === 1 ? "vouched pro" : "vouched pros") : n === 1 ? "listing" : "listings";
   const sortNote = section === "services" && (!f.sort || f.sort === "soon") ? " · sorted by soonest available" : "";
+  // Smart search says what it understood, with a way to change it.
+  const showing = f.ai
+    ? [
+        f.trade ?? (f.cat ? categoryLabel(f.cat) : f.q ? `“${f.q}”` : SECTIONS[section].label),
+        area,
+        f.when === "tomorrow" ? "free tomorrow" : f.when === "week" ? "free this week" : f.date === "week" ? "this week" : null,
+        f.max ? `up to ${naira(f.max * 100)}` : null,
+      ].filter(Boolean)
+    : null;
+  const change = (() => {
+    const p = new URLSearchParams();
+    p.set("s", section);
+    if (f.q) p.set("q", f.q);
+    if (f.area) p.set("area", f.area);
+    for (const k of ["cat", "trade", "when", "date", "max"] as const) if (f[k]) p.set(k, String(f[k]));
+    p.set("ai", "1");
+    p.set("filters", "1");
+    return `${action}?${p}`;
+  })();
   const clear = `${action}?${new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}), ...(f.area ? { area: f.area } : {}) })}`;
 
   return (
     <div className="lg:flex lg:items-start lg:gap-7">
       <FilterSidebar action={action} section={section} f={f} counts={counts} trades={trades} />
       <section className="min-w-0 flex-1" aria-labelledby="results-title">
+        {showing && (
+          <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[14px] bg-soft px-3.5 py-2.5 text-[13px] font-semibold text-deep">
+            <span>Showing: {showing.join(" · ")}</span>
+            <Link href={change} className="font-extrabold text-accent">
+              Change
+            </Link>
+          </p>
+        )}
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 id="results-title" className="text-[19px] font-extrabold tracking-[-0.01em] lg:text-[28px] lg:tracking-[-0.02em]">

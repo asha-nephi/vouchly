@@ -60,7 +60,7 @@ async function cacheSet(key: string, value: unknown, ms: number) {
 export const DAY_MS = 86_400_000;
 
 // Runs one AI job: cache first, then limits, then the call. The call returns a checked value or null.
-export async function useAi<T>(opts: { who: Who; feature: AiFeature; cacheKey?: string; cacheMs?: number; call: () => Promise<T | null> }): Promise<{ ok: true; value: T } | { ok: false; resting: boolean }> {
+export async function runAi<T>(opts: { who: Who; feature: AiFeature; cacheKey?: string; cacheMs?: number; call: () => Promise<T | null> }): Promise<{ ok: true; value: T } | { ok: false; resting: boolean }> {
   if (opts.cacheKey) {
     const hit = await cacheGet(opts.cacheKey);
     if (hit) return { ok: true, value: hit as T };

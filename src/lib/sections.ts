@@ -72,6 +72,9 @@ export type Filters = {
   type?: "digital" | "session" | "event"; // online
   where?: "online" | "person"; // online
   date?: "week" | "month"; // online events
+  max?: number; // most they want to pay, in naira
+  ai?: boolean; // filters came from smart search
+  open?: boolean; // open the phone filter sheet
 };
 
 type Params = Record<string, string | string[] | undefined>;
@@ -94,12 +97,15 @@ export function readFilters(p: Params): Filters {
     type: pick(p.type, ["digital", "session", "event"] as const),
     where: pick(p.where, ["online", "person"] as const),
     date: pick(p.date, ["week", "month"] as const),
+    max: /^\d{1,8}$/.test(one(p.max)) && Number(one(p.max)) > 0 ? Number(one(p.max)) : undefined,
+    ai: one(p.ai) === "1",
+    open: one(p.filters) === "1",
   };
 }
 
 // How many filters are on, for the phone "Filters" button.
 export const filterCount = (f: Filters) =>
-  [f.cat, f.trade, f.when, f.price && f.price.length < 2 ? f.price : undefined, f.r4 || undefined, f.how, f.pr, f.type, f.where, f.date].filter(Boolean).length;
+  [f.cat, f.trade, f.when, f.price && f.price.length < 2 ? f.price : undefined, f.r4 || undefined, f.how, f.pr, f.type, f.where, f.date, f.max].filter(Boolean).length;
 
 // Live listings in a section, nearest first, with what the cards need.
 export async function sectionListings(section: Section, area: string, f: Filters, limit = 60) {
@@ -115,6 +121,7 @@ export async function sectionListings(section: Section, area: string, f: Filters
     inArray(products.kind, kinds as (typeof products.kind.enumValues)[number][]),
     like ? or(ilike(products.name, like), ilike(products.about, like), ilike(shops.name, like), sql`${products.tags}::text ilike ${like}`) : undefined,
     f.cat ? eq(shops.category, f.cat as (typeof shops.category.enumValues)[number]) : undefined,
+    f.max ? lte(products.priceKobo, f.max * 100) : undefined,
     // A past event is no longer for sale.
     or(ne(products.kind, "event"), gt(products.eventAt, now)),
   ];

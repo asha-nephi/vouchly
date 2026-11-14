@@ -1,4 +1,8 @@
+import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
+import { aiReady } from "@/lib/ai";
+import { DAY_MS, runAi, whoIs } from "@/lib/ai-use";
+import { looksLikeSentence, searchKey, sentenceToFilters } from "@/lib/ai-search";
 import { readFilters, toSection } from "@/lib/sections";
 import TabBar from "@/components/tab-bar";
 import BrowseView, { SectionSwitch } from "@/components/browse-view";
@@ -14,6 +18,18 @@ export default async function Search({ searchParams }: { searchParams: Promise<R
   const section = oldKind ? "online" : toSection(typeof params.s === "string" ? params.s : null);
   const f = readFilters(oldKind ? { ...params, type: oldKind === "digital" ? "digital" : "event" } : params);
   const area = f.area ?? (user && !user.isGuest ? user.area : null) ?? "Ikeja";
+
+  // Smart search: a sentence becomes real filters. Any failure falls back to plain search, quietly.
+  if (f.q && !f.ai && aiReady() && looksLikeSentence(f.q)) {
+    const res = await runAi({
+      who: await whoIs(user?.id),
+      feature: "search",
+      cacheKey: `search:${section}:${searchKey(f.q)}`,
+      cacheMs: DAY_MS,
+      call: () => sentenceToFilters(f.q, section),
+    });
+    if (res.ok) redirect(`/search?${new URLSearchParams(res.value)}`);
+  }
 
   return (
     <main className="mx-auto min-h-dvh max-w-md pb-28 lg:max-w-[1280px] lg:px-6 lg:pb-14 lg:pt-7">

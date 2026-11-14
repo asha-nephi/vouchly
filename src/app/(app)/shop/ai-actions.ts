@@ -3,7 +3,7 @@
 import { requireUser } from "@/lib/auth";
 import { myShop } from "@/lib/shops";
 import { aiReady, type AiImage } from "@/lib/ai";
-import { AI_RESTING, useAi, whoIs } from "@/lib/ai-use";
+import { AI_RESTING, runAi, whoIs } from "@/lib/ai-use";
 import { draftListing, type Draft, type Kind } from "@/lib/ai-writer";
 import { draftPost, MAX_VERSIONS, POST_TYPES, withLink, type PostAbout, type PostLang, type PostType } from "@/lib/ai-post";
 import { and, eq } from "drizzle-orm";
@@ -35,7 +35,7 @@ export async function writeListing(input: { words: string; kind: string; image?:
   const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input.image ?? "");
   if (m && m[2].length < 1_500_000) image = { mediaType: m[1] as AiImage["mediaType"], base64: m[2] };
 
-  const res = await useAi({
+  const res = await runAi({
     who: await whoIs(user.id),
     feature: "writer",
     call: () => draftListing({ words, kind, shop, image }),
@@ -79,7 +79,7 @@ export async function makePost(input: { productId?: string; type: string; lang: 
     key = `post:shop:${shop.id}`;
   }
 
-  const res = await useAi({
+  const res = await runAi({
     who: await whoIs(user.id),
     feature: "post",
     cacheKey: `${key}:${type}:${lang}:${version}:${todayKey()}`,

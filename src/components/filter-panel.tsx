@@ -74,6 +74,7 @@ function Fields({ section, f, counts, trades }: { section: Section; f: Filters; 
       {f.q && <input type="hidden" name="q" value={f.q} />}
       {f.area && <input type="hidden" name="area" value={f.area} />}
       {f.sort && <input type="hidden" name="sort" value={f.sort} />}
+      {f.max && <input type="hidden" name="max" value={f.max} />}
       {section === "services" && (
         <>
           {trades.length ? <TradeList value={f.trade} trades={trades} /> : <CategoryList title="Type of work" value={f.cat} counts={counts} />}
@@ -128,7 +129,7 @@ export function FilterSheet({ action, section, f, counts, trades }: { action: st
   const n = filterCount(f);
   const clear = new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}), ...(f.area ? { area: f.area } : {}) });
   return (
-    <details className="sheet lg:hidden">
+    <details className="sheet lg:hidden" open={f.open}>
       <summary className="flex h-11 cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-bold">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14213D" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="M4 6h16M7 12h10M10 18h4" />
