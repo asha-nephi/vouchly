@@ -1,44 +1,24 @@
-import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { browse, KIND_FILTERS, searchShops, type KindFilter } from "@/lib/browse";
-import { CATEGORIES } from "@/lib/catalog";
-import { ShopRow } from "@/components/shop-card";
+import { AREAS } from "@/lib/catalog";
+import { readFilters, toSection } from "@/lib/sections";
 import TabBar from "@/components/tab-bar";
+import BrowseView, { SectionSwitch } from "@/components/browse-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function Search({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string; kind?: string }> }) {
+export default async function Search({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireUser();
-  const area = user.area ?? "Ikeja";
-  const { q = "", cat, kind: kindParam } = await searchParams;
-  const kind = kindParam && kindParam in KIND_FILTERS ? (kindParam as KindFilter) : undefined;
-  const category = CATEGORIES.some((c) => c.id === cat) ? cat : undefined;
-  const query = q.trim().slice(0, 60);
-
-  const results = query
-    ? await searchShops(area, query, category, kind)
-    : await browse(area, category, kind).then((r) => [...r.near, ...r.more]);
-
-  // A chip filters by category, or by kind (Classes, Downloads).
-  const chip = (id: string | undefined, label: string, byKind = false) => {
-    const on = byKind ? id === kind : !kind && id === category;
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (id) params.set(byKind ? "kind" : "cat", id);
-    return (
-      <Link
-        key={label}
-        href={`/search?${params}`}
-        className={`flex h-11 shrink-0 items-center rounded-full px-4 text-[13px] ${on ? "bg-ink font-bold text-white" : "border border-line bg-white font-semibold"}`}
-      >
-        {label}
-      </Link>
-    );
-  };
+  const params = await searchParams;
+  // Old links used ?kind=class|digital; they now live in Online.
+  const oldKind = params.kind === "class" || params.kind === "digital" ? params.kind : null;
+  const section = oldKind ? "online" : toSection(typeof params.s === "string" ? params.s : null);
+  const f = readFilters(oldKind ? { ...params, type: oldKind === "digital" ? "digital" : "event" } : params);
+  const picked = typeof params.area === "string" && (AREAS as readonly string[]).includes(params.area) ? params.area : null;
+  const area = picked ?? user.area ?? "Ikeja";
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-28">
-      <div className="flex flex-col gap-4 px-4 pt-4">
+    <main className="mx-auto min-h-dvh max-w-md pb-28 lg:max-w-[1280px] lg:px-6 lg:pb-14 lg:pt-7">
+      <div className="flex flex-col gap-4 px-4 pt-4 lg:hidden">
         <form action="/search" className="flex h-[52px] items-center gap-2.5 rounded-2xl border-2 border-ink bg-white px-4">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14213d" strokeWidth="2" aria-hidden="true">
             <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" />
@@ -49,39 +29,17 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
               name="q"
               type="search"
               enterKeyHint="search"
-              defaultValue={query}
+              defaultValue={f.q}
               placeholder="Tigernut, plumber, shortlet…"
               className="w-full bg-transparent text-[15px] font-semibold outline-none placeholder:font-normal placeholder:text-[#8a93a5]"
             />
           </label>
-          {category && <input type="hidden" name="cat" value={category} />}
-          {kind && <input type="hidden" name="kind" value={kind} />}
+          <input type="hidden" name="s" value={section} />
         </form>
-
-        <div className="hide-scroll -mx-4 flex gap-2 overflow-x-auto px-4">
-          {chip(undefined, "All")}
-          {chip("class", "Classes", true)}
-          {chip("digital", "Downloads", true)}
-          {CATEGORIES.map((c) => chip(c.id, c.label))}
-        </div>
-
-        <p className="text-[13px] font-semibold text-muted">
-          {results.length} {results.length === 1 ? "shop" : "shops"}
-          {query ? ` for “${query}”` : ""} · {area} first
-        </p>
-
-        {results.length === 0 ? (
-          <div className="rounded-[20px] border-[1.5px] border-dashed border-[#c8ceda] p-6 text-center">
-            <p className="text-[15px] font-bold">Nothing found</p>
-            <p className="mt-1 text-[13px] text-muted">Try a shorter word, or a different category.</p>
-          </div>
-        ) : (
-          <div className="cards">
-            {results.map((s) => (
-              <ShopRow key={s.id} s={s} />
-            ))}
-          </div>
-        )}
+        <SectionSwitch section={section} action="/search" q={f.q} />
+      </div>
+      <div className="px-4 pt-5 lg:px-0 lg:pt-0">
+        <BrowseView section={section} area={area} f={f} action="/search" />
       </div>
       <TabBar active="Search" />
     </main>

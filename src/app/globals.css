@@ -140,3 +140,12 @@ textarea {
 .hide-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* Phone filters sheet: tapping the dark backdrop closes it. */
+.sheet[open] > summary::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(20 33 61 / 0.45);
+}
