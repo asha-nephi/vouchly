@@ -6,7 +6,7 @@ import { googleClient, googleReady } from "@/lib/google";
 const STATE_COOKIE = "vl_google_state";
 
 export async function GET(request: Request) {
-  if (!googleReady()) return NextResponse.redirect(new URL("/login?google=unavailable", request.url));
+  if (!googleReady()) return NextResponse.redirect(new URL("/login?google=unavailable", process.env.SITE_URL ?? new URL(request.url).origin));
   const link = new URL(request.url).searchParams.get("link") === "1";
   const state = randomBytes(32).toString("base64url");
   const nonce = randomBytes(32).toString("base64url");

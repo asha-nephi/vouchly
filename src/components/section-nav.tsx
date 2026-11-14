@@ -70,3 +70,39 @@ export function HideOn({ prefixes, children }: { prefixes: string[]; children: R
   const path = usePathname();
   return prefixes.some((p) => path.startsWith(p)) ? null : children;
 }
+
+// Area picker in the computer top bar for people who aren't signed in.
+// Keeps the current search and section; other pages go to Home.
+export function AreaMenu({ areas }: { areas: readonly string[] }) {
+  const { path, params } = useSection();
+  const picked = params.get("area");
+  const area = picked && areas.includes(picked) ? picked : "Ikeja";
+  const base = path === "/search" ? "/search" : "/home";
+  const href = (a: string) => {
+    const p = new URLSearchParams(path === "/home" || path === "/search" ? params.toString() : "");
+    p.set("area", a);
+    return `${base}?${p}`;
+  };
+  return (
+    <details className="relative" key={path + params.toString()}>
+      <summary className="flex h-[46px] cursor-pointer list-none items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 text-sm font-bold">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14213D" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+          <circle cx="12" cy="9.5" r="2.5" />
+        </svg>
+        {area}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A6478" strokeWidth="2" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+        <span className="sr-only">, change area</span>
+      </summary>
+      <div className="absolute left-0 top-[52px] z-40 grid max-h-[60vh] w-56 overflow-y-auto rounded-2xl border border-line bg-white p-1.5 shadow-[0_12px_32px_-12px_rgba(20,33,61,0.3)]">
+        {areas.map((a) => (
+          <Link key={a} href={href(a)} className={`flex min-h-10 items-center rounded-xl px-3 text-sm hover:bg-bg ${a === area ? "bg-soft font-extrabold" : "font-semibold"}`}>
+            {a}
+          </Link>
+        ))}
+      </div>
+    </details>
+  );
+}

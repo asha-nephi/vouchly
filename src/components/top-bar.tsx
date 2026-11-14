@@ -5,7 +5,8 @@ import { basketCount, readBasket } from "@/lib/basket";
 import { unreadCount } from "@/lib/notifications";
 import { initials } from "@/lib/initials";
 import Bell from "@/components/bell";
-import { HideOn, SectionTabs, TopSearch } from "@/components/section-nav";
+import { AREAS } from "@/lib/catalog";
+import { AreaMenu, HideOn, SectionTabs, TopSearch } from "@/components/section-nav";
 
 // The computer top bar. Phones never see it; they keep the bottom tabs.
 export default async function TopBar() {
@@ -23,6 +24,7 @@ export default async function TopBar() {
               Vouchly
             </Link>
             <TopSearch />
+            {!member && <AreaMenu areas={AREAS} />}
             {member && (
               <Link href="/area" className="flex h-[46px] items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 text-sm font-bold">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14213D" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
