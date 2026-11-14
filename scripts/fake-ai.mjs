@@ -20,7 +20,7 @@ function answer(system, prompt) {
     })}`;
   if (system.includes("TASK: post")) {
     const v = /Version (\d)/.exec(prompt)?.[1] ?? "1";
-    const pidgin = prompt.includes("Pidgin");
+    const pidgin = (system + prompt).includes("Pidgin");
     return JSON.stringify({ text: pidgin ? `(v${v}) Zobo don land! Cold and fresh. #zobo #lagos` : `(v${v}) Cold zobo is ready for the weekend. Order yours today. #zobo #lagosfood` });
   }
   if (system.includes("TASK: search")) {

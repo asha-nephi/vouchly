@@ -17,6 +17,8 @@ import SubmitButton from "@/components/submit-button";
 import TodoButton from "./todo-button";
 import { shopStats } from "@/lib/shop-stats";
 import { slotLabel } from "@/lib/listings";
+import { aiReady } from "@/lib/ai";
+import PostMaker from "@/components/post-maker";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,7 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
   const shop = await myShop(user.id);
   if (!shop) redirect("/sell");
   const { saved } = await searchParams;
+  const ai = aiReady();
   const weekAgo = new Date(Date.now() - 7 * DAY);
 
   const [items, [delivery], weekPay, open, perProduct, stats, latestPay, [weekJobs]] = await Promise.all([
@@ -400,6 +403,16 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
               WhatsApp
             </a>
           </div>
+          {ai && (
+            <details className="mt-3 border-t border-[#c9d3f3] pt-3">
+              <summary className="flex h-9 cursor-pointer list-none items-center justify-between text-sm font-bold text-accent">
+                Make a post about my shop <span aria-hidden="true">›</span>
+              </summary>
+              <div className="pt-2">
+                <PostMaker />
+              </div>
+            </details>
+          )}
         </section>
 
         <section className={`${card} px-4 lg:hidden`}>
@@ -451,20 +464,27 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
           ) : (
             <div className="cards lg:!grid-cols-3">
               {items.map((p) => (
-                <Link key={p.id} href={`/shop/manage/products/${p.id}`} className={`${card} flex items-center gap-3 p-2.5`}>
-                  <span className="shimmer relative size-[52px] shrink-0 overflow-hidden rounded-xl">
-                    <TilePhoto src={p.photos[0]} name={p.name} sizes="52px" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold">{p.name}</span>
-                    <span className="mt-0.5 block truncate text-xs font-semibold text-muted">{p.isActive ? statusLine(p) : "Hidden from buyers"}</span>
-                  </span>
-                  <span className="shrink-0 text-sm font-extrabold tabular-nums">
-                    {priceText(p)
-                      .replace(/ (a night|a session|per .*)$/, "")
-                      .replace("Price after a chat", "Quote")}
-                  </span>
-                </Link>
+                <div key={p.id} className={`${card} overflow-hidden`}>
+                  <Link href={`/shop/manage/products/${p.id}`} className="flex items-center gap-3 p-2.5">
+                    <span className="shimmer relative size-[52px] shrink-0 overflow-hidden rounded-xl">
+                      <TilePhoto src={p.photos[0]} name={p.name} sizes="52px" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold">{p.name}</span>
+                      <span className="mt-0.5 block truncate text-xs font-semibold text-muted">{p.isActive ? statusLine(p) : "Hidden from buyers"}</span>
+                    </span>
+                    <span className="shrink-0 text-sm font-extrabold tabular-nums">
+                      {priceText(p)
+                        .replace(/ (a night|a session|per .*)$/, "")
+                        .replace("Price after a chat", "Quote")}
+                    </span>
+                  </Link>
+                  {ai && p.isActive && (
+                    <Link href={`/shop/manage/products/${p.id}?post=1#post`} className="flex h-10 items-center border-t border-line px-3 text-[13px] font-bold text-accent">
+                      Make a post
+                    </Link>
+                  )}
+                </div>
               ))}
             </div>
           )}

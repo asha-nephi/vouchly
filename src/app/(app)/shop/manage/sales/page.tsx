@@ -9,6 +9,8 @@ import { holdMode } from "@/lib/orders";
 import { myShop } from "@/lib/shops";
 import CopyLink from "@/components/copy-link";
 import { BackBar } from "@/components/ui";
+import { aiReady } from "@/lib/ai";
+import PostMaker from "@/components/post-maker";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +151,16 @@ export default async function Sales({ searchParams }: { searchParams: Promise<{ 
           <p className="text-[15px] font-extrabold text-ink">Share your shop</p>
           <p className="mb-2.5 mt-0.5 text-[13px] text-deep">Anyone can buy from this link, even without an account. Put it on your WhatsApp status or Instagram bio.</p>
           <CopyLink url={`${site}/s/${shop.slug}`} text={`Shop with me on Vouchly: ${shop.name}`} />
+          {aiReady() && (
+            <details className="mt-3 border-t border-[#c9d3f3] pt-3">
+              <summary className="flex h-9 cursor-pointer list-none items-center justify-between text-sm font-bold text-accent">
+                Make a post about my shop <span aria-hidden="true">›</span>
+              </summary>
+              <div className="pt-2">
+                <PostMaker />
+              </div>
+            </details>
+          )}
         </section>
 
         <section className={`${card} p-4 text-sm`}>
