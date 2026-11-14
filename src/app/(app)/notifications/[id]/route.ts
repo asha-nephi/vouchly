@@ -9,9 +9,9 @@ import { siteUrl } from "@/lib/site";
 // Opening a notice marks it read, then goes where it points.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
-  if (!user) return NextResponse.redirect(new URL("/login", req.url));
+  if (!user) return NextResponse.redirect(new URL("/login", siteUrl(req.nextUrl.origin)));
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/.test(id)) return NextResponse.redirect(new URL("/notifications", req.url));
+  if (!/^[0-9a-f-]{36}$/.test(id)) return NextResponse.redirect(new URL("/notifications", siteUrl(req.nextUrl.origin)));
   const [n] = await db
     .update(notifications)
     .set({ read: true })
