@@ -55,6 +55,7 @@ export default function CheckoutForm(props: {
   const riderOnArrival = method === "rider" && options.rider?.payOnArrival;
   const total = items + fee;
   const step = props.guest ? 1 : 0; // numbers shift when there's no "Your details"
+  const itemCount = lines.reduce((sum, line) => sum + line.qty, 0);
 
   // A choice card. The chosen one gets a 2px blue border.
   const choice = (value: string, title: string, detail: string, right: { text: string; free?: boolean } | null, disabled = false) => (
@@ -82,10 +83,18 @@ export default function CheckoutForm(props: {
   return (
     <form action={action} className="flex flex-col gap-[22px] px-4 pt-1">
       <section className="rounded-[18px] border border-line bg-white p-3.5">
-        <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-muted">
-          <span className="truncate">{shopName}</span>
-          {props.confirmed && <Seal size={14} />}
-        </p>
+        <div className="mb-2.5 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-extrabold">Your order</h2>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-muted">
+              <span className="truncate">{shopName}</span>
+              {props.confirmed && <Seal size={14} />}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-soft px-2.5 py-1 text-xs font-bold text-deep">
+            {itemCount} {itemCount === 1 ? "item" : "items"}
+          </span>
+        </div>
         {lines.map((l, i) => (
           <div key={l.id} className={`flex items-center gap-3 py-2.5 ${i === 0 ? "pt-0" : ""} ${i < lines.length - 1 ? "border-b border-line" : ""}`}>
             <span className="shimmer relative size-14 shrink-0 overflow-hidden rounded-[14px]">

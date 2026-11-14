@@ -71,6 +71,20 @@
       "when": 1794609179540,
       "tag": "0009_discounts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794620825838,
+      "tag": "0010_auth_methods",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794621457597,
+      "tag": "0011_password_login_limits",
+      "breakpoints": true
     }
   ]
 }

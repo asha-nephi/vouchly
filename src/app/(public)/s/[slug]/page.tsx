@@ -135,6 +135,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
             )}
           </div>
           <h1 className="mb-1 mt-3 text-2xl font-extrabold leading-tight tracking-[-0.02em]">{shop.name}</h1>
+          <p className="text-[13px] font-semibold text-muted">{categoryLabel(shop.category)} · {shop.area}, Lagos</p>
           {shop.about && <p className="text-sm leading-relaxed text-muted">{shop.about}</p>}
           <div className="mt-4 grid border-t border-line pt-3.5" style={{ gridTemplateColumns: `repeat(${statCells.length}, minmax(0, 1fr))` }}>
             {statCells.map((c) => (
@@ -186,7 +187,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
                   replace
                   scroll={false}
                   aria-current={on ? "true" : undefined}
-                  className={`flex h-11 shrink-0 items-center rounded-full px-3.5 text-[13px] ${on ? "bg-ink font-bold text-white" : "border border-line bg-white font-semibold text-ink"}`}
+                  className={`flex h-11 shrink-0 items-center rounded-full px-3.5 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${on ? "bg-ink font-bold text-white" : "border border-line bg-white font-semibold text-ink"}`}
                 >
                   {c.label} <span className={`ml-1 ${on ? "opacity-70" : "text-muted"}`}>{c.n}</span>
                 </Link>

@@ -11,6 +11,7 @@ import { Note } from "@/components/ui";
 import Photo from "@/components/photo";
 import { listingLine, priceText } from "@/lib/listings";
 import SubmitButton from "@/components/submit-button";
+import { initials, toneFor } from "@/lib/initials";
 
 export const dynamic = "force-dynamic";
 
@@ -90,14 +91,23 @@ export default async function MyShop({
             View as buyer
           </Link>
         </div>
-        <h1 className="text-[26px] font-extrabold tracking-tight">My shop</h1>
+        <div>
+          <h1 className="text-[26px] font-extrabold tracking-tight">My shop</h1>
+          <p className="mt-0.5 text-sm font-semibold text-muted">{shop.name}</p>
+        </div>
 
         {saved === "product" && <Note tone="green">Saved.</Note>}
         {saved === "removed" && <Note tone="green">Removed.</Note>}
 
         <section className={`${card} flex items-center gap-3 p-3`}>
-          <div className="relative size-[52px] shrink-0 overflow-hidden rounded-[14px] bg-soft">
-            {shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="52px" />}
+          <div className="relative grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[14px] bg-soft">
+            {shop.coverPhoto ? (
+              <Photo src={shop.coverPhoto} sizes="52px" />
+            ) : (
+              <span className="grid size-full place-items-center text-sm font-extrabold text-white" style={{ background: toneFor(shop.name) }}>
+                {initials(shop.name)}
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-extrabold">{shop.name}</p>
@@ -128,7 +138,7 @@ export default async function MyShop({
           </span>
         </Link>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             {
               href: "/shop/manage/products/new",
@@ -154,7 +164,7 @@ export default async function MyShop({
             <Link
               key={a.href}
               href={a.href}
-              className={`${card} flex flex-col items-center gap-1.5 px-1 py-3.5 text-center`}
+              className={`${card} flex min-h-24 flex-col items-center justify-center gap-1.5 px-2 py-3.5 text-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
             >
               <span className="flex size-10 items-center justify-center rounded-xl bg-soft text-deep">
                 <svg

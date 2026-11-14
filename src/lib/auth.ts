@@ -57,7 +57,7 @@ export const currentUser = cache(async function currentUser() {
 // A signed-in member (not a guest buyer).
 export async function currentMember() {
   const user = await currentUser();
-  return user && !user.isGuest ? user : null;
+  return user && !user.isGuest && user.role !== "buyer" ? user : null;
 }
 
 // Member-only pages. Guests are sent to create an account.

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Members() {
   const me = await requireUser();
-  if (me.role === "member") redirect("/home");
+  if (me.role !== "ward_contact" && me.role !== "admin") redirect("/home");
 
   const inviter = alias(users, "inviter");
   const rows = await db
@@ -27,6 +27,7 @@ export default async function Members() {
     })
     .from(users)
     .leftJoin(inviter, eq(inviter.id, users.invitedById))
+    .where(eq(users.role, "member"))
     .orderBy(users.confirmed, desc(users.createdAt))
     .limit(200);
 

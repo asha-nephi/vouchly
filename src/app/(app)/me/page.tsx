@@ -16,7 +16,8 @@ const card = "rounded-[20px] bg-white shadow-[0_1px_3px_rgba(20,33,61,0.08)]";
 
 export default async function Me() {
   const user = await requireUser();
-  const shop = await myShop(user.id);
+  const isBuyer = user.role === "buyer";
+  const shop = isBuyer ? null : await myShop(user.id);
   const count = async (where: ReturnType<typeof and>) =>
     (await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where))[0]?.n ?? 0;
   const [newOrders, problems, unread] = await Promise.all([
@@ -48,18 +49,18 @@ export default async function Me() {
           <div>
             <p className="text-lg font-extrabold">{user.name}</p>
             <p className="text-[13px] text-muted">
-              {user.ward}
+              {isBuyer ? "Buyer account" : user.ward}
               {user.area ? ` · ${user.area}` : ""}
             </p>
             <span
-              className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${user.confirmed ? "bg-soft text-deep" : "bg-[#fdf0d5] text-[#7a4d06]"}`}
+              className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${isBuyer || user.confirmed ? "bg-soft text-deep" : "bg-[#fdf0d5] text-[#7a4d06]"}`}
             >
-              {user.confirmed ? "Verified member" : "Waiting for confirmation"}
+              {isBuyer ? "Buyer" : user.confirmed ? "Verified member" : "Waiting for confirmation"}
             </span>
           </div>
         </section>
 
-        {!user.confirmed && (
+        {!isBuyer && !user.confirmed && (
           <section className={`${card} px-4 py-1.5`}>
             {steps.map((s, i) => (
               <div key={s.label} className={`flex items-center gap-3 py-3 ${i < 2 ? "border-b border-[#eef0f4]" : ""}`}>
@@ -75,7 +76,12 @@ export default async function Me() {
           </section>
         )}
 
-        {user.confirmed ? (
+        {isBuyer ? (
+          <section className={`${card} p-4`}>
+            <Note>You can browse, order and track your purchases here. To sell, join as a member with an invite code.</Note>
+            <Link href="/join" className="mt-3 flex h-11 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">Join as a member</Link>
+          </section>
+        ) : user.confirmed ? (
           <Link href={shop ? "/shop/manage" : "/sell"} className="flex items-center gap-3 rounded-[22px] bg-ink p-[18px] text-white">
             <span className="flex-1">
               <span className="block text-base font-extrabold">{shop ? "My shop" : "Sell on Vouchly"}</span>
@@ -93,7 +99,7 @@ export default async function Me() {
           <Note>You can open a shop once you&apos;re confirmed.</Note>
         )}
 
-        <section className={`${card} p-4`}>
+        {!isBuyer && <section className={`${card} p-4`}>
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <p className="text-[15px] font-bold">Invite a member</p>
@@ -109,16 +115,19 @@ export default async function Me() {
           >
             Share invite on WhatsApp
           </a>
-        </section>
+        </section>}
 
         <section className={`${card} px-4`}>
+          <Link href="/me/security" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
+            Login and security <span aria-hidden="true">›</span>
+          </Link>
           {user.role === "admin" && (
             <Link href="/admin/problems" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
               Problems reported
               <span className={`text-sm ${problems ? "font-bold text-[#b42318]" : "font-medium text-muted"}`}>{problems} ›</span>
             </Link>
           )}
-          {user.role !== "member" && (
+          {(user.role === "ward_contact" || user.role === "admin") && (
             <Link href="/admin/members" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
               Confirm new members <span aria-hidden="true">›</span>
             </Link>

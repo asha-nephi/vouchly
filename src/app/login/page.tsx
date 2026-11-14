@@ -1,23 +1,23 @@
-"use client";
+import { redirect } from "next/navigation";
+import LoginForm from "./login-form";
+import { currentUser } from "@/lib/auth";
+import { emailReady } from "@/lib/email";
+import { googleReady } from "@/lib/google";
 
-import { useActionState } from "react";
-import { startLogin } from "../actions";
-import { BackBar, ErrorText, Field, PrimaryButton } from "@/components/ui";
+export const dynamic = "force-dynamic";
 
-export default function Login() {
-  const [state, action, pending] = useActionState(startLogin, undefined);
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col">
-      <BackBar title="Log in" href="/" />
-      <form action={action} className="flex flex-1 flex-col gap-3.5 px-4 pb-6 pt-2">
-        <h2 className="text-[22px] font-extrabold tracking-tight">Welcome back</h2>
-        <p className="text-sm leading-relaxed text-muted">Enter your phone number and we&apos;ll send you a code.</p>
-        <Field label="Phone number" name="phone" defaultValue={state?.values?.phone} type="tel" inputMode="tel" placeholder="0803 123 4567" autoComplete="tel" />
-        <ErrorText message={state?.error} />
-        <div className="mt-auto pt-2">
-          <PrimaryButton pending={pending}>Send code</PrimaryButton>
-        </div>
-      </form>
-    </main>
-  );
+const GOOGLE_ERRORS: Record<string, string> = {
+  failed: "Google sign-in didn't work. Please try again.",
+  link: "This account already exists. Sign in another way, then connect Google in Login and security.",
+  email: "That Google email belongs to another account.",
+  used: "That Google account is already connected to a different Vouchly account.",
+  unavailable: "Google sign-in is not set up yet.",
+};
+
+export default async function Login({ searchParams }: { searchParams: Promise<{ google?: string; email?: string }> }) {
+  const query = await searchParams;
+  const me = await currentUser();
+  if (me && !me.isGuest) redirect(query.email === "verified" ? "/me/security?email=done" : "/home");
+  const googleError = query.google ? GOOGLE_ERRORS[query.google] ?? GOOGLE_ERRORS.failed : undefined;
+  return <LoginForm googleEnabled={googleReady()} emailEnabled={emailReady()} googleError={googleError} emailExpired={query.email === "expired"} emailVerified={query.email === "verified"} />;
 }

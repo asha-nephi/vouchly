@@ -20,13 +20,20 @@ export const orderStatus = pgEnum("order_status", [
 ]);
 export const paymentStatus = pgEnum("payment_status", ["pending", "held", "released", "refunded", "part_refunded"]);
 
-export const userRole = pgEnum("user_role", ["member", "ward_contact", "admin"]);
+export const userRole = pgEnum("user_role", ["buyer", "member", "ward_contact", "admin"]);
+export const authPurpose = pgEnum("auth_purpose", ["email_verification", "password_reset", "google_signup"]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   phone: text("phone").notNull(), // stored as 234XXXXXXXXXX
   email: text("email"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  passwordHash: text("password_hash"),
+  passwordFailedCount: smallint("password_failed_count").notNull().default(0),
+  passwordFailedAt: timestamp("password_failed_at", { withTimezone: true }),
+  passwordLockedUntil: timestamp("password_locked_until", { withTimezone: true }),
+  googleSubject: text("google_subject"),
   ward: text("ward").notNull(),
   area: text("area"),
   role: userRole("role").notNull().default("member"),
@@ -40,6 +47,8 @@ export const users = pgTable("users", {
 }, (t) => [
   // One account per phone for members. Guests can repeat.
   uniqueIndex("users_phone_idx").on(t.phone).where(sql`${t.isGuest} = false`),
+  uniqueIndex("users_email_idx").on(t.email).where(sql`${t.email} IS NOT NULL AND ${t.isGuest} = false`),
+  uniqueIndex("users_google_subject_idx").on(t.googleSubject).where(sql`${t.googleSubject} IS NOT NULL`),
   uniqueIndex("users_invite_code_idx").on(t.inviteCode),
 ]);
 
@@ -48,12 +57,32 @@ export const otpCodes = pgTable("otp_codes", {
   id: uuid("id").primaryKey().defaultRandom(),
   phone: text("phone").notNull(),
   codeHash: text("code_hash").notNull(),
-  signup: jsonb("signup").$type<{ name: string; ward: string; invitedById: string | null; founder: boolean }>(),
+  signup: jsonb("signup").$type<
+    | { kind?: "member"; name: string; ward: string; invitedById: string | null; founder: boolean }
+    | { kind: "buyer"; name: string; email: string; passwordHash: string }
+    | { kind: "google_buyer"; name: string; email: string; googleSubject: string; authTokenId: string }
+  >(),
   attempts: smallint("attempts").notNull().default(0),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("otp_phone_idx").on(t.phone, t.createdAt)]);
+
+export const authTokens = pgTable("auth_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  email: text("email"),
+  name: text("name"),
+  providerSubject: text("provider_subject"),
+  tokenHash: text("token_hash").notNull(),
+  purpose: authPurpose("purpose").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("auth_tokens_hash_idx").on(t.tokenHash),
+  index("auth_tokens_user_purpose_idx").on(t.userId, t.purpose, t.createdAt),
+]);
 
 // Photos are kept in the database for now (already shrunk on the phone).
 // Swap src/lib/photos.ts to Cloudflare R2 later without touching anything else.

@@ -18,7 +18,7 @@ export type ShopFormState = { error?: string; values?: Record<string, string>; s
 // Only confirmed members can sell.
 async function requireSeller() {
   const user = await requireUser();
-  if (!user.confirmed) redirect("/sell");
+  if (user.role === "buyer" || !user.confirmed) redirect("/sell");
   return user;
 }
 

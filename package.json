@@ -15,6 +15,7 @@
     "@aws-sdk/client-s3": "^3.1164.0",
     "@fontsource-variable/manrope": "^5.3.0",
     "drizzle-orm": "^0.45.4",
+    "google-auth-library": "^11.3.4",
     "next": "15.5.29",
     "postgres": "^4.1.0",
     "react": "19.1.0",
