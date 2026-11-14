@@ -1,8 +1,8 @@
 // Tucked away until needed: most buyers won't have a code.
 export default function DiscountField({ value }: { value?: string }) {
   return (
-    <details className="rounded-[18px] bg-white px-4 py-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)]" open={!!value}>
-      <summary className="cursor-pointer text-[15px] font-bold">Have a discount code?</summary>
+    <details className="rounded-[18px] border border-line bg-white px-4 py-3" open={!!value}>
+      <summary className="flex min-h-6 cursor-pointer items-center text-[15px] font-bold">Have a discount code?</summary>
       <input
         name="discount"
         defaultValue={value}

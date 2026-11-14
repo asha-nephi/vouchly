@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { Field } from "./ui";
 
-// Name and phone for someone buying without an account.
-export default function GuestFields({ values }: { values?: Record<string, string> }) {
+// Name and phone for someone buying without an account. `step` adds a numbered heading.
+export default function GuestFields({ values, step }: { values?: Record<string, string>; step?: number }) {
   return (
-    <section className="flex flex-col gap-3.5 rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
+    <section className="flex flex-col gap-3.5 rounded-[18px] border border-line bg-white p-4">
       <div>
-        <p className="text-[15px] font-extrabold">Your details</p>
-        <p className="text-[13px] text-muted">
+        <p className="flex items-center gap-2.5 text-[17px] font-extrabold">
+          {step && (
+            <span className="grid size-[26px] place-items-center rounded-full bg-ink text-[13px] text-white" aria-hidden="true">
+              {step}
+            </span>
+          )}
+          Your details
+        </p>
+        <p className="mt-1 text-[13px] text-muted">
           So the seller can reach you. Have an account?{" "}
           <Link href="/login" className="font-bold text-accent">
             Log in
