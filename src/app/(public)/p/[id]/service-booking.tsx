@@ -31,13 +31,13 @@ export default function ServiceBooking(p: {
     <form action={action} className="flex flex-col gap-3.5">
       <input type="hidden" name="productId" value={p.productId} />
       <p className="text-base font-extrabold">When should they come?</p>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="radiogroup" aria-label="Day">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0 lg:pb-0" role="radiogroup" aria-label="Day">
         {p.days.map((d, i) => {
           const [wd, ...rest] = shortDay(d).replace(",", "").split(" ");
           return (
             <label key={d} className="relative shrink-0">
               <input type="radio" name="day" value={d} defaultChecked={v?.day ? v.day === d : i === 0} className="peer sr-only" />
-              <span className={`${chip} w-[68px] whitespace-nowrap`}>
+              <span className={`${chip} w-[68px] whitespace-nowrap lg:w-full`}>
                 <span className="text-[11px] font-semibold opacity-70">{wd}</span>
                 {rest.join(" ")}
               </span>
@@ -72,9 +72,21 @@ export default function ServiceBooking(p: {
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
       {!p.quote && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
-      {!p.disabled && <ActionBar><PrimaryButton pending={pending}>{p.quote ? "Ask for a price" : `Book and pay ${naira(p.priceKobo)}`}</PrimaryButton></ActionBar>}
+      {!p.disabled && (
+        <ActionBar>
+          <div className="flex w-full flex-col gap-2">
+            <PrimaryButton pending={pending}>{p.quote ? "Ask for a price" : `Book and pay ${naira(p.priceKobo)}`}</PrimaryButton>
+            {!p.quote && (
+              <button type="submit" name="ask" value="1" disabled={pending} className="hidden h-12 w-full rounded-[14px] border border-[#D5DAE3] bg-white text-[15px] font-extrabold disabled:opacity-60 lg:block">
+                Ask for a price first
+              </button>
+            )}
+          </div>
+        </ActionBar>
+      )}
       <p className="text-center text-xs text-muted">
         {p.quote ? "They'll send you a price. You only pay if you accept it." : "Paid safely through Paystack. Free cancellation until they accept."}
+        {!p.quote && <span className="hidden lg:inline"> Not sure of the job? Ask for a price first and only pay if you accept it.</span>}
       </p>
     </form>
   );

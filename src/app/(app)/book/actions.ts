@@ -121,7 +121,8 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
   if (values.address.length < 6) return fail("Please add the address for the visit.");
   if (values.details.length < 5) return fail("Please describe the job in a few words.");
 
-  const quote = p.priceType === "quote";
+  // "Ask for a price first" turns a fixed-price visit into a quote request.
+  const quote = p.priceType === "quote" || form.get("ask") === "1";
   if (!quote && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
   const disc = quote ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo);
   if ("error" in disc) return fail(disc.error);
