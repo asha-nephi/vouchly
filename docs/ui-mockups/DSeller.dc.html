@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Seller dashboard, desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+a{color:#2A4BD7;text-decoration:none}a:hover{color:#1E39A8}
+</style>
+</helmet>
+<div style="background: #F7F8FA; color: #14213D; font-family: 'Manrope', system-ui, sans-serif; min-height: 100%; display: flex; flex-wrap: wrap;">
+
+<aside aria-label="Seller menu" style="flex: 1 1 240px; max-width: 260px; background: #14213D; color: #fff; padding: 20px 14px; display: flex; flex-direction: column; gap: 4px;">
+<a href="Landing.dc.html" style="padding: 4px 10px 18px; font-weight: 800; font-size: 22px; letter-spacing: -0.02em; color: #fff;">Vouchly</a>
+<div style="margin: 0 0 14px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.08); display: flex; align-items: center; gap: 10px;">
+<span style="flex: none; width: 38px; height: 38px; border-radius: 11px; background: #4F6D7A; display: grid; place-items: center; font-weight: 800; font-size: 14px;">AP</span>
+<span style="min-width: 0;"><span style="display: block; font-size: 14px; font-weight: 800;">Ade Plumbing</span><span style="display: block; font-size: 12px; color: #AFC0F5; font-weight: 700;">Service pro · Open</span></span>
+</div>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="9">
+<a href="#" style="display: flex; align-items: center; justify-content: space-between; height: 42px; padding: 0 12px; border-radius: 10px; font-size: 14px; font-weight: {{n.weight}}; background: {{n.bg}}; color: {{n.color}};">{{n.label}}
+<sc-if value="{{n.count}}" hint-placeholder-val="{{false}}"><span style="min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #E5484D; color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center;">{{n.count}}</span></sc-if>
+</a>
+</sc-for>
+<div style="margin-top: auto; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 4px;">
+<a href="DListing.dc.html" style="height: 40px; padding: 0 12px; display: flex; align-items: center; border-radius: 10px; font-size: 14px; font-weight: 700; color: #C9D3EE;">View my page</a>
+<a href="AppHome.dc.html" style="height: 40px; padding: 0 12px; display: flex; align-items: center; border-radius: 10px; font-size: 14px; font-weight: 700; color: #C9D3EE;">Switch to buying</a>
+</div>
+</aside>
+
+<main style="flex: 999 1 640px; min-width: 0; padding: 28px 32px 48px;">
+<div style="max-width: 1100px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px;">
+<div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em;">Good morning, Ade</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #5A6478;">You have 3 things waiting and 4 visits this week.</p>
+</div>
+<div style="display: flex; gap: 8px;">
+<button style="height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid #D5DAE3; background: #fff; font-size: 14px; font-weight: 800;">Share my page</button>
+<button style="height: 44px; padding: 0 16px; border-radius: 12px; border: 0; background: #2A4BD7; color: #fff; font-size: 14px; font-weight: 800;">Add a service</button>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+<div style="padding: 18px; border-radius: 18px; background: #fff; border: 1px solid #E6E9EF;">
+<p style="margin: 0; font-size: 13px; font-weight: 700; color: #5A6478;">{{k.label}}</p>
+<p style="margin: 6px 0 2px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">{{k.value}}</p>
+<p style="margin: 0; font-size: 12px; font-weight: 700; color: {{k.subColor}};">{{k.sub}}</p>
+</div>
+</sc-for>
+</div>
+
+<div style="margin-top: 18px; display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start;">
+<section style="flex: 3 1 420px; min-width: 0; border-radius: 18px; background: #fff; border: 1px solid #E6E9EF;">
+<h2 style="margin: 0; padding: 16px 18px; font-size: 17px; font-weight: 800; border-bottom: 1px solid #E6E9EF;">Needs you now</h2>
+<sc-for list="{{todo}}" as="t" hint-placeholder-count="3">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: {{t.line}};">
+<span style="flex: none; padding: 4px 10px; border-radius: 999px; background: {{t.tagBg}}; color: {{t.tagColor}}; font-size: 12px; font-weight: 800;">{{t.tag}}</span>
+<div style="flex: 1 1 200px; min-width: 0;"><p style="margin: 0; font-size: 15px; font-weight: 700;">{{t.what}}</p><p style="margin: 2px 0 0; font-size: 13px; color: #5A6478;">{{t.who}}</p></div>
+<a href="#" style="flex: none; height: 38px; padding: 0 14px; border-radius: 10px; background: #2A4BD7; color: #fff; display: flex; align-items: center; font-size: 13px; font-weight: 800;">{{t.act}}</a>
+</div>
+</sc-for>
+</section>
+
+<section style="flex: 2 1 300px; min-width: 0; border-radius: 18px; background: #fff; border: 1px solid #E6E9EF;">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 16px 18px; border-bottom: 1px solid #E6E9EF;"><h2 style="margin: 0; font-size: 17px; font-weight: 800;">This week</h2><a href="#" style="font-size: 13px; font-weight: 800;">Calendar</a></div>
+<sc-for list="{{week}}" as="w" hint-placeholder-count="4">
+<div style="display: flex; gap: 12px; padding: 12px 18px; border-bottom: {{w.line}};">
+<div style="flex: none; width: 46px; text-align: center;"><p style="margin: 0; font-size: 11px; font-weight: 800; color: #5A6478;">{{w.d}}</p><p style="margin: 0; font-size: 20px; font-weight: 800;">{{w.n}}</p></div>
+<div style="min-width: 0;"><p style="margin: 0; font-size: 14px; font-weight: 800;">{{w.who}}</p><p style="margin: 2px 0 0; font-size: 13px; color: #5A6478;">{{w.what}}</p></div>
+</div>
+</sc-for>
+</section>
+</div>
+
+<section style="margin-top: 18px; border-radius: 18px; background: #fff; border: 1px solid #E6E9EF; overflow-x: auto;">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 16px 18px;"><h2 style="margin: 0; font-size: 17px; font-weight: 800;">Latest payments</h2><a href="#" style="font-size: 13px; font-weight: 800;">All sales</a></div>
+<table style="width: 100%; min-width: 560px; border-collapse: collapse; font-size: 14px;">
+<thead><tr style="text-align: left; color: #5A6478; font-size: 12px;"><th style="padding: 8px 18px; font-weight: 800;">Date</th><th style="padding: 8px 18px; font-weight: 800;">Client</th><th style="padding: 8px 18px; font-weight: 800;">Job</th><th style="padding: 8px 18px; font-weight: 800; text-align: right;">Paid</th><th style="padding: 8px 18px; font-weight: 800; text-align: right;">You get</th></tr></thead>
+<tbody>
+<sc-for list="{{pays}}" as="p" hint-placeholder-count="4">
+<tr style="border-top: 1px solid #E6E9EF;"><td style="padding: 12px 18px; color: #5A6478;">{{p.date}}</td><td style="padding: 12px 18px; font-weight: 700;">{{p.who}}</td><td style="padding: 12px 18px;">{{p.job}}</td><td style="padding: 12px 18px; text-align: right; font-variant-numeric: tabular-nums;">{{p.paid}}</td><td style="padding: 12px 18px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums;">{{p.net}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const nav = [['Overview', 0, true], ['Requests', 2], ['Bookings', 1], ['Calendar'], ['My services'], ['Sales'], ['Reviews'], ['Discounts'], ['Payout account'], ['Page settings']];
+    const line = (i, a) => (i < a.length - 1 ? '1px solid #E6E9EF' : '0');
+    const todo = [
+      { tag: 'Price request', tagBg: '#FDEBD3', tagColor: '#8A4307', what: 'Re-pipe a 3-bed flat', who: 'Chidi O. · Alausa · wants a site visit', act: 'Send price' },
+      { tag: 'Price request', tagBg: '#FDEBD3', tagColor: '#8A4307', what: 'Install water heater', who: 'Kemi O. · Ikeja · has the heater already', act: 'Send price' },
+      { tag: 'New booking', tagBg: '#DCE4FB', tagColor: '#1E39A8', what: 'Leaking kitchen sink', who: 'Tolu A. · Mon 16 Nov, morning · paid ₦8,000', act: 'Accept' }
+    ].map((t, i, a) => ({ ...t, line: line(i, a) }));
+    const week = [
+      { d: 'MON', n: 16, who: 'Tolu A. · Ikeja', what: 'Morning · leaking sink' },
+      { d: 'TUE', n: 17, who: 'Bisi K. · Ogba', what: 'Afternoon · toilet repair' },
+      { d: 'THU', n: 19, who: 'Emeka N. · Maryland', what: 'Morning · new shower' },
+      { d: 'SAT', n: 21, who: 'Ward building', what: 'Morning · service project (free)' }
+    ].map((w, i, a) => ({ ...w, line: line(i, a) }));
+    return {
+      nav: nav.map(([label, count, on]) => ({ label, count: count || false, weight: on ? 800 : 600, bg: on ? 'rgba(255,255,255,0.12)' : 'transparent', color: on ? '#fff' : '#C9D3EE' })),
+      kpis: [
+        { label: 'Earned this week', value: '₦64,600', sub: 'After the 5% fee', subColor: '#5A6478' },
+        { label: 'Jobs this week', value: '9', sub: '3 more than last week', subColor: '#1D7A46' },
+        { label: 'Waiting on you', value: '3', sub: 'Answer within a day', subColor: '#B42318' },
+        { label: 'Rating', value: '★ 4.8', sub: '31 reviews', subColor: '#5A6478' }
+      ],
+      todo, week,
+      pays: [
+        { date: '13 Nov', who: 'Ngozi E.', job: 'Water heater repair', paid: '₦18,000', net: '₦17,100' },
+        { date: '12 Nov', who: 'Bisi K. (guest)', job: 'Blocked drain', paid: '₦8,000', net: '₦7,600' },
+        { date: '11 Nov', who: 'Femi A.', job: 'New kitchen tap', paid: '₦12,500', net: '₦11,875' },
+        { date: '10 Nov', who: 'Sade O.', job: 'Call-out + pipe fix', paid: '₦26,000', net: '₦24,700' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

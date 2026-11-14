@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign up, pick your path</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:#2A4BD7;text-decoration:none}a:hover{color:#1E39A8}
+</style>
+</helmet>
+<div style="background: #F7F8FA; color: #14213D; font-family: 'Manrope', system-ui, sans-serif; min-height: 100%;">
+<header style="background: #fff; border-bottom: 1px solid #E6E9EF;">
+<div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;">
+<a href="Landing.dc.html" style="font-weight: 800; font-size: 22px; letter-spacing: -0.02em; color: #14213D;">Vouchly</a>
+<p style="margin: 0; font-size: 14px; color: #5A6478;">Already have an account? <a href="#" style="font-weight: 800;">Log in</a></p>
+</div>
+</header>
+
+<main style="max-width: 880px; margin: 0 auto; padding: 48px 24px 64px;">
+<p style="margin: 0 0 6px; font-size: 14px; font-weight: 800; color: #2A4BD7;">Step 1 of 3</p>
+<h1 style="margin: 0 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 800; letter-spacing: -0.03em;">What brings you to Vouchly?</h1>
+<p style="margin: 0 0 28px; font-size: 16px; color: #5A6478;">Pick one. You can add more later from your account.</p>
+
+<div role="radiogroup" aria-label="Your path" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px;">
+<sc-for list="{{paths}}" as="p" hint-placeholder-count="4">
+<button type="button" role="radio" aria-checked="{{p.on}}" onClick="{{p.pick}}" style="text-align: left; display: flex; gap: 16px; padding: 20px; border-radius: 20px; background: #fff; border: {{p.border}}; box-shadow: {{p.shadow}};">
+<span style="flex: none; width: 48px; height: 48px; border-radius: 14px; background: {{p.bg}};"></span>
+<span style="flex: 1; min-width: 0;">
+<span style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 18px; font-weight: 800;">{{p.title}}
+<sc-if value="{{p.on}}" hint-placeholder-val="{{false}}"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#2A4BD7"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></sc-if>
+</span>
+<span style="display: block; margin-top: 4px; font-size: 14px; line-height: 1.5; color: #3A4458;">{{p.body}}</span>
+<span style="display: block; margin-top: 10px; font-size: 12px; font-weight: 800; color: {{p.noteColor}};">{{p.note}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+
+<sc-if value="{{showTrades}}" hint-placeholder-val="{{true}}">
+<section style="margin-top: 28px; padding: 22px; border-radius: 20px; background: #fff; border: 1px solid #E6E9EF;">
+<h2 style="margin: 0 0 4px; font-size: 18px; font-weight: 800;">{{followTitle}}</h2>
+<p style="margin: 0 0 14px; font-size: 14px; color: #5A6478;">This decides where buyers find you. Pick all that fit.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="8">
+<button type="button" aria-pressed="{{c.on}}" onClick="{{c.toggle}}" style="height: 40px; padding: 0 16px; border-radius: 999px; border: {{c.border}}; background: {{c.bg}}; color: {{c.color}}; font-size: 14px; font-weight: 700;">{{c.label}}</button>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<div style="margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;">
+<p style="margin: 0; font-size: 14px; color: #5A6478; max-width: 52ch;">{{footNote}}</p>
+<a href="#" style="height: 52px; padding: 0 28px; border-radius: 14px; background: #14213D; color: #fff; display: flex; align-items: center; font-size: 16px; font-weight: 800;">Continue</a>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { picked: 'service', chosen: { Plumbing: true, 'AC repair': true } }; }
+  renderVals() {
+    const defs = [
+      { id: 'buy', title: 'I want to buy or hire', body: 'Shop products, book a pro, or learn online. Free, no invite needed.', note: 'Takes 1 minute', bg: '#2A4BD7' },
+      { id: 'service', title: 'I offer a service', body: 'Plumber, electrician, cleaner, chef, tailor, tutor. Get booked and paid.', note: 'Needs a member invite', bg: '#4F6D7A' },
+      { id: 'online', title: 'I sell online', body: 'Downloads, 1-on-1 coaching, classes and events.', note: 'Needs a member invite', bg: '#3F5BA9' },
+      { id: 'products', title: 'I sell products', body: 'Food, drinks, fashion, crafts, or a physical store.', note: 'Needs a member invite', bg: '#B5712F' }
+    ];
+    const s = this.state;
+    const paths = defs.map((d) => {
+      const on = s.picked === d.id;
+      return { ...d, on, border: on ? '2px solid #2A4BD7' : '1px solid #E6E9EF', shadow: on ? '0 10px 28px -18px rgba(42,75,215,0.6)' : 'none', noteColor: d.id === 'buy' ? '#1D7A46' : '#5A6478', pick: () => this.setState({ picked: d.id, chosen: {} }) };
+    });
+    const lists = {
+      service: ['Plumbing', 'Electrical', 'AC repair', 'Cleaning', 'Chef and catering', 'Tailoring', 'Hair and beauty', 'Tutoring', 'Other'],
+      online: ['Downloads', '1-on-1 coaching', 'Classes', 'Events', 'Other'],
+      products: ['Food', 'Drinks', 'Fashion', 'Crafts', 'Home goods', 'Stays', 'Other']
+    };
+    const titles = { service: 'What do you do?', online: 'What will you offer?', products: 'What do you sell?' };
+    const chips = (lists[s.picked] || []).map((label) => {
+      const on = !!s.chosen[label];
+      return { label, on, border: on ? '1px solid #14213D' : '1px solid #D5DAE3', bg: on ? '#14213D' : '#fff', color: on ? '#fff' : '#14213D', toggle: () => this.setState({ chosen: { ...s.chosen, [label]: !on } }) };
+    });
+    return {
+      paths, chips,
+      showTrades: s.picked !== 'buy',
+      followTitle: titles[s.picked] || '',
+      footNote: s.picked === 'buy' ? 'Next: your name and phone number.' : 'Next: your invite code, then your name and phone. Your ward contact confirms you; you can set up your shop while you wait.'
+    };
+  }
+}
+</script>
+</body>
+</html>

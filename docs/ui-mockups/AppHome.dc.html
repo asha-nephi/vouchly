@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Buyer home, desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+a{color:#2A4BD7;text-decoration:none}a:hover{color:#1E39A8}
+</style>
+</helmet>
+<div style="background: #F7F8FA; color: #14213D; font-family: 'Manrope', system-ui, sans-serif; min-height: 100%;">
+
+<header style="position: sticky; top: 0; background: #fff; border-bottom: 1px solid #E6E9EF; z-index: 2;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;">
+<a href="Landing.dc.html" style="font-weight: 800; font-size: 22px; letter-spacing: -0.02em; color: #14213D;">Vouchly</a>
+<label style="flex: 1 1 360px; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border-radius: 12px; background: #F2F4F8; max-width: 560px;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A6478" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<input aria-label="Search Vouchly" placeholder="Search plumbers, electricians, cleaners…" style="border: 0; outline: 0; flex: 1; background: transparent; font-size: 15px;">
+</label>
+<button style="height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid #E6E9EF; background: #fff; display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14213D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Ikeja</button>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+<a href="Join.dc.html" style="padding: 0 10px; font-size: 14px; font-weight: 700;">Sell on Vouchly</a>
+<button aria-label="Basket, 1 item" style="position: relative; width: 44px; height: 44px; border-radius: 12px; border: 0; background: transparent; display: grid; place-items: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14213D" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span style="position: absolute; top: 4px; right: 3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #2A4BD7; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center;">1</span></button>
+<button aria-label="Notifications" style="width: 44px; height: 44px; border-radius: 12px; border: 0; background: transparent; display: grid; place-items: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14213D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 21h4"/></svg></button>
+<button aria-label="Your account" style="width: 40px; height: 40px; border-radius: 999px; border: 0; background: #DCE4FB; color: #1E39A8; font-weight: 800; font-size: 14px;">NA</button>
+</div>
+</div>
+<nav aria-label="Sections" style="max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; gap: 28px; font-size: 15px; font-weight: 700;">
+<a href="#" style="padding: 12px 0; color: #5A6478;">Products</a>
+<a href="#" aria-current="page" style="padding: 12px 0; color: #14213D; border-bottom: 3px solid #2A4BD7;">Services</a>
+<a href="#" style="padding: 12px 0; color: #5A6478;">Online</a>
+</nav>
+</header>
+
+<div style="max-width: 1280px; margin: 0 auto; padding: 28px 24px 56px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start;">
+
+<aside aria-label="Filters" style="flex: 1 1 230px; max-width: 260px; display: flex; flex-direction: column; gap: 22px;">
+<div>
+<h2 style="margin: 0 0 10px; font-size: 13px; font-weight: 800; color: #5A6478;">Type of work</h2>
+<sc-for list="{{trades}}" as="t" hint-placeholder-count="8">
+<a href="#" style="display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 10px; font-size: 15px; font-weight: {{t.weight}}; background: {{t.bg}}; color: #14213D;">{{t.label}}<span style="color: #5A6478; font-weight: 600;">{{t.n}}</span></a>
+</sc-for>
+</div>
+<div>
+<h2 style="margin: 0 0 10px; font-size: 13px; font-weight: 800; color: #5A6478;">When do you need it?</h2>
+<label style="display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px;"><input type="radio" name="when" checked style="width: 18px; height: 18px; accent-color: #2A4BD7;">Any time</label>
+<label style="display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px;"><input type="radio" name="when" style="width: 18px; height: 18px; accent-color: #2A4BD7;">Free tomorrow</label>
+<label style="display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px;"><input type="radio" name="when" style="width: 18px; height: 18px; accent-color: #2A4BD7;">This week</label>
+</div>
+<div>
+<h2 style="margin: 0 0 10px; font-size: 13px; font-weight: 800; color: #5A6478;">Price</h2>
+<label style="display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px;"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: #2A4BD7;">Fixed price</label>
+<label style="display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px;"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: #2A4BD7;">Price after a chat</label>
+</div>
+<div>
+<h2 style="margin: 0 0 10px; font-size: 13px; font-weight: 800; color: #5A6478;">Rating</h2>
+<label style="display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px;"><input type="checkbox" style="width: 18px; height: 18px; accent-color: #2A4BD7;">4 stars and up</label>
+</div>
+</aside>
+
+<main style="flex: 999 1 640px; min-width: 0;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px;">
+<div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em;">Plumbers near Ikeja</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: #5A6478;">12 vouched pros · sorted by soonest available</p>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #5A6478;">Sort
+<select style="height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid #D5DAE3; background: #fff; font-weight: 700; color: #14213D;"><option>Soonest available</option><option>Top rated</option><option>Lowest price</option></select>
+</label>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px;">
+<sc-for list="{{pros}}" as="p" hint-placeholder-count="6">
+<article style="display: flex; flex-direction: column; padding: 18px; border-radius: 20px; background: #fff; border: 1px solid #E6E9EF;">
+<div style="display: flex; gap: 12px; align-items: center;">
+<div style="flex: none; width: 56px; height: 56px; border-radius: 16px; background: {{p.tone}}; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 18px;">{{p.initials}}</div>
+<div style="min-width: 0;">
+<h3 style="margin: 0; display: flex; align-items: center; gap: 5px; font-size: 16px; font-weight: 800;">{{p.name}} <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Vouched member"><path d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-.9 2.9.9 2.9-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9-2.5-1.7.9-2.9-.9-2.9 2.5-1.7.9-2.9 3 .2z" fill="#2A4BD7"/><path d="M8.5 12.2l2.3 2.3 4.7-4.9" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></h3>
+<p style="margin: 2px 0 0; font-size: 13px; color: #5A6478; font-weight: 600;">{{p.meta}}</p>
+</div>
+</div>
+<p style="margin: 14px 0 0; font-size: 14px; line-height: 1.5; color: #3A4458;">{{p.about}}</p>
+<div style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px;">
+<span style="padding: 5px 10px; border-radius: 999px; background: #E3F3EA; color: #1D7A46; font-size: 12px; font-weight: 800;">{{p.when}}</span>
+<span style="padding: 5px 10px; border-radius: 999px; background: #F2F4F8; font-size: 12px; font-weight: 700;">★ {{p.rating}}</span>
+</div>
+<div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+<p style="margin: 0; font-size: 13px; color: #5A6478; font-weight: 600;">{{p.priceLabel}}<span style="display: block; font-size: 17px; font-weight: 800; color: #14213D;">{{p.price}}</span></p>
+<a href="DListing.dc.html" style="height: 42px; padding: 0 18px; border-radius: 12px; background: #14213D; color: #fff; display: flex; align-items: center; font-size: 14px; font-weight: 800;">{{p.cta}}</a>
+</div>
+</article>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = [['Plumbing', 12, true], ['Electrical', 9], ['AC repair', 6], ['Cleaning', 14], ['Chef and catering', 8], ['Tailoring', 5], ['Hair and beauty', 7], ['Tutoring', 4]];
+    return {
+      trades: t.map(([label, n, on]) => ({ label, n, weight: on ? 800 : 600, bg: on ? '#DCE4FB' : 'transparent' })),
+      pros: [
+        { name: 'Ade Plumbing', initials: 'AP', tone: '#4F6D7A', meta: 'Plumber · Ogba Ward', about: 'Leaks, burst pipes, toilets, water heaters and new fittings. 9 years in Ikeja and Ogba.', when: 'Free tomorrow', rating: '4.8 (31)', priceLabel: 'Call-out', price: '₦8,000', cta: 'Book' },
+        { name: 'Femi Fix-It', initials: 'FF', tone: '#2E6B5E', meta: 'Plumber · Ikeja Ward', about: 'Kitchen and bathroom plumbing, borehole pumps and tank cleaning.', when: 'Free Thursday', rating: '4.9 (18)', priceLabel: 'Price after a chat', price: 'Ask for a price', cta: 'Ask' },
+        { name: 'Okon Water Works', initials: 'OW', tone: '#6B5B95', meta: 'Plumber · Maryland Branch', about: 'New builds and full re-piping. Free site visit before a quote.', when: 'Free Saturday', rating: '4.7 (12)', priceLabel: 'Site visit', price: 'Free', cta: 'Book' },
+        { name: 'Bayo Plumbing', initials: 'BP', tone: '#8A5A2B', meta: 'Plumber · Ogba Ward', about: 'Small jobs done fast: taps, sinks, blocked drains.', when: 'Free today', rating: '5.0 (9)', priceLabel: 'Call-out', price: '₦6,000', cta: 'Book' },
+        { name: 'Chidi Pipes', initials: 'CP', tone: '#3F5BA9', meta: 'Plumber · Alausa Ward', about: 'Water heaters, pressure pumps and leak detection.', when: 'Free next week', rating: '4.6 (22)', priceLabel: 'Call-out', price: '₦10,000', cta: 'Book' },
+        { name: 'Grace Home Repairs', initials: 'GH', tone: '#B5532F', meta: 'Plumber + handy work · Ikeja', about: 'Plumbing plus small carpentry and tiling in one visit.', when: 'Free Friday', rating: '4.8 (15)', priceLabel: 'Price after a chat', price: 'Ask for a price', cta: 'Ask' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
