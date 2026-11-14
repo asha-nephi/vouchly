@@ -85,6 +85,7 @@ DATABASE_URL=postgres://... SMS_TEST_MODE=true PAYSTACK_SECRET_KEY=sk_test_xxx \
 
 - `SMS_TEST_MODE=true` shows the OTP on screen instead of sending an SMS.
 - To test payments without real Paystack, point `PAYSTACK_BASE_URL` at a small fake server. It must answer `/transaction/initialize`, `/transaction/verify/:ref` and `/refund`.
+- To test sign-up and password emails without Resend, set `RESEND_API_KEY`/`RESEND_FROM` to anything and point `RESEND_BASE_URL` at a fake server that answers `POST /emails`.
 - **Always run `npm run build` before committing.** It also type-checks.
 
 ## Database changes

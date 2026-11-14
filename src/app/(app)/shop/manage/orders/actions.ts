@@ -43,6 +43,7 @@ export async function advanceOrder(form: FormData): Promise<void> {
     .returning({ id: orders.id });
   if (done.length) await notify(order.buyerId, "Order update", buyerMessage(next.to, shop.name, order.method), `/orders/${code}`);
   revalidatePath(`/shop/manage/orders/${code}`);
+  revalidatePath("/shop/manage");
 }
 
 // Saves the rider's details and marks the order on the way.
