@@ -90,3 +90,25 @@ export function eventWhen(d: Date | null) {
   const t = new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Africa/Lagos" }).format(d).replace(":00", "").replace(" ", "");
   return `${day}, ${t.toLowerCase()}`;
 }
+
+// The label on a listing's small action button.
+export function ctaLabel(p: { kind: ListingLike["kind"]; priceKobo: number; priceType: "fixed" | "quote" }) {
+  if (p.kind === "item") return "Add";
+  if (p.kind === "stay" || p.kind === "session") return "Book";
+  if (p.kind === "event") return "Tickets";
+  if (p.kind === "digital") return p.priceKobo === 0 ? "Get" : "Buy";
+  return p.priceType === "quote" ? "Ask" : "Book";
+}
+
+// The small white pill on a listing's photo. Empty when there's nothing useful to say.
+export function tileTag(p: ListingLike, readyDay?: string) {
+  if (p.kind === "item") return p.sellMode === "preorder" ? (readyDay ? `Pre-order · ${readyDay}` : "Pre-order") : "In stock";
+  if (p.kind === "event") {
+    const w = eventWhen(p.eventAt ?? null);
+    return w.slice(0, w.lastIndexOf(",")) || "Event"; // the date, without the time
+  }
+  if (p.kind === "digital") return "Instant download";
+  if (p.kind === "session") return p.online ? "Online" : "In person";
+  if (p.kind === "stay") return "Stay";
+  return "";
+}

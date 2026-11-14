@@ -197,3 +197,55 @@ export function ItemBar({ productId, name, priceKobo }: { productId: string; nam
     </>
   );
 }
+
+// Small action on a listing tile: "Add", or a little stepper once it's in the basket.
+export function TileAdd({ productId, name }: { productId: string; name: string }) {
+  const { qty, change } = useBasket();
+  const n = qty[productId] ?? 0;
+  if (n === 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => change(productId, 1)}
+        aria-label={`Add ${name}`}
+        className="relative h-[34px] rounded-full bg-soft px-3.5 text-[13px] font-extrabold text-deep after:absolute after:-inset-1.5 after:content-['']"
+      >
+        Add
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center">
+      <button type="button" onClick={() => change(productId, n - 1)} aria-label={`One less ${name}`} className="relative flex size-[34px] items-center justify-center rounded-full bg-soft text-lg font-bold text-deep after:absolute after:-inset-1.5 after:content-['']">
+        −
+      </button>
+      <span className="w-6 text-center text-sm font-extrabold tabular-nums" aria-live="polite">
+        {n}
+      </span>
+      <button type="button" onClick={() => change(productId, Math.min(n + 1, 99))} aria-label={`One more ${name}`} className="relative flex size-[34px] items-center justify-center rounded-full bg-ink text-lg font-bold text-white after:absolute after:-inset-1.5 after:content-['']">
+        +
+      </button>
+    </div>
+  );
+}
+
+// Floating bar on the shop page when the basket has something in it.
+export function CheckoutBar({ href }: { href: string }) {
+  const { count, totalKobo, pending } = useBasket();
+  if (count === 0) return null;
+  return (
+    <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 px-3">
+      <div className={`mx-auto flex h-[60px] max-w-md items-center justify-between rounded-[18px] bg-ink pl-[18px] pr-2 text-white shadow-[0_8px_24px_rgba(20,33,61,0.25)] ${pending ? "opacity-80" : ""}`}>
+        <div>
+          <p className="text-xs font-semibold opacity-75">
+            {count} {count === 1 ? "item" : "items"} in your basket
+          </p>
+          <p className="text-[17px] font-extrabold tabular-nums">{naira(totalKobo)}</p>
+        </div>
+        <Link href={href} className="flex h-11 items-center rounded-xl bg-white px-[18px] text-[15px] font-extrabold text-ink">
+          Check out
+        </Link>
+      </div>
+    </div>
+  );
+}
