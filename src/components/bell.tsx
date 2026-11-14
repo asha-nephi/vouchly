@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 // Bell with an unread count. Checks again every minute while the app is open.
-export default function Bell({ initial }: { initial: number }) {
+export default function Bell({ initial, flat }: { initial: number; flat?: boolean }) {
   const [n, setN] = useState(initial);
   useEffect(() => setN(initial), [initial]);
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function Bell({ initial }: { initial: number }) {
     <Link
       href="/notifications"
       aria-label={n ? `Notifications, ${n} new` : "Notifications"}
-      className="relative flex size-11 items-center justify-center rounded-full border border-line bg-white"
+      className={`relative flex size-11 items-center justify-center ${flat ? "rounded-xl hover:bg-bg" : "rounded-full border border-line bg-white"}`}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14213d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9zM10 20a2 2 0 0 0 4 0" />

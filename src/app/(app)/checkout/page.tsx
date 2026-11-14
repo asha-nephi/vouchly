@@ -30,8 +30,8 @@ export default async function Checkout() {
   const day = nextDeliveryDay(d.deliveryDays, d.orderCutoff, new Date(), inStockOnly);
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-32">
-      <header className="flex items-center gap-3 px-4 py-3.5">
+    <main className="mx-auto min-h-dvh max-w-md pb-32 lg:max-w-[1100px] lg:px-6 lg:pb-16 lg:pt-4">
+      <header className="flex items-center gap-3 px-4 py-3.5 lg:px-0">
         <Link href="/basket" aria-label="Back to basket" className="flex size-11 items-center justify-center rounded-full border border-line bg-white">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" />

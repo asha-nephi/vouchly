@@ -21,7 +21,7 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
 
   if (!basket) {
     return (
-      <main className="mx-auto min-h-dvh max-w-md pb-28">
+      <main className="mx-auto min-h-dvh max-w-md pb-28 lg:pb-12 lg:pt-4">
         <div className="px-4 pt-5">
           <h1 className="text-[26px] font-extrabold tracking-tight">Basket</h1>
           <div className="mt-6 rounded-[22px] border-[1.5px] border-dashed border-[#c8ceda] p-8 text-center">
@@ -50,7 +50,7 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
 
   return (
     <BasketProvider initialQty={qty} initialCount={count} initialTotal={total}>
-      <main className="mx-auto min-h-dvh max-w-md pb-28">
+      <main className="mx-auto min-h-dvh max-w-md pb-28 lg:pb-12 lg:pt-4">
         <div className="flex flex-col gap-4 px-4 pt-5">
           <div className="flex items-baseline justify-between">
             <h1 className="text-[26px] font-extrabold tracking-tight">Basket</h1>

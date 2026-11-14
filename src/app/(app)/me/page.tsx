@@ -40,7 +40,7 @@ export default async function Me() {
   ];
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-28">
+    <main className="mx-auto min-h-dvh max-w-md pb-28 lg:pb-12 lg:pt-4">
       <div className="flex flex-col gap-4 px-4 pt-5">
         <h1 className="text-[26px] font-extrabold tracking-tight">Me</h1>
 

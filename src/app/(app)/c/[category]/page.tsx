@@ -17,7 +17,7 @@ export default async function Category({ params }: { params: Promise<{ category:
   const { near, more } = await browse(area, cat.id);
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-28">
+    <main className="mx-auto min-h-dvh max-w-md pb-28 lg:pb-12 lg:pt-4">
       <BackBar title={cat.label} href="/home" />
       <div className="flex flex-col gap-3 px-4">
         {cat.id === "food" && <Note>Most food sellers take pre-orders and deliver on set days. Check each shop&apos;s order deadline.</Note>}

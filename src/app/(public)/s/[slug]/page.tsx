@@ -47,7 +47,7 @@ const GROUPS = [
   { key: "digital", label: "Downloads", kinds: ["digital"] },
 ] as const;
 
-const sizes = "(min-width: 768px) 22rem, 50vw";
+const sizes = "(min-width: 1024px) 300px, (min-width: 768px) 22rem, 50vw";
 
 export default async function ShopPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ k?: string }> }) {
   const me = await currentUser();
@@ -103,9 +103,9 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
 
   return (
     <BasketProvider initialQty={basket.qty} initialCount={basket.count} initialTotal={basket.totalKobo}>
-      <main className="mx-auto min-h-dvh max-w-md pb-44">
-        <div className="relative h-[168px] md:h-[240px]" style={{ background: shop.coverPhoto ? undefined : toneFor(shop.name) }}>
-          {shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="(min-width: 1200px) 52rem, (min-width: 768px) 44rem, 100vw" priority />}
+      <main className="mx-auto min-h-dvh max-w-md pb-44 lg:max-w-[1280px] lg:px-6 lg:pb-16 lg:pt-6">
+        <div className="relative h-[168px] overflow-hidden md:h-[240px] lg:h-[280px] lg:rounded-[22px]" style={{ background: shop.coverPhoto ? undefined : toneFor(shop.name) }}>
+          {shop.coverPhoto && <Photo src={shop.coverPhoto} sizes="(min-width: 1024px) 1232px, (min-width: 768px) 44rem, 100vw" priority />}
           <Link
             href={isMine ? "/shop/manage" : me && !me.isGuest ? "/home" : "/"}
             aria-label="Back"
@@ -118,7 +118,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
           <ShareButton title={shop.name} text={`${shop.name} on Vouchly`} path={`/s/${shop.slug}`} className="absolute right-3.5 top-3.5 flex size-11 items-center justify-center rounded-full bg-white" />
         </div>
 
-        <section className="relative mx-4 -mt-11 rounded-[22px] border border-line bg-white px-[18px] pb-[18px]">
+        <section className="relative mx-4 -mt-11 rounded-[22px] border border-line bg-white px-[18px] pb-[18px] lg:mx-8 lg:px-7 lg:pb-6">
           <div className="-mt-[30px] flex items-end justify-between gap-2">
             <span
               className="grid size-[76px] shrink-0 place-items-center rounded-[22px] border-4 border-white text-2xl font-extrabold text-white"
@@ -137,7 +137,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
           <h1 className="mb-1 mt-3 text-2xl font-extrabold leading-tight tracking-[-0.02em]">{shop.name}</h1>
           <p className="text-[13px] font-semibold text-muted">{categoryLabel(shop.category)} · {shop.area}, Lagos</p>
           {shop.about && <p className="text-sm leading-relaxed text-muted">{shop.about}</p>}
-          <div className="mt-4 grid border-t border-line pt-3.5" style={{ gridTemplateColumns: `repeat(${statCells.length}, minmax(0, 1fr))` }}>
+          <div className="mt-4 grid border-t border-line pt-3.5 lg:max-w-[520px]" style={{ gridTemplateColumns: `repeat(${statCells.length}, minmax(0, 1fr))` }}>
             {statCells.map((c) => (
               <div key={c.small}>
                 {c.small.includes("review") ? (
@@ -156,7 +156,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
           </div>
         </section>
 
-        <div className="flex flex-col gap-3 px-4 pt-3">
+        <div className="flex flex-col gap-3 px-4 pt-3 lg:px-0 lg:pt-5">
           {isMine && <p className="rounded-[14px] bg-[#fdf0d5] px-4 py-3 text-[13px] font-semibold text-[#3a2a08]">This is how buyers see your shop.</p>}
           {!shop.isOpen && <p className="rounded-[14px] bg-chip px-4 py-3 text-[13px] font-semibold">This shop is closed for now.</p>}
           {d && nextLabel && (
@@ -177,7 +177,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
         </div>
 
         {chips.length > 1 && (
-          <nav aria-label="Filter listings" className="hide-scroll flex gap-2 overflow-x-auto px-4 pb-1 pt-5">
+          <nav aria-label="Filter listings" className="hide-scroll flex gap-2 overflow-x-auto px-4 pb-1 pt-5 lg:px-0">
             {[{ key: "", label: "All", n: items.length }, ...chips].map((c) => {
               const on = (c.key || undefined) === active?.key;
               return (
@@ -196,7 +196,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
           </nav>
         )}
 
-        <section className="px-4 pt-3.5">
+        <section className="px-4 pt-3.5 lg:px-0">
           {items.length === 0 ? (
             <div className="rounded-[22px] border-[1.5px] border-dashed border-[#c8ceda] p-8 text-center">
               <p className="text-[15px] font-bold">Nothing for sale yet</p>
@@ -208,7 +208,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 md:grid-cols-3">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-5 lg:gap-y-6">
               {shown.map((p, i) => {
                 const tag = tileTag(p, readyDay);
                 return (
@@ -241,11 +241,11 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
         </section>
 
         {shopReviews.length > 0 && (
-          <section className="px-4 pt-7">
+          <section className="px-4 pt-7 lg:px-0 lg:pt-10">
             <h2 id="reviews" className="mb-2.5 scroll-mt-4 text-[17px] font-extrabold">
               Reviews <span className="font-bold text-muted">★ {stats.rating?.toFixed(1)} ({stats.reviews})</span>
             </h2>
-            <div className="cards">
+            <div className="cards lg:!grid-cols-3">
               {shopReviews.map(({ review: r, name, ward: w }) => (
                 <div key={r.id} className="rounded-[18px] border border-line bg-white px-4 py-3.5 text-sm">
                   <div className="flex items-center justify-between gap-2">

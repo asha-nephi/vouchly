@@ -39,7 +39,7 @@ export default async function Notifications() {
   const unread = rows.filter((r) => !r.read).length;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-28">
+    <main className="mx-auto min-h-dvh max-w-md pb-28 lg:pb-12 lg:pt-4">
       <BackBar title="Notifications" href={user.isGuest ? "/orders" : "/home"} />
       <div className="flex flex-col gap-2.5 px-4">
         {unread > 0 && (

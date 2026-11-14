@@ -234,7 +234,7 @@ export function CheckoutBar({ href }: { href: string }) {
   const { count, totalKobo, pending } = useBasket();
   if (count === 0) return null;
   return (
-    <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 px-3">
+    <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 px-3 lg:hidden">
       <div className={`mx-auto flex h-[60px] max-w-md items-center justify-between rounded-[18px] bg-ink pl-[18px] pr-2 text-white shadow-[0_8px_24px_rgba(20,33,61,0.25)] ${pending ? "opacity-80" : ""}`}>
         <div>
           <p className="text-xs font-semibold opacity-75">
