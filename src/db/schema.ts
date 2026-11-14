@@ -47,7 +47,8 @@ export const users = pgTable("users", {
 }, (t) => [
   // One account per phone for members. Guests can repeat.
   uniqueIndex("users_phone_idx").on(t.phone).where(sql`${t.isGuest} = false`),
-  uniqueIndex("users_email_idx").on(t.email).where(sql`${t.email} IS NOT NULL AND ${t.isGuest} = false`),
+  // Only a proved email is unique, so nobody can block it by typing it first.
+  uniqueIndex("users_email_idx").on(t.email).where(sql`${t.email} IS NOT NULL AND ${t.isGuest} = false AND ${t.emailVerifiedAt} IS NOT NULL`),
   uniqueIndex("users_google_subject_idx").on(t.googleSubject).where(sql`${t.googleSubject} IS NOT NULL`),
   uniqueIndex("users_invite_code_idx").on(t.inviteCode),
 ]);

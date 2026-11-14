@@ -1,0 +1,2 @@
+DROP INDEX "users_email_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "users_email_idx" ON "users" USING btree ("email") WHERE "users"."email" IS NOT NULL AND "users"."is_guest" = false AND "users"."email_verified_at" IS NOT NULL;

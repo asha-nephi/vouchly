@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { currentUser, startSession } from "@/lib/auth";
 import { createAuthToken } from "@/lib/email-auth";
+import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
 import { googleClient } from "@/lib/google";
 
 const STATE_COOKIE = "vl_google_state";
@@ -45,11 +46,11 @@ export async function GET(request: Request) {
     const me = await currentUser();
     if (!me || me.isGuest) return backToLogin(request, "failed");
     if (me.email && me.email.toLowerCase() !== email) return NextResponse.redirect(appUrl(request, "/me/security?google=email-mismatch"));
-    const [emailOwner] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), eq(users.isGuest, false))).limit(1);
+    const emailOwner = await verifiedEmailOwner(email);
     if (emailOwner && emailOwner.id !== me.id) return NextResponse.redirect(appUrl(request, "/me/security?google=email-used"));
     const [subjectOwner] = await db.select({ id: users.id }).from(users).where(eq(users.googleSubject, payload.sub)).limit(1);
     if (subjectOwner && subjectOwner.id !== me.id) return NextResponse.redirect(appUrl(request, "/me/security?google=used"));
-    await db.update(users).set({ email, emailVerifiedAt: new Date(), googleSubject: payload.sub }).where(eq(users.id, me.id));
+    await claimEmail(me.id, email, { googleSubject: payload.sub });
     return NextResponse.redirect(appUrl(request, "/me/security?google=connected"));
   }
 
@@ -58,8 +59,7 @@ export async function GET(request: Request) {
     await startSession(byGoogle.id);
     return NextResponse.redirect(appUrl(request, "/home"));
   }
-  const [byEmail] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), eq(users.isGuest, false))).limit(1);
-  if (byEmail) return backToLogin(request, "link");
+  if (await verifiedEmailOwner(email)) return backToLogin(request, "link");
 
   const { token } = await createAuthToken({
     purpose: "google_signup",

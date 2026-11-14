@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { authTokens, users } from "@/db/schema";
 import { currentUser, hash } from "@/lib/auth";
+import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
 
 const appUrl = (request: Request, path: string) => new URL(path, process.env.SITE_URL ?? new URL(request.url).origin);
 
@@ -31,14 +32,17 @@ export async function GET(request: Request) {
 
   if (!row.usedAt) {
     if (row.expiresAt <= new Date()) return expired;
+    // Someone else already proved this email, so this account can't have it.
+    const owner = await verifiedEmailOwner(row.tokenEmail);
+    if (owner && owner.id !== row.userId) {
+      const me = await currentUser();
+      return NextResponse.redirect(appUrl(request, me?.id === row.userId ? "/me/security?email=taken" : "/login?email=taken"));
+    }
     await db
       .update(authTokens)
       .set({ usedAt: new Date() })
       .where(and(eq(authTokens.id, row.tokenId), isNull(authTokens.usedAt), gt(authTokens.expiresAt, new Date())));
-    await db
-      .update(users)
-      .set({ emailVerifiedAt: new Date() })
-      .where(and(eq(users.id, row.userId), eq(users.email, row.tokenEmail), isNull(users.emailVerifiedAt)));
+    if (!row.verifiedAt) await claimEmail(row.userId, row.tokenEmail);
   } else if (!row.verifiedAt) {
     return expired;
   }

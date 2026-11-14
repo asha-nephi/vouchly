@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { authTokens, notifications, orders, otpCodes, reviews, users } from "@/db/schema";
 import { endSession, hash, makeInviteCode, makeOtp, requireUser, startSession } from "@/lib/auth";
@@ -12,6 +12,7 @@ import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email-auth"
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { GOOGLE_PENDING_COOKIE } from "@/lib/google";
 import { emailReady } from "@/lib/email";
+import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> } | undefined;
 
@@ -109,8 +110,7 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
   if (!phone) return fail("Please enter a valid Nigerian phone number, like 0803 123 4567.");
   if (password.length < 12 || password.length > 128) return fail("Use a password with at least 12 characters.");
 
-  const [byEmail] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), eq(users.isGuest, false))).limit(1);
-  if (byEmail) return fail("That email already has an account. Log in or reset your password.");
+  if (await verifiedEmailOwner(email)) return fail("That email already has an account. Log in or reset your password.");
   const [byPhone] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
   if (byPhone) return fail("That phone number already has an account. Log in with your phone instead.");
 
@@ -143,7 +143,8 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
   }
 
   const now = new Date();
-  const [user] = await db
+  // Unproved emails can be typed by more than one account, so look at the proved one first.
+  const found = await db
     .select({
       id: users.id,
       passwordHash: users.passwordHash,
@@ -152,7 +153,17 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
     })
     .from(users)
     .where(and(eq(users.email, email), eq(users.isGuest, false)))
-    .limit(1);
+    .orderBy(sql`${users.emailVerifiedAt} DESC NULLS LAST`)
+    .limit(3);
+  const user = found[0];
+  if (user && !user.emailVerifiedAt) {
+    for (const u of found) {
+      if (u.passwordHash && (await verifyPassword(password, u.passwordHash))) {
+        return { error: "Verify your email first. You can still log in with your phone code.", values };
+      }
+    }
+    return { error: "The email or password isn't right.", values };
+  }
   if (!user?.passwordHash || (user.passwordLockedUntil && user.passwordLockedUntil > now)) {
     return { error: "The email or password isn't right.", values };
   }
@@ -177,7 +188,6 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
     .update(users)
     .set({ passwordFailedCount: 0, passwordFailedAt: null, passwordLockedUntil: null })
     .where(eq(users.id, user.id));
-  if (!user.emailVerifiedAt) return { error: "Verify your email first. You can still log in with your phone code.", values };
   await startSession(user.id);
   redirect("/home");
 }
@@ -189,7 +199,7 @@ export async function requestPasswordReset(_: FormState, form: FormData): Promis
   const [user] = await db
     .select({ id: users.id, name: users.name, email: users.email, emailVerifiedAt: users.emailVerifiedAt })
     .from(users)
-    .where(and(eq(users.email, email), eq(users.isGuest, false)))
+    .where(and(eq(users.email, email), eq(users.isGuest, false), isNotNull(users.emailVerifiedAt)))
     .limit(1);
   if (user?.email && user.emailVerifiedAt) {
     try {
@@ -239,12 +249,8 @@ export async function updateLoginSettings(_: FormState, form: FormData): Promise
   if (password.length < 12 || password.length > 128) return { error: "Use a password with at least 12 characters.", values };
   const changedEmail = email !== user.email;
   if ((changedEmail || !user.emailVerifiedAt) && !emailReady()) return { error: "Email sign-in is not set up yet. Please try again later.", values };
-  const [taken] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.email, email), eq(users.isGuest, false), ne(users.id, user.id)))
-    .limit(1);
-  if (taken) return { error: "That email is already used by another account.", values };
+  const taken = await verifiedEmailOwner(email);
+  if (taken && taken.id !== user.id) return { error: "That email is already used by another account.", values };
 
   await db
     .update(users)
@@ -301,8 +307,7 @@ export async function startGoogleBuyerSignup(_: FormState, form: FormData): Prom
     .limit(1);
   if (!pending?.email || !pending.name || !pending.providerSubject) return { error: "Your Google sign-in expired. Please start again.", values };
 
-  const [byEmail] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, pending.email), eq(users.isGuest, false))).limit(1);
-  if (byEmail) return { error: "That email already has an account. Log in, then connect Google in your account settings.", values };
+  if (await verifiedEmailOwner(pending.email)) return { error: "That email already has an account. Log in, then connect Google in your account settings.", values };
   const [byPhone] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
   if (byPhone) return { error: "That phone number already has an account. Log in with your phone first.", values };
 
@@ -360,8 +365,6 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
             ? {
                 name: s.name,
                 phone,
-                email: s.email,
-                emailVerifiedAt: new Date(),
                 googleSubject: s.googleSubject,
                 ward: "Buyer",
                 inviteCode: makeInviteCode(),
@@ -388,6 +391,8 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
         emailVerificationState = "failed";
       }
     }
+    // Google already proved the email, so take it off anyone who only typed it.
+    if (isGoogleBuyer) await claimEmail(userId, s.email);
     if (isGoogleBuyer) await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, s.authTokenId));
     await adoptGuestOrders(phone, userId);
   } else {

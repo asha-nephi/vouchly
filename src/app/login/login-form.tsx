@@ -12,12 +12,14 @@ export default function LoginForm({
   googleError,
   emailExpired,
   emailVerified,
+  emailTaken,
 }: {
   googleEnabled: boolean;
   emailEnabled: boolean;
   googleError?: string;
   emailExpired: boolean;
   emailVerified?: boolean;
+  emailTaken?: boolean;
 }) {
   const [method, setMethod] = useState<"phone" | "email">(emailVerified ? "email" : "phone");
   const [phoneState, phoneAction, phonePending] = useActionState(startLogin, undefined);
@@ -32,6 +34,7 @@ export default function LoginForm({
           <p className="mt-1 text-sm leading-relaxed text-muted">Choose how you want to log in.</p>
         </div>
         {emailExpired && <Note tone="amber">That email link has expired. Log in by phone, then send a new one from Login and security.</Note>}
+        {emailTaken && <Note tone="amber">Another account has already verified that email. Log in by phone and use a different email.</Note>}
         {emailVerified && <Note tone="green">Your email is verified. Log in with your email and password.</Note>}
         {googleError && <Note tone="amber">{googleError}</Note>}
 

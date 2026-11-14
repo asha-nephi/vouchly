@@ -23,6 +23,7 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
           : query.email === "done" ? "Your email is verified. You can now log in with your email and password."
           : query.email === "wait" ? "We couldn’t send it just now. Please wait a minute and try again."
         : query.email === "missing" ? "Add an email address first."
+        : query.email === "taken" ? "Another account has already verified that email. Use a different email."
           : query.google === "connected" ? "Google is connected to your account."
             : query.google === "email-mismatch" ? "Use the same email address as this account to connect Google."
               : query.google === "email-used" ? "That email belongs to another Vouchly account."
