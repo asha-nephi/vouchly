@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vouchly home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+button,input{font:inherit;color:inherit}
+a{color:#2A4BD7;text-decoration:none}a:hover{color:#1E39A8}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</helmet>
+<div style="width: 390px; height: 1560px; position: relative; overflow: hidden; background: #F7F8FA; color: #14213D; font-family: 'Manrope', system-ui, sans-serif;">
+
+<header style="display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px;">
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #E6E9EF; background: #fff; font-weight: 700; font-size: 14px;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14213D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+Ikeja
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A6478" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+<span style="font-weight: 800; font-size: 20px; letter-spacing: -0.02em;">Vouchly</span>
+<button aria-label="Notifications, 3 new" style="position: relative; width: 44px; height: 44px; border-radius: 999px; border: 1px solid #E6E9EF; background: #fff; display: grid; place-items: center;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14213D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 21h4"/></svg>
+<span style="position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 999px; background: #E5484D; border: 2px solid #fff;"></span>
+</button>
+</header>
+
+<section style="padding: 12px 16px 0;">
+<p style="margin: 0; font-size: 14px; color: #5A6478; font-weight: 600;">Good morning, Nephi</p>
+<h1 style="margin: 4px 0 16px; font-size: 28px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em;">What do you need today?</h1>
+<label style="display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 16px; border-radius: 16px; background: #fff; border: 1px solid #E6E9EF;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A6478" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+<span class="sr">Search Vouchly</span>
+<input placeholder="Tigernut, plumber, CV coaching…" style="border: 0; outline: 0; flex: 1; font-size: 15px; background: transparent;">
+</label>
+</section>
+
+<nav aria-label="Categories" style="display: flex; gap: 8px; padding: 16px 16px 4px; overflow: hidden;">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="6">
+<sc-if value="{{c.on}}" hint-placeholder-val="{{false}}">
+<button style="flex: none; height: 38px; padding: 0 16px; border-radius: 999px; border: 0; background: #14213D; color: #fff; font-weight: 700; font-size: 14px;">{{c.label}}</button>
+</sc-if>
+<sc-if value="{{c.off}}" hint-placeholder-val="{{true}}">
+<button style="flex: none; height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid #E6E9EF; background: #fff; font-weight: 600; font-size: 14px;">{{c.label}}</button>
+</sc-if>
+</sc-for>
+</nav>
+
+<section style="padding: 20px 16px 0;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px;">
+<h2 style="margin: 0; font-size: 19px; font-weight: 800;">Fresh this week</h2>
+<a href="#" style="font-size: 14px; font-weight: 700;">See all</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{items}}" as="p" hint-placeholder-count="4">
+<a href="Listing.dc.html" style="display: block; color: #14213D;">
+<div style="position: relative; aspect-ratio: 1 / 1; border-radius: 18px; background: {{p.tone}}; display: grid; place-items: center;">
+<span style="font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.85);">{{p.photo}}</span>
+<sc-if value="{{p.tag}}" hint-placeholder-val="{{false}}">
+<span style="position: absolute; top: 10px; left: 10px; padding: 4px 9px; border-radius: 999px; background: #fff; font-size: 11px; font-weight: 800; color: #14213D;">{{p.tag}}</span>
+</sc-if>
+</div>
+<p style="margin: 10px 0 2px; font-size: 15px; font-weight: 700; line-height: 1.25;">{{p.name}}</p>
+<p style="margin: 0 0 4px; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;">{{p.price}}</p>
+<p style="margin: 0; display: flex; align-items: center; gap: 4px; font-size: 12px; color: #5A6478; font-weight: 600;">
+<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-.9 2.9.9 2.9-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9-2.5-1.7.9-2.9-.9-2.9 2.5-1.7.9-2.9 3 .2z" fill="#2A4BD7"/><path d="M8.5 12.2l2.3 2.3 4.7-4.9" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{{p.shop}}</p>
+</a>
+</sc-for>
+</div>
+</section>
+
+<section style="padding: 28px 0 0;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin: 0 16px 12px;">
+<h2 style="margin: 0; font-size: 19px; font-weight: 800;">Classes and coaching</h2>
+<a href="#" style="font-size: 14px; font-weight: 700;">See all</a>
+</div>
+<div style="display: flex; gap: 12px; padding: 0 16px; overflow: hidden;">
+<sc-for list="{{events}}" as="e" hint-placeholder-count="2">
+<a href="#" style="flex: none; width: 270px; display: flex; gap: 12px; padding: 12px; border-radius: 18px; background: #fff; border: 1px solid #E6E9EF; color: #14213D;">
+<div style="flex: none; width: 56px; height: 64px; border-radius: 12px; background: #DCE4FB; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+<span style="font-size: 11px; font-weight: 800; color: #1E39A8;">{{e.mon}}</span>
+<span style="font-size: 22px; font-weight: 800; line-height: 1;">{{e.day}}</span>
+</div>
+<div style="min-width: 0;">
+<p style="margin: 0; font-size: 15px; font-weight: 700; line-height: 1.25;">{{e.name}}</p>
+<p style="margin: 3px 0 0; font-size: 12px; color: #5A6478; font-weight: 600;">{{e.when}}</p>
+<p style="margin: 3px 0 0; font-size: 12px; font-weight: 800; color: #B4540A;">{{e.left}}</p>
+</div>
+</a>
+</sc-for>
+</div>
+</section>
+
+<section style="padding: 28px 16px 0;">
+<h2 style="margin: 0 0 12px; font-size: 19px; font-weight: 800;">Shops near you</h2>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<sc-for list="{{shops}}" as="s" hint-placeholder-count="3">
+<a href="Shop.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 18px; background: #fff; border: 1px solid #E6E9EF; color: #14213D;">
+<div style="flex: none; width: 56px; height: 56px; border-radius: 16px; background: {{s.tone}}; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 18px;">{{s.initials}}</div>
+<div style="flex: 1; min-width: 0;">
+<p style="margin: 0; display: flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 700;">{{s.name}}
+<svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Vouched member"><path d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-.9 2.9.9 2.9-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9-2.5-1.7.9-2.9-.9-2.9 2.5-1.7.9-2.9 3 .2z" fill="#2A4BD7"/><path d="M8.5 12.2l2.3 2.3 4.7-4.9" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></p>
+<p style="margin: 2px 0 0; font-size: 13px; color: #5A6478; font-weight: 600;">{{s.line}}</p>
+</div>
+<span style="flex: none; font-size: 13px; font-weight: 800;">★ {{s.rating}}</span>
+</a>
+</sc-for>
+</div>
+</section>
+
+<nav aria-label="Main" style="position: absolute; left: 0; right: 0; bottom: 0; height: 76px; padding: 8px 12px 14px; background: #fff; border-top: 1px solid #E6E9EF; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+<a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #14213D; font-size: 12px; font-weight: 800;">
+<span style="width: 52px; height: 30px; border-radius: 999px; background: #DCE4FB; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14213D" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l8-6 8 6v10H4z"/></svg></span>Home</a>
+<a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #5A6478; font-size: 12px; font-weight: 600;">
+<span style="height: 30px; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span>Search</a>
+<a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #5A6478; font-size: 12px; font-weight: 600;">
+<span style="height: 30px; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg></span>Basket</a>
+<a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: #5A6478; font-size: 12px; font-weight: 600;">
+<span style="height: 30px; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Me</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const cats = ['All', 'Food', 'Stays', 'Services', 'Classes', 'Downloads', 'Fashion'].map((label, i) => ({ label, on: i === 0, off: i !== 0 }));
+    return {
+      cats,
+      items: [
+        { name: 'Tigernut + dates, 1 litre', price: '₦3,000', shop: 'Mama Grace', tone: '#C98A4B', photo: 'Photo', tag: 'Pre-order · Sat' },
+        { name: 'Mission prep journal (PDF)', price: '₦2,500', shop: 'Elder Bayo Studio', tone: '#3F5BA9', photo: 'Photo', tag: 'Instant download' },
+        { name: '2-bed flat in Ikeja GRA', price: '₦45,000 a night', shop: 'Adeyemi Stays', tone: '#6F8FAF', photo: 'Photo', tag: '' },
+        { name: 'Jollof party tray (serves 10)', price: '₦28,000', shop: 'Chef Funmi', tone: '#B5532F', photo: 'Photo', tag: 'Book a date' }
+      ],
+      events: [
+        { mon: 'SAT', day: '28', name: 'Bread baking class', when: '10am · Ikeja GRA · ₦5,000', left: '2 seats left' },
+        { mon: 'MON', day: '30', name: 'CV review, 1-on-1', when: 'Online · 1 hour · ₦10,000', left: 'Pick a time' }
+      ],
+      shops: [
+        { name: 'Mama Grace Tigernut', initials: 'MG', tone: '#C98A4B', line: 'Ikeja Ward · Delivers Saturday', rating: '5.0' },
+        { name: 'Ade Plumbing', initials: 'AP', tone: '#4F6D7A', line: 'Ogba Ward · Mon to Fri', rating: '4.8' },
+        { name: 'Chef Funmi', initials: 'CF', tone: '#B5532F', line: 'Lekki Ward · Events and parties', rating: '4.9' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
