@@ -69,7 +69,19 @@ function TextBox({ label, name, defaultValue, placeholder, optional = true }: { 
   );
 }
 
-export default function ProductForm({ product, first, defaultKind = "item", maxFileMb = 10 }: { product?: Product; first?: boolean; defaultKind?: Kind; maxFileMb?: number }) {
+export default function ProductForm({
+  product,
+  first,
+  defaultKind = "item",
+  maxFileMb = 10,
+  firstKinds,
+}: {
+  product?: Product;
+  first?: boolean;
+  defaultKind?: Kind;
+  maxFileMb?: number;
+  firstKinds?: string[];
+}) {
   const [state, action, pending] = useActionState(saveProduct, undefined);
   const v = state?.values;
   const [kind, setKind] = useState<Kind>((v?.kind as Kind) ?? product?.kind ?? defaultKind);
@@ -82,6 +94,15 @@ export default function ProductForm({ product, first, defaultKind = "item", maxF
   const days = v?.workDays !== undefined ? v.workDays.split("|").map(Number) : (product?.workDays ?? [1, 2, 3, 4, 5, 6]);
   const num = (key: string, saved: number | null | undefined) => v?.[key] ?? (saved != null ? String(saved) : "");
   const price = v?.price ?? (product && product.priceKobo ? String(product.priceKobo / 100) : "");
+  const kindCard = (k: (typeof KINDS)[number]) => (
+    <label key={k.value} className="cursor-pointer">
+      <input type="radio" name="kindPick" value={k.value} defaultChecked={kind === k.value} onChange={() => setKind(k.value)} className="peer sr-only" />
+      <span className="flex flex-col rounded-[18px] bg-white px-4 py-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)] peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+        <span className="text-[15px] font-bold">{k.title}</span>
+        <span className="text-[13px] text-muted">{k.detail}</span>
+      </span>
+    </label>
+  );
 
   return (
     <>
@@ -102,15 +123,18 @@ export default function ProductForm({ product, first, defaultKind = "item", maxF
         <input type="hidden" name="kind" value={kind} />
         <fieldset key={`${kind}-${state?.error ?? ""}`} className="flex flex-col gap-2">
           <legend className="pb-2 text-[15px] font-extrabold">What are you listing?</legend>
-          {KINDS.map((k) => (
-            <label key={k.value} className="cursor-pointer">
-              <input type="radio" name="kindPick" value={k.value} defaultChecked={kind === k.value} onChange={() => setKind(k.value)} className="peer sr-only" />
-              <span className="flex flex-col rounded-[18px] bg-white px-4 py-3 shadow-[0_1px_3px_rgba(20,33,61,0.08)] peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
-                <span className="text-[15px] font-bold">{k.title}</span>
-                <span className="text-[13px] text-muted">{k.detail}</span>
-              </span>
-            </label>
-          ))}
+          {KINDS.filter((k) => !firstKinds || firstKinds.includes(k.value)).map(kindCard)}
+          {firstKinds && (
+            <details open={!firstKinds.includes(kind)} className="group">
+              <summary className="flex h-11 cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-accent">
+                More types
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true" className="transition-transform group-open:rotate-180">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </summary>
+              <div className="flex flex-col gap-2">{KINDS.filter((k) => !firstKinds.includes(k.value)).map(kindCard)}</div>
+            </details>
+          )}
         </fieldset>
 
         <PhotoPicker

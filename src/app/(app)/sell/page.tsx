@@ -4,6 +4,8 @@ import { myShop } from "@/lib/shops";
 import { BackBar, Note } from "@/components/ui";
 import ShopForm from "./shop-form";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { PATH_COOKIE, readPath } from "@/lib/seller-types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,7 @@ export default async function Sell() {
           <Link href="/join" className="flex h-12 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">Join as a member</Link>
         </div>
       ) : user.confirmed ? (
-        <ShopForm mode="create" />
+        <ShopForm mode="create" path={readPath((await cookies()).get(PATH_COOKIE)?.value)} />
       ) : (
         <div className="px-4 pt-2">
           <Note tone="amber">

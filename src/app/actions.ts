@@ -13,6 +13,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { GOOGLE_PENDING_COOKIE } from "@/lib/google";
 import { emailReady } from "@/lib/email";
 import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
+import { cleanTrades, isSellerType, PATH_COOKIE } from "@/lib/seller-types";
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> } | undefined;
 
@@ -467,4 +468,16 @@ async function adoptGuestOrders(phone: string, userId: string) {
   await db.update(orders).set({ buyerId: userId }).where(inArray(orders.buyerId, ids));
   await db.update(reviews).set({ authorId: userId }).where(inArray(reviews.authorId, ids));
   await db.update(notifications).set({ userId }).where(inArray(notifications.userId, ids));
+}
+
+// Sign-up step 1: buying goes to the buyer form; selling keeps the path for the shop setup.
+export async function chooseJoinPath(form: FormData): Promise<void> {
+  const path = String(form.get("path") ?? "");
+  const raw = String(form.get("code") ?? "");
+  const code = /^[A-Za-z0-9]{4,12}$/.test(raw) ? raw.toUpperCase() : "";
+  if (!isSellerType(path)) redirect(path === "buy" ? "/register" : code ? `/join?code=${code}` : "/join");
+  const trades = cleanTrades(path, form.getAll("trade").map(String));
+  const jar = await cookies();
+  jar.set(PATH_COOKIE, JSON.stringify({ type: path, trades }), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  redirect(`/join?step=details${code ? `&code=${code}` : ""}`);
 }

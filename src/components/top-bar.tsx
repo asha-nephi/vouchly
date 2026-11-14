@@ -60,7 +60,7 @@ export default async function TopBar() {
                   <Link href="/login" className="ml-1 flex h-11 items-center rounded-xl border border-[#D5DAE3] px-4 text-sm font-bold text-ink">
                     Log in
                   </Link>
-                  <Link href="/register" className="flex h-11 items-center rounded-xl bg-ink px-4 text-sm font-extrabold text-white">
+                  <Link href="/join" className="flex h-11 items-center rounded-xl bg-ink px-4 text-sm font-extrabold text-white">
                     Sign up
                   </Link>
                 </>

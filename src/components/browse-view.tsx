@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { browse } from "@/lib/browse";
 import { categoryLabel } from "@/lib/catalog";
-import { categoryCounts, proCards, sectionListings, SECTIONS, SECTION_IDS, type Filters, type Section } from "@/lib/sections";
+import { categoryCounts, proCards, sectionListings, tradeCounts, SECTIONS, SECTION_IDS, type Filters, type Section } from "@/lib/sections";
 import { ticketsTaken } from "@/lib/sessions";
 import { ShopRow } from "@/components/shop-card";
 import { FilterSheet, FilterSidebar } from "@/components/filter-panel";
@@ -29,7 +29,7 @@ export function SectionSwitch({ section, action, q }: { section: Section; action
 function Sort({ action, section, f }: { action: string; section: Section; f: Filters }) {
   const keep: [string, string][] = [["s", section]];
   if (f.q) keep.push(["q", f.q]);
-  for (const k of ["cat", "when", "r4", "how", "pr", "type", "where", "date"] as const) {
+  for (const k of ["cat", "trade", "when", "r4", "how", "pr", "type", "where", "date"] as const) {
     const v = f[k];
     if (v) keep.push([k, v === true ? "1" : String(v)]);
   }
@@ -55,15 +55,16 @@ function Sort({ action, section, f }: { action: string; section: Section; f: Fil
 }
 
 export default async function BrowseView({ section, area, f, action, showShops }: { section: Section; area: string; f: Filters; action: string; showShops?: boolean }) {
-  const [counts, pros, rows, shops] = await Promise.all([
+  const [counts, trades, pros, rows, shops] = await Promise.all([
     section === "online" ? Promise.resolve([]) : categoryCounts(section),
+    section === "services" ? tradeCounts() : Promise.resolve([]),
     section === "services" ? proCards(area, f) : Promise.resolve([]),
     section === "services" ? Promise.resolve([]) : sectionListings(section, area, f),
     showShops && section === "products" && !f.q ? browse(area) : Promise.resolve(null),
   ]);
   const seats = await Promise.all(rows.map((r) => (r.product.kind === "event" && r.product.seats ? ticketsTaken(r.product.id).then((n) => r.product.seats! - n) : null)));
   const n = section === "services" ? pros.length : rows.length;
-  const what = f.cat ? categoryLabel(f.cat) : section === "services" ? "Pros" : section === "online" ? "Online and classes" : "Products";
+  const what = f.trade ? f.trade : f.cat ? categoryLabel(f.cat) : section === "services" ? "Pros" : section === "online" ? "Online and classes" : "Products";
   const title = f.q ? `Results for “${f.q}”` : section === "online" ? what : `${what} near ${area}`;
   const unit = section === "services" ? (n === 1 ? "vouched pro" : "vouched pros") : n === 1 ? "listing" : "listings";
   const sortNote = section === "services" && (!f.sort || f.sort === "soon") ? " · sorted by soonest available" : "";
@@ -71,7 +72,7 @@ export default async function BrowseView({ section, area, f, action, showShops }
 
   return (
     <div className="lg:flex lg:items-start lg:gap-7">
-      <FilterSidebar action={action} section={section} f={f} counts={counts} />
+      <FilterSidebar action={action} section={section} f={f} counts={counts} trades={trades} />
       <section className="min-w-0 flex-1" aria-labelledby="results-title">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
@@ -83,7 +84,7 @@ export default async function BrowseView({ section, area, f, action, showShops }
               {sortNote}
             </p>
           </div>
-          <FilterSheet action={action} section={section} f={f} counts={counts} />
+          <FilterSheet action={action} section={section} f={f} counts={counts} trades={trades} />
           <Sort action={action} section={section} f={f} />
         </div>
 

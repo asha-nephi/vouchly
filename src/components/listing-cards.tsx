@@ -53,7 +53,7 @@ export function ProCard({ c }: { c: Pro }) {
             {c.confirmed && <Seal size={16} />}
           </h3>
           <p className="mt-0.5 truncate text-[13px] font-semibold text-muted">
-            {p.name} · {c.ward}
+            {c.trades.filter((t) => t !== "Other")[0] ?? p.name} · {c.ward}
           </p>
         </div>
       </div>

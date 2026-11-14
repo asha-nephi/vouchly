@@ -5,6 +5,8 @@ import { sql } from "drizzle-orm";
 
 // Money is stored in kobo (₦1 = 100 kobo) so there are no rounding errors.
 
+// Which path a seller picked: decides their dashboard and where buyers find them.
+export const sellerType = pgEnum("seller_type", ["service", "online", "products"]);
 export const category = pgEnum("category", ["food", "stays", "repairs", "fashion", "home_care", "events", "tech", "learning", "chefs"]);
 export const sellMode = pgEnum("sell_mode", ["preorder", "in_stock"]);
 // check_in = a stay booking, visit = a service at the buyer's place.
@@ -139,6 +141,8 @@ export const shops = pgTable("shops", {
   slug: text("slug").notNull(),
   about: text("about"),
   category: category("category").notNull(),
+  sellerType: sellerType("seller_type").notNull().default("products"),
+  trades: text("trades").array().notNull().default(sql`'{}'::text[]`), // what they do, e.g. Plumbing, Classes, Food
   area: text("area").notNull(),
   coverPhoto: text("cover_photo"),
   paystackSubaccount: text("paystack_subaccount"),

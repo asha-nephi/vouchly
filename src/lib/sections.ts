@@ -60,6 +60,7 @@ export async function freeDays(pros: { id: string; shopId: string; workDays: num
 export type Filters = {
   q: string;
   cat?: string; // shop category
+  trade?: string; // services: what the pro does, from their sign-up chips
   when?: "tomorrow" | "week"; // services
   price?: ("fixed" | "quote")[]; // services
   r4?: boolean; // services: 4 stars and up
@@ -80,6 +81,7 @@ export function readFilters(p: Params): Filters {
   return {
     q: one(p.q).trim().slice(0, 60),
     cat: one(p.cat) || undefined,
+    trade: one(p.trade).slice(0, 40) || undefined,
     when: pick(p.when, ["tomorrow", "week"] as const),
     price: price.length ? price : undefined,
     r4: one(p.r4) === "1",
@@ -94,7 +96,7 @@ export function readFilters(p: Params): Filters {
 
 // How many filters are on, for the phone "Filters" button.
 export const filterCount = (f: Filters) =>
-  [f.cat, f.when, f.price && f.price.length < 2 ? f.price : undefined, f.r4 || undefined, f.how, f.pr, f.type, f.where, f.date].filter(Boolean).length;
+  [f.cat, f.trade, f.when, f.price && f.price.length < 2 ? f.price : undefined, f.r4 || undefined, f.how, f.pr, f.type, f.where, f.date].filter(Boolean).length;
 
 // Live listings in a section, nearest first, with what the cards need.
 export async function sectionListings(section: Section, area: string, f: Filters, limit = 60) {
@@ -116,6 +118,7 @@ export async function sectionListings(section: Section, area: string, f: Filters
   if (section === "services") {
     if (f.price?.length === 1) conds.push(eq(products.priceType, f.price[0]));
     if (f.r4) conds.push(sql`${rating} >= 4`);
+    if (f.trade) conds.push(sql`${f.trade} = any(${shops.trades})`);
   }
   if (section === "products") {
     if (f.how === "pickup") conds.push(or(eq(products.kind, "stay"), eq(deliverySettings.pickupOn, true)));
@@ -137,6 +140,7 @@ export async function sectionListings(section: Section, area: string, f: Filters
       shopSlug: shops.slug,
       shopArea: shops.area,
       category: shops.category,
+      trades: shops.trades,
       ward: users.ward,
       confirmed: users.confirmed,
       deliveryDays: deliverySettings.deliveryDays,
@@ -183,4 +187,16 @@ export async function categoryCounts(section: Section) {
     .where(and(eq(products.isActive, true), eq(products.removed, false), eq(shops.isOpen, true), inArray(products.kind, [...SECTIONS[section].kinds] as (typeof products.kind.enumValues)[number][])))
     .groupBy(shops.category)
     .orderBy(desc(sql`count(*)`));
+}
+
+// Services: how many listings each kind of work has, from the pros' chips.
+export async function tradeCounts() {
+  const rows = await db.execute<{ trade: string; n: number }>(sql`
+    select t.trade, count(*)::int as n
+    from ${products} p
+    join ${shops} s on s.id = p.shop_id
+    cross join lateral unnest(s.trades) as t(trade)
+    where p.is_active and not p.removed and s.is_open and p.kind = 'service' and t.trade <> 'Other'
+    group by t.trade order by count(*) desc`);
+  return [...rows].map((r) => ({ trade: r.trade, n: Number(r.n) }));
 }

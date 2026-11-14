@@ -149,3 +149,17 @@ textarea {
   z-index: 40;
   background: rgb(20 33 61 / 0.45);
 }
+
+/* Show a block only when its matching choice is picked: data-pick on the radio, data-show on the block. */
+[data-show] {
+  display: none;
+}
+form:has([data-pick="service"]:checked) [data-show="service"],
+form:has([data-pick="online"]:checked) [data-show="online"],
+form:has([data-pick="products"]:checked) [data-show="products"],
+form:has([data-pick="buy"]:checked) [data-show="buy"] {
+  display: block;
+}
+form:has([data-pick="service"]:checked, [data-pick="online"]:checked, [data-pick="products"]:checked) [data-show="sell"] {
+  display: block;
+}

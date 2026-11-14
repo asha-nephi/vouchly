@@ -126,7 +126,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
   // Opened from a member's invite link: say who invited them.
   const [inviter, picks] = await Promise.all([inviterFor((await searchParams).code), landingPicks()]);
   const sellHref = inviter ? `/join?code=${inviter.code}` : "/join";
-  const signUpHref = inviter ? `/join?code=${inviter.code}` : "/register";
+  const signUpHref = sellHref;
   const { pro, goods, cls } = picks;
   const [free, seatsLeft] = await Promise.all([
     pro ? freeDays([{ id: pro.product.id, shopId: pro.product.shopId, workDays: pro.product.workDays }]).then((m) => m.get(pro.product.id) ?? null) : null,

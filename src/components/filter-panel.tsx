@@ -4,6 +4,7 @@ import { filterCount, type Filters, type Section } from "@/lib/sections";
 import AutoSubmit from "@/components/auto-submit";
 
 type Count = { cat: string; n: number };
+type TradeCount = { trade: string; n: number };
 type Opt = { value: string; label: string };
 
 const Title = ({ children }: { children: React.ReactNode }) => <legend className="mb-2.5 text-[13px] font-extrabold text-muted">{children}</legend>;
@@ -48,7 +49,25 @@ function CategoryList({ title, value, counts }: { title: string; value?: string;
   );
 }
 
-function Fields({ section, f, counts }: { section: Section; f: Filters; counts: Count[] }) {
+// The kinds of work pros picked at sign-up, as a highlighted list.
+function TradeList({ value, trades }: { value?: string; trades: TradeCount[] }) {
+  return (
+    <fieldset>
+      <Title>Type of work</Title>
+      {[{ trade: "", n: 0 }, ...trades].map((t) => (
+        <label key={t.trade} className="block cursor-pointer">
+          <input type="radio" name="trade" value={t.trade} defaultChecked={(value ?? "") === t.trade} className="peer sr-only" />
+          <span className="flex min-h-11 items-center justify-between rounded-[10px] px-3 text-[15px] font-semibold peer-checked:bg-soft peer-checked:font-extrabold peer-focus-visible:ring-2 peer-focus-visible:ring-accent lg:min-h-9">
+            {t.trade || "All"}
+            {t.trade && <span className="font-semibold text-muted">{t.n}</span>}
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+function Fields({ section, f, counts, trades }: { section: Section; f: Filters; counts: Count[]; trades: TradeCount[] }) {
   return (
     <>
       <input type="hidden" name="s" value={section} />
@@ -56,7 +75,7 @@ function Fields({ section, f, counts }: { section: Section; f: Filters; counts: 
       {f.sort && <input type="hidden" name="sort" value={f.sort} />}
       {section === "services" && (
         <>
-          <CategoryList title="Type of work" value={f.cat} counts={counts} />
+          {trades.length ? <TradeList value={f.trade} trades={trades} /> : <CategoryList title="Type of work" value={f.cat} counts={counts} />}
           <Radios title="When do you need it?" name="when" value={f.when} opts={[{ value: "tomorrow", label: "Free tomorrow" }, { value: "week", label: "This week" }]} />
           <fieldset>
             <Title>Price</Title>
@@ -88,11 +107,11 @@ function Fields({ section, f, counts }: { section: Section; f: Filters; counts: 
 }
 
 // Computers: the left sidebar. Changes apply at once.
-export function FilterSidebar({ action, section, f, counts }: { action: string; section: Section; f: Filters; counts: Count[] }) {
+export function FilterSidebar({ action, section, f, counts, trades }: { action: string; section: Section; f: Filters; counts: Count[]; trades: TradeCount[] }) {
   return (
     <aside aria-label="Filters" className="hidden w-[240px] shrink-0 lg:block">
       <AutoSubmit action={action} className="flex flex-col gap-[22px]">
-        <Fields section={section} f={f} counts={counts} />
+        <Fields section={section} f={f} counts={counts} trades={trades} />
         <noscript>
           <button type="submit" className="h-11 rounded-xl bg-ink px-4 text-sm font-extrabold text-white">
             Apply
@@ -104,7 +123,7 @@ export function FilterSidebar({ action, section, f, counts }: { action: string; 
 }
 
 // Phones: a "Filters" button that opens a bottom sheet. No JavaScript needed.
-export function FilterSheet({ action, section, f, counts }: { action: string; section: Section; f: Filters; counts: Count[] }) {
+export function FilterSheet({ action, section, f, counts, trades }: { action: string; section: Section; f: Filters; counts: Count[]; trades: TradeCount[] }) {
   const n = filterCount(f);
   const clear = new URLSearchParams({ s: section, ...(f.q ? { q: f.q } : {}) });
   return (
@@ -120,7 +139,7 @@ export function FilterSheet({ action, section, f, counts }: { action: string; se
         <span className="mx-auto mb-3 block h-1 w-10 rounded-full bg-line" aria-hidden="true" />
         <form action={action} className="flex flex-col gap-5">
           <h2 className="text-lg font-extrabold">Filters</h2>
-          <Fields section={section} f={f} counts={counts} />
+          <Fields section={section} f={f} counts={counts} trades={trades} />
           <div className="sticky bottom-0 -mx-4 flex gap-2.5 border-t border-line bg-white px-4 pt-3">
             <Link href={`${action}?${clear}`} className="flex h-12 flex-1 items-center justify-center rounded-[14px] border border-line text-[15px] font-bold">
               Clear

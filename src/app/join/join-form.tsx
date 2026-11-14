@@ -25,12 +25,12 @@ export default function JoinForm({
   const [state, action, pending] = useActionState(existingBuyer ? upgradeBuyerToMember : startSignup, undefined);
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col">
-      <BackBar title={existingBuyer ? "Join as a member" : "Create your account"} href={existingBuyer ? "/me" : "/"} />
+      <BackBar title={existingBuyer ? "Join as a member" : "Create your account"} href={code ? `/join?code=${code}` : "/join"} />
       <form
         action={action}
         className="flex flex-1 flex-col gap-3.5 px-4 pb-6 pt-2"
       >
-        {!existingBuyer && <span className="w-fit rounded-full bg-chip px-2.5 py-1 text-xs font-bold text-[#3a4458]">Step 1 of 2</span>}
+        <span className="w-fit text-sm font-extrabold text-accent">Step 2 of 3</span>
         {existingBuyer ? (
           <Note>
             You already have a buyer account. An invite from a confirmed member lets you join as a member and request ward confirmation.

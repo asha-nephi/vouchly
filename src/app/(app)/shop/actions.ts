@@ -12,6 +12,14 @@ import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
 import { AMENITIES, CHECK_TIMES } from "@/lib/listings";
 import { saveFile } from "@/lib/files";
 import { myShop } from "@/lib/shops";
+import { cookies } from "next/headers";
+import { cleanTrades, isSellerType, PATH_COOKIE, type SellerType } from "@/lib/seller-types";
+
+// The seller path and chips from a shop form.
+function pathFrom(form: FormData): { sellerType: SellerType; trades: string[] } | null {
+  const t = String(form.get("sellerType") ?? "");
+  return isSellerType(t) ? { sellerType: t, trades: cleanTrades(t, form.getAll("trade").map(String)) } : null;
+}
 
 export type ShopFormState = { error?: string; values?: Record<string, string>; saved?: boolean } | undefined;
 
@@ -45,9 +53,11 @@ export async function createShop(_: ShopFormState, form: FormData): Promise<Shop
   const about = String(form.get("about") ?? "").trim();
   const category = String(form.get("category") ?? "") as CategoryId;
   const area = String(form.get("area") ?? "");
-  const values = { name, about, category, area };
+  const path = pathFrom(form);
+  const values = { name, about, category, area, sellerType: path?.sellerType ?? "", trades: path?.trades.join("|") ?? "" };
 
   if (name.length < 2) return { error: "Please give your shop a name.", values };
+  if (!path) return { error: "Please pick what kind of seller you are.", values };
   if (!CATEGORIES.some((c) => c.id === category)) return { error: "Please pick what you sell.", values };
   if (!AREAS.includes(area as (typeof AREAS)[number])) return { error: "Please pick your area.", values };
 
@@ -63,9 +73,12 @@ export async function createShop(_: ShopFormState, form: FormData): Promise<Shop
 
   const [shop] = await db
     .insert(shops)
-    .values({ ownerId: user.id, name, slug: await uniqueSlug(name), about: about || null, category, area, coverPhoto })
+    .values({ ownerId: user.id, name, slug: await uniqueSlug(name), about: about || null, category, area, coverPhoto, ...path })
     .returning({ id: shops.id });
   await db.insert(deliverySettings).values({ shopId: shop.id, dropOffAreas: [area] });
+  (await cookies()).delete(PATH_COOKIE);
+  // Service pros and online sellers start by adding a listing; product sellers set delivery first.
+  if (path.sellerType !== "products") redirect("/shop/manage/products/new?first=1");
   // Stays and repair services don't deliver, so they skip the delivery step.
   if (["stays", "repairs", "home_care"].includes(category)) redirect("/shop/manage/products/new?first=1");
   redirect("/shop/manage/delivery?new=1");
@@ -76,8 +89,11 @@ export async function updateShop(_: ShopFormState, form: FormData): Promise<Shop
   const name = String(form.get("name") ?? "").trim();
   const about = String(form.get("about") ?? "").trim();
   const area = String(form.get("area") ?? "");
-  if (name.length < 2) return { error: "Please give your shop a name." };
-  if (!AREAS.includes(area as (typeof AREAS)[number])) return { error: "Please pick your area." };
+  const path = pathFrom(form);
+  const values = { name, about, area, sellerType: path?.sellerType ?? "", trades: path?.trades.join("|") ?? "" };
+  if (name.length < 2) return { error: "Please give your shop a name.", values };
+  if (!path) return { error: "Please pick what kind of seller you are.", values };
+  if (!AREAS.includes(area as (typeof AREAS)[number])) return { error: "Please pick your area.", values };
 
   let coverPhoto = form.getAll("keepCover").map(String).filter(isOurPhoto)[0] ?? null;
   const [cover] = filesFrom(form, "cover");
@@ -85,10 +101,10 @@ export async function updateShop(_: ShopFormState, form: FormData): Promise<Shop
     try {
       coverPhoto = await savePhoto(user.id, cover);
     } catch (e) {
-      return { error: (e as Error).message };
+      return { error: (e as Error).message, values };
     }
   }
-  await db.update(shops).set({ name, about: about || null, area, coverPhoto }).where(eq(shops.id, shop.id));
+  await db.update(shops).set({ name, about: about || null, area, coverPhoto, ...path }).where(eq(shops.id, shop.id));
   revalidatePath("/shop/manage");
   return { saved: true };
 }
