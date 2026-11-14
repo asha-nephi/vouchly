@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { bookService } from "@/app/(app)/book/actions";
 import { Select } from "@/components/form-bits";
 import GuestFields from "@/components/guest-fields";
+import ActionBar from "@/components/action-bar";
 import { ErrorText, Field, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { shortDay } from "@/lib/dates";
@@ -71,7 +72,7 @@ export default function ServiceBooking(p: {
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
       {!p.quote && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
-      {!p.disabled && <PrimaryButton pending={pending}>{p.quote ? "Ask for a price" : `Book and pay ${naira(p.priceKobo)}`}</PrimaryButton>}
+      {!p.disabled && <ActionBar><PrimaryButton pending={pending}>{p.quote ? "Ask for a price" : `Book and pay ${naira(p.priceKobo)}`}</PrimaryButton></ActionBar>}
       <p className="text-center text-xs text-muted">
         {p.quote ? "They'll send you a price. You only pay if you accept it." : "Paid safely through Paystack. Free cancellation until they accept."}
       </p>

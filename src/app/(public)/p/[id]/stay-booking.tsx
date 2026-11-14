@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { bookStay } from "@/app/(app)/book/actions";
 import Calendar from "@/components/calendar";
 import GuestFields from "@/components/guest-fields";
+import ActionBar from "@/components/action-bar";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { nightsBetween, shortDay } from "@/lib/dates";
@@ -82,7 +83,7 @@ export default function StayBooking(p: { productId: string; priceKobo: number; m
       {!p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && (
-        <PrimaryButton pending={pending}>{nights > 0 && !tooShort ? `Book and pay ${naira(p.priceKobo * nights)}` : "Pick your dates"}</PrimaryButton>
+        <ActionBar><PrimaryButton pending={pending}>{nights > 0 && !tooShort ? `Book and pay ${naira(p.priceKobo * nights)}` : "Pick your dates"}</PrimaryButton></ActionBar>
       )}
       <p className="text-center text-xs text-muted">Paid safely through Paystack. Free cancellation until the host accepts.</p>
     </form>

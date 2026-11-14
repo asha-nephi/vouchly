@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { showToast } from "@/components/toast";
 
 // A link with copy and WhatsApp buttons.
 export default function CopyLink({ url, text }: { url: string; text: string }) {
@@ -9,6 +10,7 @@ export default function CopyLink({ url, text }: { url: string; text: string }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      showToast("Link copied");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);

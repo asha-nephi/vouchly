@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { buyDigital } from "@/app/(app)/book/actions";
 import GuestFields from "@/components/guest-fields";
+import ActionBar from "@/components/action-bar";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import DiscountField from "@/components/discount-field";
@@ -27,7 +28,7 @@ export default function DigitalBuy(p: { productId: string; priceKobo: number; fi
       {p.guest && !p.disabled && <GuestFields values={state?.values} />}
       {!free && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
-      {!p.disabled && <PrimaryButton pending={pending}>{free ? "Get it free" : `Buy now · ${naira(p.priceKobo)}`}</PrimaryButton>}
+      {!p.disabled && <ActionBar><PrimaryButton pending={pending}>{free ? "Get it free" : `Buy now · ${naira(p.priceKobo)}`}</PrimaryButton></ActionBar>}
       {!free && <p className="text-center text-xs text-muted">Paid safely through Paystack.</p>}
     </form>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { createContext, useContext, useState, useTransition } from "react";
 import { setBasketQty } from "@/app/(app)/basket/actions";
+import { showToast } from "@/components/toast";
 
 // Shared basket state for one page: steppers update it, the bottom bar reads it.
 type Ctx = {
@@ -154,5 +155,45 @@ export function BasketBar() {
         <span>{naira(totalKobo)}</span>
       </Link>
     </div>
+  );
+}
+
+// Listing page, items: pick how many, then add. Sits in the bottom bar.
+export function ItemBar({ productId, name, priceKobo }: { productId: string; name: string; priceKobo: number }) {
+  const { qty, change, pending } = useBasket();
+  const inBasket = qty[productId] ?? 0;
+  const [n, setN] = useState(Math.max(inBasket, 1));
+  const same = inBasket > 0 && n === inBasket;
+  return (
+    <>
+      <div className="flex h-[52px] shrink-0 items-center rounded-[14px] border border-line">
+        <button type="button" onClick={() => setN((v) => Math.max(1, v - 1))} aria-label={`One less ${name}`} className="size-11 text-xl font-bold">
+          −
+        </button>
+        <span className="w-6 text-center text-base font-extrabold tabular-nums" aria-live="polite">
+          {n}
+        </span>
+        <button type="button" onClick={() => setN((v) => Math.min(99, v + 1))} aria-label={`One more ${name}`} className="size-11 text-xl font-bold">
+          +
+        </button>
+      </div>
+      {same ? (
+        <Link href="/basket" className="flex h-[52px] flex-1 items-center justify-center rounded-[14px] bg-ink text-base font-extrabold text-white">
+          In your basket · View
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            change(productId, n);
+            showToast(inBasket > 0 ? "Basket updated" : "Added to basket");
+          }}
+          className="flex h-[52px] flex-1 items-center justify-center rounded-[14px] bg-ink text-base font-extrabold tabular-nums text-white disabled:opacity-70"
+        >
+          {inBasket > 0 ? "Update basket" : "Add to basket"} · {naira(priceKobo * n)}
+        </button>
+      )}
+    </>
   );
 }

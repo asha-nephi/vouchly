@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/manrope";
 import "./globals.css";
 import NavProgress from "@/components/nav-progress";
+import ToastHost from "@/components/toast";
 
 const SITE = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
 const TITLE = "Vouchly: buy from people your ward can vouch for";
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en-NG">
       <body className="antialiased">
         <NavProgress />
+        <ToastHost />
         {children}
       </body>
     </html>

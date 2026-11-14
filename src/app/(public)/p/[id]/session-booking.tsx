@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { bookSession } from "@/app/(app)/book/actions";
 import GuestFields from "@/components/guest-fields";
+import ActionBar from "@/components/action-bar";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import { shortDay } from "@/lib/dates";
@@ -25,7 +26,7 @@ export default function SessionBooking(p: { productId: string; priceKobo: number
       <input type="hidden" name="day" value={day} />
       <input type="hidden" name="time" value={time} />
       <p className="text-base font-extrabold">Pick a day</p>
-      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         {p.slots.map((s) => {
           const [wd, ...rest] = shortDay(s.day).replace(",", "").split(" ");
           const on = s.day === day;
@@ -72,7 +73,7 @@ export default function SessionBooking(p: { productId: string; priceKobo: number
       {p.guest && !p.disabled && <GuestFields values={v} />}
       {!p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
-      {!p.disabled && <PrimaryButton pending={pending}>{time ? `Book ${shortDay(day)}, ${timeLabel(time)} · ${naira(p.priceKobo)}` : "Pick a time"}</PrimaryButton>}
+      {!p.disabled && <ActionBar><PrimaryButton pending={pending}>{time ? `Book ${shortDay(day)}, ${timeLabel(time)} · ${naira(p.priceKobo)}` : "Pick a time"}</PrimaryButton></ActionBar>}
       <p className="text-center text-xs text-muted">Paid safely through Paystack. Free cancellation until it&apos;s accepted.</p>
     </form>
   );

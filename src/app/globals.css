@@ -118,3 +118,25 @@ textarea {
 .nav-progress {
   animation: nav-progress 900ms ease-in-out infinite;
 }
+
+/* Grey placeholder behind photos while they load on slow data. */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, #eef0f4 25%, #f6f7fa 50%, #eef0f4 75%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Rows that scroll sideways with no visible scrollbar. */
+.hide-scroll {
+  scrollbar-width: none;
+}
+.hide-scroll::-webkit-scrollbar {
+  display: none;
+}

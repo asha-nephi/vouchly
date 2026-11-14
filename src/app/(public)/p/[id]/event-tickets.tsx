@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { buyTickets } from "@/app/(app)/book/actions";
 import GuestFields from "@/components/guest-fields";
+import ActionBar from "@/components/action-bar";
 import { ErrorText, PrimaryButton } from "@/components/ui";
 import { naira } from "@/lib/catalog";
 import DiscountField from "@/components/discount-field";
@@ -38,9 +39,9 @@ export default function EventTickets(p: { productId: string; priceKobo: number; 
       {!free && !p.disabled && <DiscountField value={state?.values?.discount} />}
       <ErrorText message={p.disabled ?? state?.error} />
       {!p.disabled && (
-        <PrimaryButton pending={pending}>
+        <ActionBar><PrimaryButton pending={pending}>
           {free ? (qty === 1 ? "Reserve my seat" : `Reserve ${qty} seats`) : `Get ${qty === 1 ? "ticket" : `${qty} tickets`} · ${naira(p.priceKobo * qty)}`}
-        </PrimaryButton>
+        </PrimaryButton></ActionBar>
       )}
       {!free && <p className="text-center text-xs text-muted">Paid safely through Paystack.</p>}
     </form>
