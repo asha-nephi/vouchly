@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { headers } from "next/headers";
+import { clientIp } from "@/lib/rate-limit";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { aiCache, aiUsage } from "@/db/schema";
@@ -18,31 +18,31 @@ export type Who = { who: string; userId: string | null; ipHash: string | null };
 // A signed-in person counts by account; anyone else by a hash of their IP.
 export async function whoIs(userId: string | null | undefined): Promise<Who> {
   if (userId) return { who: userId, userId, ipHash: null };
-  const h = await headers();
-  const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "unknown";
+  const ip = await clientIp();
   const ipHash = createHash("sha256").update(`vouchly:${ip}`).digest("hex").slice(0, 32);
   return { who: `ip:${ipHash}`, userId: null, ipHash };
 }
 
-// True while this person, and the whole site, are under today's limits.
-async function underLimits(w: Who, feature: AiFeature) {
+// Checks the limits and counts the use in one locked step, so many requests at once can't slip past.
+async function takeUse(w: Who, feature: AiFeature) {
   const day = todayKey();
   const mine = feature === "search" ? ["search"] : ["writer", "post"];
-  const [[me], [site]] = await Promise.all([
-    db
-      .select({ n: sql<number>`coalesce(sum(${aiUsage.count}), 0)::int` })
-      .from(aiUsage)
-      .where(and(eq(aiUsage.who, w.who), eq(aiUsage.day, day), inArray(aiUsage.feature, mine))),
-    db.select({ n: sql<number>`coalesce(sum(${aiUsage.count}), 0)::int` }).from(aiUsage).where(eq(aiUsage.day, day)),
-  ]);
-  return me.n < (feature === "search" ? SEARCH_DAILY : SELLER_DAILY) && site.n < siteDaily();
-}
-
-async function countUse(w: Who, feature: AiFeature) {
-  await db
-    .insert(aiUsage)
-    .values({ ...w, feature, day: todayKey(), count: 1 })
-    .onConflictDoUpdate({ target: [aiUsage.who, aiUsage.feature, aiUsage.day], set: { count: sql`${aiUsage.count} + 1` } });
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('vouchly-ai-use'))`);
+    const [[me], [site]] = await Promise.all([
+      tx
+        .select({ n: sql<number>`coalesce(sum(${aiUsage.count}), 0)::int` })
+        .from(aiUsage)
+        .where(and(eq(aiUsage.who, w.who), eq(aiUsage.day, day), inArray(aiUsage.feature, mine))),
+      tx.select({ n: sql<number>`coalesce(sum(${aiUsage.count}), 0)::int` }).from(aiUsage).where(eq(aiUsage.day, day)),
+    ]);
+    if (me.n >= (feature === "search" ? SEARCH_DAILY : SELLER_DAILY) || site.n >= siteDaily()) return false;
+    await tx
+      .insert(aiUsage)
+      .values({ ...w, feature, day, count: 1 })
+      .onConflictDoUpdate({ target: [aiUsage.who, aiUsage.feature, aiUsage.day], set: { count: sql`${aiUsage.count} + 1` } });
+    return true;
+  });
 }
 
 async function cacheGet(key: string) {
@@ -65,8 +65,7 @@ export async function runAi<T>(opts: { who: Who; feature: AiFeature; cacheKey?: 
     const hit = await cacheGet(opts.cacheKey);
     if (hit) return { ok: true, value: hit as T };
   }
-  if (!(await underLimits(opts.who, opts.feature))) return { ok: false, resting: true };
-  await countUse(opts.who, opts.feature);
+  if (!(await takeUse(opts.who, opts.feature))) return { ok: false, resting: true };
   const value = await opts.call();
   if (value == null) return { ok: false, resting: false };
   if (opts.cacheKey) await cacheSet(opts.cacheKey, value, opts.cacheMs ?? DAY_MS);

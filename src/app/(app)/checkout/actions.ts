@@ -7,7 +7,7 @@ import { deliverySettings, orderItems, orders, products, shops } from "@/db/sche
 import { currentUser, makeToken } from "@/lib/auth";
 import { buyerFor, guestValues } from "@/lib/guest";
 import { discountFor } from "@/lib/discounts";
-import { readBasket } from "@/lib/basket";
+import { MAX_QTY, readBasket } from "@/lib/basket";
 import { AREAS } from "@/lib/catalog";
 import { holdMode, nextDeliveryDay } from "@/lib/orders";
 import { paystackReady } from "@/lib/paystack";
@@ -56,7 +56,9 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
     .where(and(inArray(products.id, ids), eq(products.shopId, shop.id), eq(products.kind, "item"), eq(products.isActive, true), eq(products.removed, false)));
   if (!rows.length) return fail("The items in your basket aren't available any more.");
   const lines = rows.map((p) => ({ p, qty: basket.items[p.id] }));
-  const disc = await discountFor(shop.id, form.get("discount"), lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0));
+  // Never trust the cookie: every amount must be a whole number in range.
+  if (lines.some((l) => !Number.isInteger(l.qty) || l.qty < 1 || l.qty > MAX_QTY)) return fail("Please check the amounts in your basket.");
+  const disc = await discountFor(shop.id, form.get("discount"), lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0), me?.id);
   if ("error" in disc) return fail(disc.error);
   const itemsKobo = lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0) - disc.kobo;
 

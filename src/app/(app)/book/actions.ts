@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { orderItems, orders, products, shops } from "@/db/schema";
 import { currentUser, makeToken, requireBuyer } from "@/lib/auth";
@@ -67,7 +67,7 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   if (clash) return fail(`${shortDay(clash)} is already booked. Please pick other dates.`);
   if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
-  const disc = await discountFor(shop.id, form.get("discount"), p.priceKobo * nights);
+  const disc = await discountFor(shop.id, form.get("discount"), p.priceKobo * nights, me?.id);
   if ("error" in disc) return fail(disc.error);
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
@@ -124,7 +124,7 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
   // "Ask for a price first" turns a fixed-price visit into a quote request.
   const quote = p.priceType === "quote" || form.get("ask") === "1";
   if (!quote && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
-  const disc = quote ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo);
+  const disc = quote ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo, me?.id);
   if ("error" in disc) return fail(disc.error);
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
@@ -179,7 +179,7 @@ export async function buyDigital(_: BookState, form: FormData): Promise<BookStat
   if (!free && !holdMode() && !shop.paystackSubaccount) return fail(`${shop.name} hasn't set up payments yet.`);
   if (!free && !paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
 
-  const disc = free ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo);
+  const disc = free ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo, me?.id);
   if ("error" in disc) return fail(disc.error);
   const price = p.priceKobo - disc.kobo;
   const who = await buyerFor(form);
@@ -239,7 +239,7 @@ export async function bookSession(_: BookState, form: FormData): Promise<BookSta
   const open = await sessionSlots(p);
   if (!open.some((d) => d.day === values.day && d.times.includes(values.time))) return fail("That time was just taken. Please pick another.");
 
-  const disc = await discountFor(shop.id, form.get("discount"), p.priceKobo);
+  const disc = await discountFor(shop.id, form.get("discount"), p.priceKobo, me?.id);
   if ("error" in disc) return fail(disc.error);
   const price = p.priceKobo - disc.kobo;
   const who = await buyerFor(form);
@@ -288,29 +288,41 @@ export async function buyTickets(_: BookState, form: FormData): Promise<BookStat
   if (left <= 0) return fail("Sorry, this event is sold out.");
   if (qty > left) return fail(`Only ${left} ${left === 1 ? "seat is" : "seats are"} left.`);
 
-  const disc = free ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo * qty);
+  const disc = free ? { kobo: 0, code: null } : await discountFor(shop.id, form.get("discount"), p.priceKobo * qty, me?.id);
   if ("error" in disc) return fail(disc.error);
   const who = await buyerFor(form);
   if ("error" in who) return fail(who.error);
   const user = who.user;
   const itemsKobo = p.priceKobo * qty - disc.kobo;
   const code = await newOrderCode();
-  const [order] = await db
-    .insert(orders)
-    .values({
-      code,
-      accessToken: makeToken(),
-      buyerId: user.id,
-      shopId: shop.id,
-      deliveryDay: p.eventAt!,
-      method: "event",
-      itemsKobo,
-      discountCode: disc.code,
-      discountKobo: disc.kobo,
-      status: free ? "ready" : "awaiting_payment",
-    })
-    .returning({ id: orders.id });
-  await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: qty === 1 ? "1 ticket" : `${qty} tickets`, quantity: qty, priceKobo: p.priceKobo });
+  // Lock the event while counting seats, so two buyers can't both take the last ones.
+  const placed = await db.transaction(async (tx) => {
+    await tx.execute(sql`select id from ${products} where id = ${p.id} for update`);
+    const seatsLeft = p.seats! - (await ticketsTaken(p.id, {}, tx));
+    if (qty > seatsLeft) return { left: seatsLeft };
+    const [order] = await tx
+      .insert(orders)
+      .values({
+        code,
+        accessToken: makeToken(),
+        buyerId: user.id,
+        shopId: shop.id,
+        deliveryDay: p.eventAt!,
+        method: "event",
+        itemsKobo,
+        discountCode: disc.code,
+        discountKobo: disc.kobo,
+        status: free ? "ready" : "awaiting_payment",
+      })
+      .returning({ id: orders.id });
+    await tx.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: qty === 1 ? "1 ticket" : `${qty} tickets`, quantity: qty, priceKobo: p.priceKobo });
+    return { order };
+  });
+  if (!("order" in placed) || !placed.order) {
+    const n = placed.left ?? 0;
+    return fail(n <= 0 ? "Sorry, this event is sold out." : `Only ${n} ${n === 1 ? "seat is" : "seats are"} left.`);
+  }
+  const order = placed.order;
   if (free) {
     await notify(shop.ownerId, "New sign-up", `${user.name} reserved ${qty === 1 ? "a seat" : `${qty} seats`} for “${p.name}”.`, `/shop/manage/orders/${code}`);
     redirect(`/orders/${code}?placed=1`);

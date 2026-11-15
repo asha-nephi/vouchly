@@ -69,9 +69,11 @@ export async function sessionClash(productId: string, at: Date, exceptOrderId: s
   return rows.length > 0;
 }
 
+type Runner = Pick<typeof db, "select">;
+
 // Tickets taken for an event. With paidOnly, only paid tickets count.
-export async function ticketsTaken(productId: string, opts: { paidOnly?: boolean; exceptOrderId?: string } = {}) {
-  const [row] = await db
+export async function ticketsTaken(productId: string, opts: { paidOnly?: boolean; exceptOrderId?: string } = {}, run: Runner = db) {
+  const [row] = await run
     .select({ n: sql<number>`coalesce(sum(${orderItems.quantity}), 0)::int` })
     .from(orders)
     .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
