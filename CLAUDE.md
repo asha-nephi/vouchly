@@ -29,14 +29,14 @@ A marketplace for members of The Church of Jesus Christ of Latter-day Saints in 
   - Use the existing components in `src/components/` (`ui.tsx`, `form-bits.tsx`, `submit-button.tsx`, etc.) rather than inventing new styles.
 - **Brand:** the word "Vouchly" is written as text in the app. The logo is only for the favicon, home-screen icon and share previews.
 - **Secrets:** never ask Nephi to paste keys into chat. He puts them in Render → Environment himself.
-- **No paid WhatsApp API.** Notifications are in-app (bell) and SMS (Termii). Sharing uses `wa.me` links.
+- **No paid WhatsApp API.** Notifications are in-app (bell) and SMS (Twilio). Sharing uses `wa.me` links.
 - **Address:** Nephi's home address (57 Seriki Aro Avenue, Ikeja, Lagos 100282) is fine to show publicly, for example on the contact page.
 
 ## Stack
 
 - Next.js 15.5 (App Router), React 19 (`useActionState`, server actions), TypeScript, Tailwind v4
 - Drizzle ORM with postgres.js, on Postgres
-- Paystack (payments and refunds), Termii (SMS / OTP login), Cloudflare R2 (photos and digital files, optional), sharp (share images)
+- Paystack (payments and refunds), Twilio (SMS / OTP login), Cloudflare R2 (photos and digital files, optional), sharp (share images)
 - Login is by phone number + OTP. There are no passwords.
 
 ## Where things are
@@ -85,6 +85,8 @@ DATABASE_URL=postgres://... SMS_TEST_MODE=true PAYSTACK_SECRET_KEY=sk_test_xxx \
 ```
 
 - `SMS_TEST_MODE=true` shows the OTP on screen instead of sending an SMS.
+- To test SMS without sending, run `node scripts/fake-twilio.mjs 4012` and set `TWILIO_BASE_URL=http://localhost:4012` (with `SMS_TEST_MODE=false`). The phone `0900 000 0000` or the word `FAIL` makes it return an error.
+- Nigeria: Twilio can't send from a Nigerian number. Use a registered sender name (takes 2–3 weeks to approve) for best delivery. Numbers on DND may sometimes miss codes.
 - To test payments without real Paystack, point `PAYSTACK_BASE_URL` at a small fake server. It must answer `/transaction/initialize`, `/transaction/verify/:ref` and `/refund`.
 - To test sign-up and password emails without Resend, set `RESEND_API_KEY`/`RESEND_FROM` to anything and point `RESEND_BASE_URL` at a fake server that answers `POST /emails`.
 - **Always run `npm run build` before committing.** It also type-checks.
@@ -116,7 +118,11 @@ Important details:
 | `SITE_URL` | Public URL, used in share links and Paystack callbacks |
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_BASE_URL` | Payments (base URL only for testing) |
 | `PAYOUT_MODE` | `hold` = Vouchly holds the money until the buyer confirms; otherwise the pilot split pays sellers directly |
-| `TERMII_API_KEY`, `TERMII_SENDER`, `TERMII_BASE_URL`, `SMS_TEST_MODE` | SMS |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_ACCOUNT_AUTH_TOKEN` | SMS by Twilio (sign-in codes) |
+| `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_FROM` | Who the SMS comes from. A Messaging Service wins. `TWILIO_FROM` is a Twilio number or a registered name; default "Vouchly" |
+| `TWILIO_BASE_URL` | Tests only: point at `scripts/fake-twilio.mjs` |
+| `SMS_TEST_MODE` | `true` = show the code on screen, send nothing. Also on when no SMS keys are set |
+| `TERMII_API_KEY`, `TERMII_SENDER`, `TERMII_BASE_URL` | Old SMS provider. Used only when Twilio isn't set |
 | `FOUNDER_INVITE_CODE` | First invite code |
 | `CRON_SECRET` | Protects `/api/cron/settle?key=...` |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` | Photo storage |
