@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { maybeSettle } from "@/lib/after-order";
 import { naira } from "@/lib/catalog";
 import { deliveryDayLabel } from "@/lib/orders";
+import { dateToKey } from "@/lib/dates";
 import { SELLER_STATUS, statusLabel, TO_DO, TONE } from "@/lib/order-status";
 import { myShop } from "@/lib/shops";
 import { BackBar } from "@/components/ui";
@@ -69,13 +70,14 @@ export default async function ShopOrders({
   // Group by delivery day, with a total of what to make.
   const days = new Map<
     string,
-    { label: string; rows: typeof rows; make: Map<string, number> }
+    { label: string; day: string; rows: typeof rows; make: Map<string, number> }
   >();
   for (const r of rows) {
     const key = r.order.deliveryDay.toISOString();
     if (!days.has(key))
       days.set(key, {
         label: deliveryDayLabel(r.order.deliveryDay),
+        day: dateToKey(r.order.deliveryDay),
         rows: [],
         make: new Map(),
       });
@@ -125,7 +127,12 @@ export default async function ShopOrders({
             </h2>
             {!done && g.make.size > 0 && (
               <div className="rounded-[18px] bg-soft px-4 py-3">
-                <p className="text-xs font-bold text-deep">To make</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-deep">To make</p>
+                  <Link href={`/shop/manage/orders/day/${g.day}`} className="flex h-9 items-center rounded-full bg-white px-3 text-[13px] font-bold text-accent">
+                    Day list and rider
+                  </Link>
+                </div>
                 {[...g.make].map(([name, n]) => (
                   <p key={name} className="text-[15px] font-bold">
                     {n} × {name}
