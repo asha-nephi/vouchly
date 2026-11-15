@@ -9,6 +9,7 @@ const TYPES = [
   { value: "caption", label: "Instagram caption" },
   { value: "broadcast", label: "WhatsApp broadcast" },
 ];
+const OFFLINE = "Couldn't reach Vouchly. Check your connection and try again.";
 const LANGS = [
   { value: "en", label: "English" },
   { value: "pcm", label: "Pidgin" },
@@ -46,7 +47,9 @@ export default function PostMaker({ productId }: { productId?: string }) {
   const make = (v: number) => {
     setError("");
     start(async () => {
-      const res = await makePost({ productId, type, lang, version: v });
+      // A dropped connection must not break the page.
+      const res = await makePost({ productId, type, lang, version: v }).catch(() => null);
+      if (!res) return setError(OFFLINE);
       if (!res.ok) return setError(res.error);
       setText(res.text);
       setTail(res.full.slice(res.text.length));

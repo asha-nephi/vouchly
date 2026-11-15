@@ -39,7 +39,9 @@ export default function AiWriter({ kind }: { kind: string }) {
     start(async () => {
       const form = box.current?.closest("form");
       if (!form) return;
-      const res = await writeListing({ words, kind, image: await photoData(form) });
+      // A dropped connection must not break the page.
+      const res = await writeListing({ words, kind, image: await photoData(form) }).catch(() => null);
+      if (!res) return setError("Couldn't reach Vouchly. Check your connection and try again.");
       if (!res.ok) return setError(res.error);
       const old: Saved = {};
       const next: Saved = { name: res.draft.name, about: res.draft.about, tags: res.draft.tags.join(", "), included: res.draft.included.join("\n") };
