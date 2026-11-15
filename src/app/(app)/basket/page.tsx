@@ -15,8 +15,9 @@ import SubmitButton from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function BasketPage({ searchParams }: { searchParams: Promise<{ payment?: string }> }) {
-  const { payment } = await searchParams;
+export default async function BasketPage({ searchParams }: { searchParams: Promise<{ payment?: string; again?: string; missing?: string }> }) {
+  const { payment, again, missing } = await searchParams;
+  const miss = Math.min(99, Math.max(0, Math.floor(Number(missing) || 0)));
   const basket = await readBasket();
 
   if (!basket) {
@@ -78,8 +79,14 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
             </Link>
           )}
 
+          {again === "1" && (
+            <Note tone="green">
+              Your last order is back in your basket at today&apos;s prices.
+              {miss > 0 ? ` ${miss === 1 ? "1 item isn't" : `${miss} items aren't`} for sale any more, so we left ${miss === 1 ? "it" : "them"} out.` : ""}
+            </Note>
+          )}
           {payment === "checking" && <Note tone="amber">We couldn&apos;t check your payment with Paystack just now. If you paid, your order will show under Orders within a few minutes. Please don&apos;t pay again.</Note>}
-          {payment === "failed" &&<Note tone="amber">Your payment didn&apos;t go through, so no order was placed. You can try again.</Note>}
+          {payment === "failed" && <Note tone="amber">Your payment didn&apos;t go through, so no order was placed. You can try again.</Note>}
           {gone > 0 && <Note tone="amber">Some items are no longer available, so we took them out.</Note>}
           {shop && !shop.isOpen && <Note tone="amber">This shop has closed for now, so you can&apos;t order yet.</Note>}
 

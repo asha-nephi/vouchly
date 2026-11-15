@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, orders, payments, reviews, shops, users } from "@/db/schema";
+import { deliverySettings, orderItems, orders, payments, products, reviews, shops, users } from "@/db/schema";
+import { MAX_QTY, writeBasket } from "@/lib/basket";
 import { requireBuyer } from "@/lib/auth";
 import { refundOrder } from "@/lib/after-order";
 import { notify } from "@/lib/notify";
@@ -102,4 +104,25 @@ export async function leaveReview(_: BuyerFormState, form: FormData): Promise<Bu
   if (added.length) await notify(row.shop.ownerId, "New review", `${row.user.name} gave ${row.shop.name} ${stars} ${stars === 1 ? "star" : "stars"}.`, `/s/${row.shop.slug}`);
   revalidatePath(`/orders/${code}`);
   return { done: true };
+}
+
+// Puts the same items from an old order back in the basket, at today's prices.
+export async function buyAgain(form: FormData): Promise<void> {
+  const row = await buyerOrder(String(form.get("code") ?? ""));
+  if (!row || !["pickup", "drop_off", "rider"].includes(row.order.method)) redirect("/orders");
+  if (!row.shop.isOpen) redirect(`/orders/${row.order.code}?again=closed`);
+  const lines = await db.select({ productId: orderItems.productId, qty: orderItems.quantity }).from(orderItems).where(eq(orderItems.orderId, row.order.id));
+  const live = lines.length
+    ? await db
+        .select({ id: products.id })
+        .from(products)
+        .where(and(inArray(products.id, lines.map((l) => l.productId)), eq(products.shopId, row.shop.id), eq(products.kind, "item"), eq(products.isActive, true), eq(products.removed, false)))
+    : [];
+  const ok = new Set(live.map((p) => p.id));
+  const items: Record<string, number> = {};
+  for (const l of lines) if (ok.has(l.productId)) items[l.productId] = Math.min(MAX_QTY, (items[l.productId] ?? 0) + l.qty);
+  if (!Object.keys(items).length) redirect(`/orders/${row.order.code}?again=none`);
+  await writeBasket({ shopId: row.shop.id, items });
+  const missing = new Set(lines.map((l) => l.productId)).size - Object.keys(items).length;
+  redirect(`/basket?again=1${missing ? `&missing=${missing}` : ""}`);
 }

@@ -31,7 +31,7 @@ import { dropRequest } from "@/app/(app)/book/actions";
 import PayQuote from "./pay-quote";
 import { BackBar, Note } from "@/components/ui";
 import SaveLink from "@/components/save-link";
-import { markReceived } from "../actions";
+import { buyAgain, markReceived } from "../actions";
 import { CancelForm, ProblemForm, ReviewForm } from "./forms";
 import Photo from "@/components/photo";
 import SubmitButton from "@/components/submit-button";
@@ -45,11 +45,11 @@ export default async function OrderPage({
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ placed?: string }>;
+  searchParams: Promise<{ placed?: string; again?: string }>;
 }) {
   const user = await requireBuyer();
   const { code } = await params;
-  const { placed } = await searchParams;
+  const { placed, again } = await searchParams;
   await maybeSettle();
   const [row] = await db
     .select({ order: orders, shop: shops, sellerPhone: users.phone })
@@ -645,6 +645,16 @@ export default async function OrderPage({
                     ? "The job is done. Thank you!"
                     : "You received this order. Thank you!"}
           </Note>
+        )}
+        {["pickup", "drop_off", "rider"].includes(o.method) && ["received", "cancelled"].includes(o.status) && (
+          <>
+            {again === "none" && <Note tone="amber">None of these items are for sale any more. Have a look at {shop.name}&apos;s shop for what&apos;s new.</Note>}
+            {again === "closed" && <Note tone="amber">{shop.name} is closed for now, so you can&apos;t order again yet.</Note>}
+            <form action={buyAgain}>
+              <input type="hidden" name="code" value={o.code} />
+              <SubmitButton className="h-[54px] w-full rounded-2xl bg-accent text-[15px] font-bold text-white">Buy again</SubmitButton>
+            </form>
+          </>
         )}
         {canCancel && cancelBy && (
           <CancelForm code={o.code} until={shortDateTime(cancelBy)} />
