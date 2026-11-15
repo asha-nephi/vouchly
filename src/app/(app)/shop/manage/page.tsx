@@ -6,7 +6,7 @@ import { deliverySettings, orderItems, orders, payments, products, users } from 
 import { requireUser } from "@/lib/auth";
 import { cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { myShop } from "@/lib/shops";
-import { toggleShopOpen } from "../actions";
+import { copyProduct, toggleShopOpen } from "../actions";
 import { Note } from "@/components/ui";
 import TabBar from "@/components/tab-bar";
 import TilePhoto from "@/components/tile-photo";
@@ -479,11 +479,19 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
                         .replace("Price after a chat", "Quote")}
                     </span>
                   </Link>
-                  {ai && p.isActive && (
-                    <Link href={`/shop/manage/products/${p.id}?post=1#post`} className="flex h-10 items-center border-t border-line px-3 text-[13px] font-bold text-accent">
-                      Make a post
-                    </Link>
-                  )}
+                  <div className="flex border-t border-line">
+                    {ai && p.isActive && (
+                      <Link href={`/shop/manage/products/${p.id}?post=1#post`} className="flex h-10 flex-1 items-center px-3 text-[13px] font-bold text-accent">
+                        Make a post
+                      </Link>
+                    )}
+                    <form action={copyProduct} className="ml-auto">
+                      <input type="hidden" name="id" value={p.id} />
+                      <SubmitButton pendingText="Copying…" className="flex h-10 items-center px-3 text-[13px] font-bold text-accent">
+                        Copy
+                      </SubmitButton>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>

@@ -5,7 +5,9 @@ import { db } from "@/db";
 import { products } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { myShop } from "@/lib/shops";
-import { BackBar } from "@/components/ui";
+import { BackBar, Note } from "@/components/ui";
+import SubmitButton from "@/components/submit-button";
+import { copyProduct } from "../../../actions";
 import ProductForm from "../product-form";
 import PostMaker from "@/components/post-maker";
 import { MAX_FILE_MB } from "@/lib/files";
@@ -14,7 +16,7 @@ import { similarPrices } from "@/lib/ai-writer";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditProduct({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ post?: string }> }) {
+export default async function EditProduct({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ post?: string; copied?: string }> }) {
   const user = await requireUser();
   const shop = await myShop(user.id);
   if (!shop) redirect("/sell");
@@ -26,10 +28,17 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
     .where(and(eq(products.id, id), eq(products.shopId, shop.id), eq(products.removed, false)))
     .limit(1);
   if (!product) notFound();
-  const { post } = await searchParams;
+  const { post, copied } = await searchParams;
   return (
     <main className="mx-auto min-h-dvh max-w-md">
-      <BackBar title="Edit listing" href="/shop/manage" />
+      <BackBar title={copied ? "Edit your copy" : "Edit listing"} href="/shop/manage" />
+      {copied && (
+        <div className="mx-4 mb-2">
+          <Note tone="green">
+            Copy made. It&apos;s hidden from buyers for now. Change the name, price, photos or {product.kind === "event" ? "date" : "details"}, turn on &quot;Show in my shop&quot;, then save.
+          </Note>
+        </div>
+      )}
       {product.kind === "event" && (
         <Link href={`/shop/manage/products/${product.id}/attendees`} className="mx-4 mb-2 flex items-center justify-between rounded-[18px] bg-soft px-4 py-3 text-[15px] font-bold text-deep">
           Who&apos;s coming <span aria-hidden="true">→</span>
@@ -51,6 +60,12 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
         </details>
       )}
       <ProductForm aiOn={aiReady()} similar={await similarPrices(shop.category)} maxFileMb={MAX_FILE_MB} product={product} />
+      {!copied && (
+        <form action={copyProduct} className="-mt-6 px-4 pb-8">
+          <input type="hidden" name="id" value={product.id} />
+          <SubmitButton className="h-[50px] w-full rounded-2xl border border-line bg-white text-[14px] font-bold text-ink">Make a copy of this listing</SubmitButton>
+        </form>
+      )}
     </main>
   );
 }
