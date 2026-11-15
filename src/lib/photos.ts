@@ -23,9 +23,24 @@ const r2 =
 
 export const photoUrl = (id: string) => `/api/photos/${id}`;
 
+const LOCAL = /^\/api\/photos\/[0-9a-f-]{36}$/;
+
+// True for a photo on our R2 bucket: same scheme and host, under our "p/" folder.
+export function isR2Photo(url: string) {
+  const base = process.env.R2_PUBLIC_URL;
+  if (!base) return false;
+  try {
+    const u = new URL(url);
+    const b = new URL(base);
+    const prefix = b.pathname.replace(/\/$/, "") + "/p/";
+    return u.protocol === b.protocol && u.host === b.host && !u.search && !u.hash && u.pathname.startsWith(prefix) && !u.pathname.includes("..");
+  } catch {
+    return false;
+  }
+}
+
 // Accepts photos stored either way, so old database photos keep working after the switch.
-export const isOurPhoto = (url: string) =>
-  url.startsWith("/api/photos/") || (!!process.env.R2_PUBLIC_URL && url.startsWith(process.env.R2_PUBLIC_URL));
+export const isOurPhoto = (url: string) => LOCAL.test(url) || isR2Photo(url);
 
 export async function savePhoto(ownerId: string, file: File): Promise<string> {
   if (!ALLOWED.includes(file.type)) throw new Error("Please use a JPG, PNG or WebP photo.");
