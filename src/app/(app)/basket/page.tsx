@@ -78,7 +78,8 @@ export default async function BasketPage({ searchParams }: { searchParams: Promi
             </Link>
           )}
 
-          {payment === "failed" && <Note tone="amber">Your payment didn&apos;t go through, so no order was placed. You can try again.</Note>}
+          {payment === "checking" && <Note tone="amber">We couldn&apos;t check your payment with Paystack just now. If you paid, your order will show under Orders within a few minutes. Please don&apos;t pay again.</Note>}
+          {payment === "failed" &&<Note tone="amber">Your payment didn&apos;t go through, so no order was placed. You can try again.</Note>}
           {gone > 0 && <Note tone="amber">Some items are no longer available, so we took them out.</Note>}
           {shop && !shop.isOpen && <Note tone="amber">This shop has closed for now, so you can&apos;t order yet.</Note>}
 

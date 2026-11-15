@@ -6,6 +6,7 @@ import { naira } from "./catalog";
 import { holdMode } from "./orders";
 import { notify } from "./notify";
 import { refundPayment } from "./paystack";
+import { recheckPending } from "./payments";
 
 // Gives the buyer back the full amount and cancels the order.
 export async function refundOrder(orderId: string, reason: string): Promise<{ error?: string }> {
@@ -74,5 +75,6 @@ let lastRun = 0;
 export async function maybeSettle() {
   if (Date.now() - lastRun < 10 * 60_000) return;
   lastRun = Date.now();
-  await settleDue().catch(() => undefined);
+  await settleDue().catch((e) => console.error("Settle failed:", (e as Error).message));
+  await recheckPending().catch((e) => console.error("Payment recheck failed:", (e as Error).message));
 }

@@ -5,7 +5,19 @@ import { confirmPayment } from "@/lib/payments";
 export async function POST(req: Request) {
   const raw = await req.text();
   if (!validWebhook(raw, req.headers.get("x-paystack-signature"))) return new Response("Bad signature", { status: 401 });
-  const event = JSON.parse(raw) as { event?: string; data?: { reference?: string } };
-  if (event.event === "charge.success" && event.data?.reference) await confirmPayment(event.data.reference);
+  let event: { event?: string; data?: { reference?: string } };
+  try {
+    event = JSON.parse(raw);
+  } catch {
+    return new Response("Bad body", { status: 400 });
+  }
+  if (event.event === "charge.success" && event.data?.reference) {
+    const res = await confirmPayment(event.data.reference).catch((e) => {
+      console.error("Webhook payment error:", (e as Error).message);
+      return { retry: true } as const;
+    });
+    // Not "ok" yet, so Paystack sends it again later.
+    if (res && "retry" in res) return new Response("Try again", { status: 503 });
+  }
   return new Response("ok");
 }

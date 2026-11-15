@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { orderItems, orders, payments, products, shops } from "@/db/schema";
 import { refundOrder } from "./after-order";
@@ -11,16 +11,29 @@ import { notify } from "./notify";
 import { deliveryDayLabel, holdMode } from "./orders";
 import { verifyPayment } from "./paystack";
 
+export type PaymentResult = { code: string } | { retry: true } | null;
+
 // Marks an order paid once Paystack confirms it. Safe to call more than once.
-export async function confirmPayment(reference: string): Promise<{ code: string } | null> {
+// Gives { retry } when Paystack couldn't be reached, so the caller can try again later.
+export async function confirmPayment(reference: string): Promise<PaymentResult> {
   const [pay] = await db.select().from(payments).where(eq(payments.paystackReference, reference)).limit(1);
   if (!pay) return null;
   const [order] = await db.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (!order) return null;
   if (pay.status !== "pending") return { code: order.code };
 
-  const v = await verifyPayment(reference).catch(() => null);
-  if (!v || v.status !== "success" || v.amount !== pay.amountKobo) return null;
+  let v: Awaited<ReturnType<typeof verifyPayment>>;
+  try {
+    v = await verifyPayment(reference);
+  } catch (e) {
+    console.error(`Payment check failed for ${reference}:`, (e as Error).message);
+    return { retry: true };
+  }
+  if (v.status !== "success") return null;
+  if (v.amount !== pay.amountKobo) {
+    console.error(`Payment amount mismatch for ${reference}: Paystack ${v.amount}, expected ${pay.amountKobo}.`);
+    return null;
+  }
 
   // Hold mode: kept until "Received", or 48 hours after the end of the delivery day.
   // Pilot mode: Paystack pays the seller's subaccount on its own, so it counts as released.
@@ -68,6 +81,22 @@ export async function confirmPayment(reference: string): Promise<{ code: string 
   return { code: order.code };
 }
 
+
+// Checks unpaid payments from the last few hours again, in case a webhook was missed.
+export async function recheckPending(now = new Date()) {
+  const rows = await db
+    .select({ ref: payments.paystackReference })
+    .from(payments)
+    .where(and(eq(payments.status, "pending"), lte(payments.createdAt, new Date(now.getTime() - 5 * 60_000)), gte(payments.createdAt, new Date(now.getTime() - 6 * 3600_000))))
+    .orderBy(desc(payments.createdAt))
+    .limit(20);
+  let paid = 0;
+  for (const r of rows) {
+    const res = await confirmPayment(r.ref);
+    if (res && "code" in res) paid++;
+  }
+  return { checked: rows.length, paid };
+}
 
 async function stayProductId(orderId: string) {
   const [it] = await db.select({ productId: orderItems.productId }).from(orderItems).where(eq(orderItems.orderId, orderId)).limit(1);
