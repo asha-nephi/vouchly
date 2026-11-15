@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products, reviews, shops, users } from "@/db/schema";
+import { deliverySettings, products, reviews, savedShops, shops, users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
 import { categoryLabel, cutoffLabel, naira } from "@/lib/catalog";
@@ -13,6 +13,7 @@ import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
 import Seal from "@/components/seal";
 import ShareButton from "@/components/share-button";
+import SaveShop from "@/components/save-shop";
 import TilePhoto from "@/components/tile-photo";
 import { ctaLabel, priceText, tileTag } from "@/lib/listings";
 import { nextDeliveryDay } from "@/lib/orders";
@@ -64,7 +65,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
   const { shop, ward, confirmed } = row;
   const isMine = shop.ownerId === me?.id;
 
-  const [items, [d], basket, shopReviews, stats] = await Promise.all([
+  const [items, [d], basket, shopReviews, stats, saved] = await Promise.all([
     db
       .select()
       .from(products)
@@ -80,6 +81,9 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
       .orderBy(desc(reviews.createdAt))
       .limit(10),
     shopStats(shop.id),
+    me && !me.isGuest
+      ? db.select({ id: savedShops.shopId }).from(savedShops).where(and(eq(savedShops.userId, me.id), eq(savedShops.shopId, shop.id))).limit(1)
+      : [],
   ]);
   const when = new Intl.DateTimeFormat("en-NG", { month: "short", year: "numeric", timeZone: "Africa/Lagos" });
   const since = new Intl.DateTimeFormat("en-NG", { year: "numeric", timeZone: "Africa/Lagos" }).format(shop.createdAt);
@@ -117,7 +121,10 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
               <path d="M15 5l-7 7 7 7" />
             </svg>
           </Link>
-          <ShareButton title={shop.name} text={`${shop.name} on Vouchly`} path={`/s/${shop.slug}`} className="absolute right-3.5 top-3.5 flex size-11 items-center justify-center rounded-full bg-white" />
+          <div className="absolute right-3.5 top-3.5 flex gap-2">
+            {!isMine && <SaveShop shopId={shop.id} saved={saved.length > 0} signedIn={!!me && !me.isGuest} className="flex size-11 items-center justify-center rounded-full bg-white" />}
+            <ShareButton title={shop.name} text={`${shop.name} on Vouchly`} path={`/s/${shop.slug}`} className="flex size-11 items-center justify-center rounded-full bg-white" />
+          </div>
         </div>
 
         <section className="relative mx-4 -mt-11 rounded-[22px] border border-line bg-white px-[18px] pb-[18px] lg:mx-8 lg:px-7 lg:pb-6">

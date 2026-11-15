@@ -6,6 +6,8 @@ import TabBar from "@/components/tab-bar";
 import Bell from "@/components/bell";
 import BrowseView, { SectionSwitch } from "@/components/browse-view";
 import { unreadCount } from "@/lib/notifications";
+import { savedShopsOf } from "@/lib/saved-shops";
+import SavedShopsStrip from "@/components/saved-shops-strip";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
   const section = toSection(typeof params.s === "string" ? params.s : null);
   const f = readFilters(params);
   const area = f.area ?? user?.area ?? "Ikeja";
-  const unread = user ? await unreadCount(user.id) : 0;
+  const [unread, saved] = user ? await Promise.all([unreadCount(user.id), savedShopsOf(user.id)]) : [0, []];
   const first = user?.name.split(" ")[0];
   const areaHref = (a: string) => `/home?${new URLSearchParams({ s: section, area: a })}`;
 
@@ -110,6 +112,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           </Link>
         </div>
       )}
+
+      <SavedShopsStrip list={saved} />
 
       <div className="px-4 pt-6 lg:px-0 lg:pt-0">
         <BrowseView section={section} area={area} f={f} action="/home" showShops />

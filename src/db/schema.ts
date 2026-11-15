@@ -1,5 +1,5 @@
 import {
-  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, smallint, jsonb, uniqueIndex, index, customType,
+  primaryKey, pgTable, pgEnum, uuid, text, integer, boolean, timestamp, smallint, jsonb, uniqueIndex, index, customType,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -317,3 +317,10 @@ export const aiCache = pgTable("ai_cache", {
   value: jsonb("value").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+// Shops a buyer saved, to find them again quickly.
+export const savedShops = pgTable("saved_shops", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  shopId: uuid("shop_id").notNull().references(() => shops.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.shopId] }), index("saved_shops_user_idx").on(t.userId, t.createdAt)]);

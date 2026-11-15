@@ -5,6 +5,7 @@ import { orders } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { unreadCount } from "@/lib/notifications";
 import { myShop } from "@/lib/shops";
+import { savedShopsOf } from "@/lib/saved-shops";
 import { logout } from "../../actions";
 import { Footer, Note } from "@/components/ui";
 import TabBar from "@/components/tab-bar";
@@ -20,10 +21,11 @@ export default async function Me() {
   const shop = isBuyer ? null : await myShop(user.id);
   const count = async (where: ReturnType<typeof and>) =>
     (await db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where))[0]?.n ?? 0;
-  const [newOrders, problems, unread] = await Promise.all([
+  const [newOrders, problems, unread, saved] = await Promise.all([
     shop ? count(and(eq(orders.shopId, shop.id), inArray(orders.status, ["paid", "disputed", "requested"]))) : 0,
     user.role === "admin" ? count(eq(orders.status, "disputed")) : 0,
     unreadCount(user.id),
+    savedShopsOf(user.id, 50),
   ]);
   const site = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
   const initials = user.name
@@ -116,6 +118,22 @@ export default async function Me() {
             Share invite on WhatsApp
           </a>
         </section>}
+
+        <section className={`${card} px-4`} aria-labelledby="my-saved">
+          <h2 id="my-saved" className="pb-1 pt-4 text-[15px] font-extrabold">
+            Saved shops
+          </h2>
+          {saved.length === 0 ? (
+            <p className="pb-4 text-[13px] text-muted">Tap the heart on a shop to keep it here.</p>
+          ) : (
+            saved.map((sh, i) => (
+              <Link key={sh.id} href={`/s/${sh.slug}`} className={`flex items-center justify-between gap-3 py-3.5 text-[15px] font-semibold ${i < saved.length - 1 ? "border-b border-[#eef0f4]" : ""}`}>
+                <span className="min-w-0 truncate">{sh.name}</span>
+                <span className="shrink-0 text-sm font-medium text-muted">{sh.isOpen ? sh.area : "Closed"} ›</span>
+              </Link>
+            ))
+          )}
+        </section>
 
         <section className={`${card} px-4`}>
           <Link href="/me/security" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
