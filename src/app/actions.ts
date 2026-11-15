@@ -13,6 +13,7 @@ import { GOOGLE_PENDING_COOKIE } from "@/lib/google";
 import { emailReady } from "@/lib/email";
 import { claimEmail, verifiedEmailOwner } from "@/lib/email-owner";
 import { cleanTrades, isSellerType, PATH_COOKIE } from "@/lib/seller-types";
+import { allow, blocked, clientIp, hit, TOO_MANY } from "@/lib/rate-limit";
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> } | undefined;
 
@@ -42,6 +43,7 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
   if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Please enter a valid email address.");
   if (!phone) return fail("Please enter a valid Nigerian phone number, like 0803 123 4567.");
   if (password.length < 12 || password.length > 128) return fail("Use a password with at least 12 characters.");
+  if (!allow(`signup:${await clientIp()}`, 5, 60 * 60_000)) return fail("Too many new accounts from this device. Please try again in an hour.");
 
   if (await verifiedEmailOwner(email)) return fail("That email already has an account. Log in or reset your password.");
   const [byPhone] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
@@ -69,6 +71,9 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length > 128) {
     return { error: "The email or password isn't right.", values };
   }
+  // Only wrong passwords count, so a shared Wi-Fi isn't blocked by people logging in fine.
+  const ipKey = `login:${await clientIp()}`;
+  if (blocked(ipKey, 8, 15 * 60_000)) return { error: TOO_MANY, values };
 
   const now = new Date();
   // Unproved emails can be typed by more than one account, so look at the proved one first.
@@ -90,12 +95,15 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
         return { error: "Verify your email first. Open the link we sent you, or log in with Google.", values };
       }
     }
+    hit(ipKey);
     return { error: "The email or password isn't right.", values };
   }
   if (!user?.passwordHash || (user.passwordLockedUntil && user.passwordLockedUntil > now)) {
+    hit(ipKey);
     return { error: "The email or password isn't right.", values };
   }
   if (!(await verifyPassword(password, user.passwordHash))) {
+    hit(ipKey);
     const windowStart = new Date(now.getTime() - 15 * 60_000);
     const lockedUntil = new Date(now.getTime() + 15 * 60_000);
     // Dates go in as text, so cast them or Postgres refuses the update.
@@ -107,7 +115,7 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
       .set({
         passwordFailedCount: sql`CASE WHEN ${failedRecently} THEN ${users.passwordFailedCount} + 1 ELSE 1 END`,
         passwordFailedAt: now,
-        passwordLockedUntil: sql`CASE WHEN ${failedRecently} AND ${users.passwordFailedCount} + 1 >= 5 THEN ${until} ELSE NULL END`,
+        passwordLockedUntil: sql`CASE WHEN ${failedRecently} AND ${users.passwordFailedCount} + 1 >= 10 THEN ${until} ELSE NULL END`,
       })
       .where(eq(users.id, user.id));
     return { error: "The email or password isn't right.", values };
@@ -123,6 +131,7 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
 export async function requestPasswordReset(_: FormState, form: FormData): Promise<FormState> {
   const email = emailAddress(String(form.get("email") ?? ""));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address.", values: { email } };
+  if (!allow(`reset:${await clientIp()}`, 5, 15 * 60_000)) return { error: TOO_MANY, values: { email } };
 
   const [user] = await db
     .select({ id: users.id, name: users.name, email: users.email, emailVerifiedAt: users.emailVerifiedAt })
