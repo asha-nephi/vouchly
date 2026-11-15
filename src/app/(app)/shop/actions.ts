@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverySettings, orderItems, orders, products, shops } from "@/db/schema";
-import { notify } from "@/lib/notify";
+import { notifyMany } from "@/lib/notify";
 import { requireUser } from "@/lib/auth";
 import { AREAS, CATEGORIES, CUTOFF_TIMES, DAY_KEYS, slugify, toKobo, type CategoryId } from "@/lib/catalog";
 import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
@@ -381,6 +381,7 @@ export async function messageAttendees(_: ShopFormState, form: FormData): Promis
     .from(orders)
     .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
     .where(and(eq(orderItems.productId, p.id), eq(orders.method, "event"), inArray(orders.status, ["ready", "received", "disputed"])));
-  for (const b of buyers) await notify(b.id, `${p.name}: message from ${shop.name}`, text, `/orders/${b.code}`);
-  return { values: { sent: String(buyers.length) } };
+  const sent = await notifyMany(buyers.map((b) => ({ userId: b.id, title: `${p.name}: message from ${shop.name}`, body: text, link: `/orders/${b.code}` })));
+  if (sent < buyers.length) return { error: `Only ${sent} of ${buyers.length} people got your message. Please try again.`, values: { message: text } };
+  return { values: { sent: String(sent) } };
 }
