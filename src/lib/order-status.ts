@@ -51,8 +51,6 @@ export const TONE: Record<string, string> = {
   red: "bg-[#fbebeb] text-[#b42318]",
 };
 
-const FLOW = ["paid", "confirmed", "preparing", "ready", "received"] as const;
-
 // Timeline steps for an order, marking which are done.
 export function timeline(status: string, method: string) {
   let steps: { key: string; label: string }[];

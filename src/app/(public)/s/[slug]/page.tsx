@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { deliverySettings, products, reviews, shops, users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
-import { categoryLabel, cutoffLabel, dayList, naira } from "@/lib/catalog";
+import { categoryLabel, cutoffLabel, naira } from "@/lib/catalog";
 import { BasketProvider, CheckoutBar, TileAdd } from "@/components/basket-controls";
 import TabBar from "@/components/tab-bar";
 import Photo from "@/components/photo";
