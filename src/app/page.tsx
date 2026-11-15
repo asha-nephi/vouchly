@@ -148,6 +148,9 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
     },
   ];
   const hasPicks = !!(pro || goods.length || cls);
+  // With only products to show, fill the space with a grid of up to 4; otherwise 2 sit between the pro and the class.
+  const onlyGoods = !pro && !cls;
+  const shownGoods = onlyGoods ? goods : goods.slice(0, 2);
 
   return (
     <div className="min-h-dvh bg-bg">
@@ -250,6 +253,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
           {hasPicks && (
             <div aria-label="On Vouchly now" className="hidden min-w-0 max-w-[460px] flex-[1_1_380px] flex-col gap-3.5 lg:flex">
+              {onlyGoods && <p className="text-sm font-extrabold text-muted">New on Vouchly</p>}
               {pro && (
                 <Link href={`/p/${pro.product.id}`} className="flex items-center gap-3.5 rounded-[20px] border border-line bg-white p-4 shadow-[0_10px_30px_-18px_rgba(20,33,61,0.3)]">
                   <span className="grid size-14 shrink-0 place-items-center rounded-2xl font-extrabold text-white" style={{ background: toneFor(pro.shopName) }} aria-hidden="true">
@@ -267,10 +271,14 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
                   {free && <span className="shrink-0 rounded-full bg-[#E3F3EA] px-2.5 py-1.5 text-xs font-extrabold text-[#1D7A46]">{free.label}</span>}
                 </Link>
               )}
-              {goods.length > 0 && (
-                <div className="ml-9 flex gap-3.5">
-                  {goods.map((g) => (
-                    <Link key={g.product.id} href={`/p/${g.product.id}`} className="min-w-0 flex-1 rounded-[20px] border border-line bg-white p-3">
+              {shownGoods.length > 0 && (
+                <div className={onlyGoods ? `grid gap-3.5 ${shownGoods.length > 1 ? "grid-cols-2" : ""}` : "ml-9 flex gap-3.5"}>
+                  {shownGoods.map((g) => (
+                    <Link
+                      key={g.product.id}
+                      href={`/p/${g.product.id}`}
+                      className="min-w-0 flex-1 rounded-[20px] border border-line bg-white p-3 shadow-[0_10px_30px_-18px_rgba(20,33,61,0.3)] transition hover:-translate-y-0.5"
+                    >
                       <span className="shimmer relative block aspect-[4/3] overflow-hidden rounded-[14px]">
                         <TilePhoto src={g.product.photos[0]} name={g.product.name} sizes="200px" />
                       </span>

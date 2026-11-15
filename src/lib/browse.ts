@@ -110,7 +110,7 @@ export async function landingPicks() {
   const live = and(eq(products.isActive, true), eq(products.removed, false), eq(shops.isOpen, true));
   const [pros, goods, events, sessionRows] = await Promise.all([
     base().where(and(live, eq(products.kind, "service"))).orderBy(desc(users.confirmed), desc(products.createdAt)).limit(1),
-    base().where(and(live, inArray(products.kind, ["item", "stay", "digital"]))).orderBy(desc(products.createdAt)).limit(2),
+    base().where(and(live, inArray(products.kind, ["item", "stay", "digital"]))).orderBy(desc(products.createdAt)).limit(4),
     base().where(and(live, eq(products.kind, "event"), gt(products.eventAt, new Date()))).orderBy(asc(products.eventAt)).limit(1),
     base().where(and(live, eq(products.kind, "session"))).orderBy(desc(products.createdAt)).limit(1),
   ]);
