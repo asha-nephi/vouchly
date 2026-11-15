@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { googleReady } from "@/lib/google";
 import { emailReady } from "@/lib/email";
 import { BackBar, Note } from "@/components/ui";
+import { maskPhone } from "@/lib/phone";
 import { resendVerificationEmail } from "@/app/actions";
 import SubmitButton from "@/components/submit-button";
 import LoginSecurityForm from "./security-form";
@@ -40,7 +41,7 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
         <section className="rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
           <h1 className="text-[17px] font-extrabold">Email and password</h1>
           <p className="mt-1 text-[13px] leading-relaxed text-muted">
-            Add an email and password to log in without a text message. Your phone code will keep working.
+            Add an email and password so you can log in with them.
           </p>
           {canEditEmail ? (
             <LoginSecurityForm email={user.email ?? ""} hasPassword={!!user.passwordHash} />
@@ -53,6 +54,14 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
             </form>
           )}
           {user.emailVerifiedAt && <p className="mt-3 text-xs font-bold text-[#1b6b3a]">Email verified</p>}
+        </section>
+
+        <section className="rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
+          <h2 className="text-[17px] font-extrabold">Phone number</h2>
+          <p className="mt-1 text-sm font-bold">{maskPhone(user.phone)}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted">
+            {user.phoneVerifiedAt ? "Checked by SMS." : "Not checked yet. We'll ask you to check it by SMS later."}
+          </p>
         </section>
 
         <section className="rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">

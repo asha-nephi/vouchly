@@ -36,8 +36,10 @@ A marketplace for members of The Church of Jesus Christ of Latter-day Saints in 
 
 - Next.js 15.5 (App Router), React 19 (`useActionState`, server actions), TypeScript, Tailwind v4
 - Drizzle ORM with postgres.js, on Postgres
-- Paystack (payments and refunds), Twilio (SMS / OTP login), Cloudflare R2 (photos and digital files, optional), sharp (share images)
-- Login is by phone number + OTP. There are no passwords.
+- Paystack (payments and refunds), Twilio (SMS, paused for now), Cloudflare R2 (photos and digital files, optional), sharp (share images)
+- Login is by Google, or email + password (email needs Resend and a verified email).
+- **Phone codes are paused (Nov 2026).** People still give a phone number at sign-up, but it isn't checked. `users.phoneVerifiedAt` is empty for unchecked phones; accounts from before the pause are marked checked. `src/lib/sms.ts` (Twilio) is kept for when phone checks come back.
+- Member join: pick a selling path → make an account (Google or email) → ward + invite code (`upgradeBuyerToMember`). The `vl_seller_path` and `vl_invite` cookies carry them through sign-up.
 
 ## Where things are
 
@@ -49,7 +51,7 @@ src/app/
   (public)/   s/[slug] (shop page) and p/[id] (listing page): public and shareable
   o/[token]/  private order link for guests (signs them in to that order)
   api/        paystack webhook, cron/settle, download/[code], photos, share-image, health
-  actions.ts  sign-up, login, OTP, invites
+  actions.ts  sign-up, login, invites
 src/db/schema.ts      all tables and enums
 src/lib/              business logic (payments, orders, order-status, sessions, discounts,
                       guest, files, photos, listings, notify, sms, paystack ...)
@@ -84,7 +86,8 @@ DATABASE_URL=postgres://... SMS_TEST_MODE=true PAYSTACK_SECRET_KEY=sk_test_xxx \
   SITE_URL=http://localhost:3000 npm run dev
 ```
 
-- `SMS_TEST_MODE=true` shows the OTP on screen instead of sending an SMS.
+- `SMS_TEST_MODE=true` sends no SMS (SMS is only for phone checks, which are paused).
+- Google sign-in can't run locally. To test the step after it, insert a `google_signup` row in `auth_tokens` (token hash is sha256 hex) and set the `vl_google_signup` cookie, then open `/register/google`.
 - To test SMS without sending, run `node scripts/fake-twilio.mjs 4012` and set `TWILIO_BASE_URL=http://localhost:4012` (with `SMS_TEST_MODE=false`). The phone `0900 000 0000` or the word `FAIL` makes it return an error.
 - Nigeria: Twilio can't send from a Nigerian number. Use a registered sender name (takes 2–3 weeks to approve) for best delivery. Numbers on DND may sometimes miss codes.
 - To test payments without real Paystack, point `PAYSTACK_BASE_URL` at a small fake server. It must answer `/transaction/initialize`, `/transaction/verify/:ref` and `/refund`.
@@ -100,7 +103,7 @@ DATABASE_URL=postgres://... SMS_TEST_MODE=true PAYSTACK_SECRET_KEY=sk_test_xxx \
 Important details:
 
 - `users.isGuest`: the phone number is unique **only among non-guests** (a partial index). Every lookup of a member by phone must add `eq(users.isGuest, false)`.
-- When a guest later joins (or logs in) with the same phone, `adoptGuestOrders()` in `actions.ts` moves their old orders into the member account.
+- Guest orders are **not** moved into a new account by phone while phones aren't checked; otherwise anyone could claim them by typing a number. Guests keep their private order links. Bring this back (from git history: `adoptGuestOrders`) together with phone checks.
 
 ## Deploying
 
@@ -174,7 +177,7 @@ Always test the error paths too: a wrong code, a sold-out event, a member's phon
 
 ## What's done (as of 13 Nov 2026)
 
-- Invites, OTP login, member and admin pages, shops, listings with photos, basket, checkout, delivery options
+- Invites, Google and email login (phone codes paused), member and admin pages, shops, listings with photos, basket, checkout, delivery options
 - Paystack split payments, refunds, payout account, cron settle job
 - Order tracking with timelines, notification bell, reviews, dispute flow
 - Stays (calendar, blocked dates), services (fixed price or quote)

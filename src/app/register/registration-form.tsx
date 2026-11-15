@@ -19,7 +19,7 @@ export default function BuyerRegistrationForm({ emailEnabled, googleEnabled }: {
           <form action={action} className="flex flex-col gap-3.5">
             <Field label="Full name" name="name" defaultValue={state?.values?.name} placeholder="e.g. Nephi Asha" autoComplete="name" />
             <Field label="Email address" name="email" defaultValue={state?.values?.email} type="email" placeholder="you@example.com" autoComplete="email" />
-            <Field label="Phone number" name="phone" defaultValue={state?.values?.phone} type="tel" inputMode="tel" placeholder="0803 123 4567" autoComplete="tel" hint="We will send a code to check your number." />
+            <Field label="Phone number" name="phone" defaultValue={state?.values?.phone} type="tel" inputMode="tel" placeholder="0803 123 4567" autoComplete="tel" hint="Sellers use it to reach you about your orders." />
             <Field label="Password" name="password" type="password" autoComplete="new-password" hint="Use at least 12 characters." />
             <ErrorText message={state?.error} />
             <PrimaryButton pending={pending}>Continue with email</PrimaryButton>

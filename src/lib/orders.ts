@@ -43,7 +43,7 @@ export function deliveryDayLabel(d: Date) {
 // VL-48213
 export const makeOrderCode = () => `VL-${randomInt(10000, 99999)}`;
 
-// Fake email for Paystack, which needs one. Buyers sign in by phone.
+// Fake email for Paystack, which needs one. Not every buyer has an email.
 export const payEmail = (phone: string, email?: string | null) => email || `${phone}@buyers.vouchly.app`;
 
 // Pilot: Paystack pays sellers automatically. Hold: we keep it until "Received" (needs a registered business).

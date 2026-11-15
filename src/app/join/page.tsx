@@ -6,6 +6,8 @@ import { users } from "@/db/schema";
 import { currentMember, currentUser } from "@/lib/auth";
 import { cookies } from "next/headers";
 import JoinForm from "./join-form";
+import { googleReady } from "@/lib/google";
+import { emailReady } from "@/lib/email";
 import PathChooser from "./path-chooser";
 import { PATH_COOKIE, readPath } from "@/lib/seller-types";
 
@@ -32,5 +34,5 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ c
   if (sp.step !== "details" || !path) {
     return <PathChooser code={inviter ? code : undefined} fromGuest={sp.from === "guest"} existingBuyer={existingBuyer} picked={path?.type} />;
   }
-  return <JoinForm code={inviter ? code : undefined} inviter={inviter?.name.split(" ")[0]} fromGuest={sp.from === "guest"} existingBuyer={existingBuyer} />;
+  return <JoinForm code={inviter ? code : undefined} inviter={inviter?.name.split(" ")[0]} fromGuest={sp.from === "guest"} existingBuyer={existingBuyer} googleEnabled={googleReady()} emailEnabled={emailReady()} />;
 }

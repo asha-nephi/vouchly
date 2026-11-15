@@ -29,6 +29,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   phone: text("phone").notNull(), // stored as 234XXXXXXXXXX
+  phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }), // empty = not checked by SMS yet
   email: text("email"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   passwordHash: text("password_hash"),

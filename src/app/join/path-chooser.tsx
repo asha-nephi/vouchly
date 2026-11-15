@@ -91,7 +91,7 @@ export default function PathChooser({ code, fromGuest, existingBuyer, picked }: 
           <div className="mt-6 flex flex-col gap-3.5 lg:mt-7 lg:flex-row lg:items-center lg:justify-between">
             <p className="max-w-[52ch] text-sm text-muted">
               <span data-show="buy">Next: your name, email and phone number.</span>
-              <span data-show="sell">Next: your invite code, then your name and phone. Your ward contact confirms you; you can set up your shop while you wait.</span>
+              <span data-show="sell">Next: make your account, then add your invite code. Your ward contact confirms you; you can set up your shop while you wait.</span>
             </p>
             <button type="submit" className="flex h-[52px] items-center justify-center rounded-[14px] bg-ink px-7 text-base font-extrabold text-white">
               Continue

@@ -10,7 +10,7 @@ export default function GoogleBuyerForm() {
     <form action={action} className="flex flex-col gap-3.5">
       <Field label="Phone number" name="phone" defaultValue={state?.values?.phone} type="tel" inputMode="tel" placeholder="0803 123 4567" autoComplete="tel" />
       <ErrorText message={state?.error} />
-      <PrimaryButton pending={pending}>Send code</PrimaryButton>
+      <PrimaryButton pending={pending}>Create my account</PrimaryButton>
     </form>
   );
 }

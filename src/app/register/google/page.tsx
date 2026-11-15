@@ -25,11 +25,11 @@ export default async function GoogleBuyerSignup() {
       <BackBar title="Finish your account" href="/login" />
       <div className="flex flex-1 flex-col gap-4 px-4 pb-8 pt-3">
         <span className="w-fit rounded-full bg-soft px-3 py-1 text-xs font-extrabold text-deep">Step 2 of 2</span>
-        <h1 className="text-[26px] font-extrabold tracking-tight">Check your phone</h1>
+        <h1 className="text-[26px] font-extrabold tracking-tight">Add your phone number</h1>
         <p className="text-sm leading-relaxed text-muted">
           You&apos;re signing up as <b className="text-ink">{pending.name}</b> with {pending.email}. Add a Nigerian phone number so sellers can reach you about orders.
         </p>
-        <Note>We&apos;ll send a one-time code by SMS. Your number is only shared with sellers when you place an order.</Note>
+        <Note>Your number is only shared with sellers when you place an order.</Note>
         <GoogleBuyerForm />
       </div>
     </main>

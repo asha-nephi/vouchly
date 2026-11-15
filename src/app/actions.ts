@@ -2,12 +2,11 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { authTokens, notifications, orders, otpCodes, reviews, users } from "@/db/schema";
-import { endSession, hash, makeInviteCode, makeOtp, requireUser, startSession } from "@/lib/auth";
+import { authTokens, users } from "@/db/schema";
+import { endSession, hash, makeInviteCode, requireUser, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
-import { sendCode, smsTestMode } from "@/lib/sms";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email-auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { GOOGLE_PENDING_COOKIE } from "@/lib/google";
@@ -17,83 +16,16 @@ import { cleanTrades, isSellerType, PATH_COOKIE } from "@/lib/seller-types";
 
 export type FormState = { error?: string; message?: string; values?: Record<string, string> } | undefined;
 
-const CODE_MINUTES = 10;
-const MAX_ATTEMPTS = 5;
-const PENDING_COOKIE = "vl_pending_phone";
-const TEST_CODE_COOKIE = "vl_test_code";
+// Keeps the invite code while someone makes an account to join as a member.
+const INVITE_COOKIE = "vl_invite";
 const emailAddress = (value: string) => value.trim().toLowerCase();
 
-// Makes a new code, sends it, and remembers which phone is waiting.
-async function issueCode(phone: string, signup: typeof otpCodes.$inferInsert["signup"] = null): Promise<string | null> {
-  const [last] = await db
-    .select({ createdAt: otpCodes.createdAt })
-    .from(otpCodes)
-    .where(eq(otpCodes.phone, phone))
-    .orderBy(desc(otpCodes.createdAt))
-    .limit(1);
-  if (last && Date.now() - last.createdAt.getTime() < 60_000) {
-    return "Please wait a minute before asking for another code.";
-  }
-
-  const code = makeOtp();
-  await db.insert(otpCodes).values({
-    phone,
-    codeHash: hash(code),
-    signup,
-    expiresAt: new Date(Date.now() + CODE_MINUTES * 60_000),
-  });
-
-  try {
-    await sendCode(phone, code);
-  } catch {
-    return "We couldn't send the code. Please try again.";
-  }
-
+// Where to go after a new account: back to the member form if they were joining, else home.
+async function afterSignup(fallback: string): Promise<string> {
   const jar = await cookies();
-  const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: CODE_MINUTES * 60 };
-  jar.set(PENDING_COOKIE, phone, opts);
-  if (smsTestMode()) jar.set(TEST_CODE_COOKIE, code, opts);
-  return null;
-}
-
-export async function startSignup(_: FormState, form: FormData): Promise<FormState> {
-  const name = String(form.get("name") ?? "").trim();
-  const ward = String(form.get("ward") ?? "").trim();
-  const phone = normalizePhone(String(form.get("phone") ?? ""));
-  const invite = String(form.get("invite") ?? "").trim().toUpperCase();
-
-  const values = { name, ward, phone: String(form.get("phone") ?? ""), invite };
-  const fail = (error: string): FormState => ({ error, values });
-
-  if (name.length < 2) return fail("Please enter your full name.");
-  if (!phone) return fail("Please enter a valid Nigerian phone number, like 0803 123 4567.");
-  if (ward.length < 2) return fail("Please enter your ward or branch.");
-  if (!invite) return fail("Please enter the invite code a member gave you.");
-
-  const [existing] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
-  if (existing) return fail("This phone number already has an account. Please log in instead.");
-
-  // The very first account uses the founder code from Render settings.
-  const founderCode = process.env.FOUNDER_INVITE_CODE?.toUpperCase();
-  let founder = false;
-  let invitedById: string | null = null;
-  if (founderCode && invite === founderCode) {
-    const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin")).limit(1);
-    if (admin) return fail("That invite code isn't valid. Please check it with the member who invited you.");
-    founder = true;
-  } else {
-    const [inviter] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(and(eq(users.inviteCode, invite), eq(users.isGuest, false), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true)))
-      .limit(1);
-    if (!inviter) return fail("That invite code isn't valid. Please check it with the member who invited you.");
-    invitedById = inviter.id;
-  }
-
-  const err = await issueCode(phone, { name, ward, invitedById, founder });
-  if (err) return fail(err);
-  redirect("/verify");
+  if (!jar.get(PATH_COOKIE)?.value) return fallback;
+  const code = jar.get(INVITE_COOKIE)?.value;
+  return `/join?step=details${code ? `&code=${code}` : ""}`;
 }
 
 export async function startBuyerSignup(_: FormState, form: FormData): Promise<FormState> {
@@ -105,7 +37,7 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
   const values = { name, email, phone: rawPhone };
   const fail = (error: string): FormState => ({ error, values });
 
-  if (!emailReady()) return fail("Email sign-up is not set up yet. Please use phone sign-in for now.");
+  if (!emailReady()) return fail("Email sign-up is not set up yet. Please use Google for now.");
   if (name.length < 2 || name.length > 80) return fail("Please enter your name.");
   if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Please enter a valid email address.");
   if (!phone) return fail("Please enter a valid Nigerian phone number, like 0803 123 4567.");
@@ -113,26 +45,21 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
 
   if (await verifiedEmailOwner(email)) return fail("That email already has an account. Log in or reset your password.");
   const [byPhone] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
-  if (byPhone) return fail("That phone number already has an account. Log in with your phone instead.");
+  if (byPhone) return fail("That phone number already has an account. Please log in instead.");
 
-  const passwordHash = await hashPassword(password);
-  const err = await issueCode(phone, { kind: "buyer", name, email, passwordHash });
-  if (err) return fail(err);
-  redirect("/verify");
-}
-
-export async function startLogin(_: FormState, form: FormData): Promise<FormState> {
-  const raw = String(form.get("phone") ?? "");
-  const values = { phone: raw };
-  const phone = normalizePhone(raw);
-  if (!phone) return { error: "Please enter a valid Nigerian phone number, like 0803 123 4567.", values };
-
-  const [user] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
-  if (!user) return { error: "We couldn't find an account with that number. Create a buyer account or join with an invite code.", values };
-
-  const err = await issueCode(phone);
-  if (err) return { error: err, values };
-  redirect("/verify");
+  // The phone isn't checked by SMS for now; it is saved for sellers to reach the buyer.
+  const [created] = await db
+    .insert(users)
+    .values({ name, phone, email, passwordHash: await hashPassword(password), ward: "Buyer", inviteCode: makeInviteCode(), role: "buyer" })
+    .returning({ id: users.id });
+  let sent = true;
+  try {
+    await sendVerificationEmail({ id: created.id, email, name });
+  } catch {
+    sent = false;
+  }
+  await startSession(created.id);
+  redirect(await afterSignup(`/me/security?email=${sent ? "pending" : "failed"}`));
 }
 
 export async function startEmailLogin(_: FormState, form: FormData): Promise<FormState> {
@@ -160,7 +87,7 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
   if (user && !user.emailVerifiedAt) {
     for (const u of found) {
       if (u.passwordHash && (await verifyPassword(password, u.passwordHash))) {
-        return { error: "Verify your email first. You can still log in with your phone code.", values };
+        return { error: "Verify your email first. Open the link we sent you, or log in with Google.", values };
       }
     }
     return { error: "The email or password isn't right.", values };
@@ -209,7 +136,7 @@ export async function requestPasswordReset(_: FormState, form: FormData): Promis
       console.error("Password reset email could not be sent.", error instanceof Error ? error.message : "Unknown error.");
     }
   }
-  return { values: { email }, message: "If that email is linked to a Vouchly account, we'll send a reset link. If you don't get one, try signing in with your phone." };
+  return { values: { email }, message: "If that email is linked to a Vouchly account, we'll send a reset link. If you don't get one, try logging in with Google." };
 }
 
 export async function setNewPassword(_: FormState, form: FormData): Promise<FormState> {
@@ -310,117 +237,24 @@ export async function startGoogleBuyerSignup(_: FormState, form: FormData): Prom
 
   if (await verifiedEmailOwner(pending.email)) return { error: "That email already has an account. Log in, then connect Google in your account settings.", values };
   const [byPhone] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
-  if (byPhone) return { error: "That phone number already has an account. Log in with your phone first.", values };
+  if (byPhone) return { error: "That phone number already has an account. Please log in instead.", values };
 
-  const err = await issueCode(phone, { kind: "google_buyer", name: pending.name, email: pending.email, googleSubject: pending.providerSubject, authTokenId: pending.id });
-  if (err) return { error: err, values };
-  redirect("/verify");
-}
-
-export async function verifyCode(_: FormState, form: FormData): Promise<FormState> {
-  const jar = await cookies();
-  const phone = jar.get(PENDING_COOKIE)?.value;
-  const code = String(form.get("code") ?? "").replace(/\D/g, "");
-  if (!phone) return { error: "Your code has expired. Please start again." };
-  if (code.length !== 6) return { error: "Please enter the 6-digit code." };
-
-  const [otp] = await db
-    .select()
-    .from(otpCodes)
-    .where(and(eq(otpCodes.phone, phone), isNull(otpCodes.usedAt), gt(otpCodes.expiresAt, new Date())))
-    .orderBy(desc(otpCodes.createdAt))
-    .limit(1);
-  if (!otp) return { error: "Your code has expired. Please ask for a new one." };
-  if (otp.attempts >= MAX_ATTEMPTS) return { error: "Too many wrong tries. Please ask for a new code." };
-
-  if (otp.codeHash !== hash(code)) {
-    await db.update(otpCodes).set({ attempts: sql`${otpCodes.attempts} + 1` }).where(eq(otpCodes.id, otp.id));
-    return { error: "That code isn't right. Please check and try again." };
-  }
-  await db.update(otpCodes).set({ usedAt: new Date() }).where(eq(otpCodes.id, otp.id));
-
-  let userId: string;
-  let emailVerificationState: "pending" | "failed" | null = null;
-  const [existing] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
-  if (existing) {
-    userId = existing.id;
-    await adoptGuestOrders(phone, userId);
-  } else if (otp.signup) {
-    const s = otp.signup;
-    const isBuyer = "kind" in s && s.kind === "buyer";
-    const isGoogleBuyer = "kind" in s && s.kind === "google_buyer";
-    const [created] = await db
-      .insert(users)
-      .values(
-        isBuyer
-          ? {
-              name: s.name,
-              phone,
-              email: s.email,
-              passwordHash: s.passwordHash,
-              ward: "Buyer",
-              inviteCode: makeInviteCode(),
-              role: "buyer",
-            }
-          : isGoogleBuyer
-            ? {
-                name: s.name,
-                phone,
-                googleSubject: s.googleSubject,
-                ward: "Buyer",
-                inviteCode: makeInviteCode(),
-                role: "buyer",
-              }
-            : {
-                name: s.name,
-                phone,
-                ward: s.ward,
-                invitedById: s.invitedById,
-                inviteCode: makeInviteCode(),
-                role: s.founder ? "admin" : "member",
-                confirmed: s.founder,
-                confirmedAt: s.founder ? new Date() : null,
-              },
-      )
-      .returning({ id: users.id });
-    userId = created.id;
-    if (isBuyer) {
-      try {
-        await sendVerificationEmail({ id: userId, email: s.email, name: s.name });
-        emailVerificationState = "pending";
-      } catch {
-        emailVerificationState = "failed";
-      }
-    }
-    // Google already proved the email, so take it off anyone who only typed it.
-    if (isGoogleBuyer) await claimEmail(userId, s.email);
-    if (isGoogleBuyer) await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, s.authTokenId));
-    await adoptGuestOrders(phone, userId);
-  } else {
-    return { error: "Something went wrong. Please start again." };
-  }
-
-  jar.delete(PENDING_COOKIE);
-  jar.delete(TEST_CODE_COOKIE);
+  // Use the Google sign-up once, so a second tap can't make two accounts.
+  const [used] = await db
+    .update(authTokens)
+    .set({ usedAt: new Date() })
+    .where(and(eq(authTokens.id, pending.id), isNull(authTokens.usedAt)))
+    .returning({ id: authTokens.id });
+  if (!used) return { error: "Your Google sign-in expired. Please start again.", values };
+  const [created] = await db
+    .insert(users)
+    .values({ name: pending.name, phone, googleSubject: pending.providerSubject, ward: "Buyer", inviteCode: makeInviteCode(), role: "buyer" })
+    .returning({ id: users.id });
+  // Google already proved the email, so take it off anyone who only typed it.
+  await claimEmail(created.id, pending.email);
   jar.delete(GOOGLE_PENDING_COOKIE);
-  await startSession(userId);
-  if (emailVerificationState) redirect(`/me/security?email=${emailVerificationState}`);
-  redirect("/home");
-}
-
-export async function resendCode(): Promise<void> {
-  const jar = await cookies();
-  const phone = jar.get(PENDING_COOKIE)?.value;
-  if (!phone) redirect("/");
-  // Carry the sign-up details over to the new code.
-  const [prev] = await db
-    .select({ signup: otpCodes.signup })
-    .from(otpCodes)
-    .where(eq(otpCodes.phone, phone))
-    .orderBy(desc(otpCodes.createdAt))
-    .limit(1);
-  const err = await issueCode(phone, prev?.signup ?? null);
-  redirect(err ? `/verify?e=${encodeURIComponent(err)}` : "/verify?sent=1");
+  await startSession(created.id);
+  redirect(await afterSignup("/home"));
 }
 
 export async function logout(): Promise<void> {
@@ -458,16 +292,8 @@ export async function upgradeBuyerToMember(_: FormState, form: FormData): Promis
     .update(users)
     .set({ role: "member", ward, invitedById: inviter.id, confirmed: false, confirmedById: null, confirmedAt: null })
     .where(eq(users.id, user.id));
+  (await cookies()).delete(INVITE_COOKIE);
   redirect("/home");
-}
-
-async function adoptGuestOrders(phone: string, userId: string) {
-  const guests = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, true)));
-  if (!guests.length) return;
-  const ids = guests.map((g) => g.id);
-  await db.update(orders).set({ buyerId: userId }).where(inArray(orders.buyerId, ids));
-  await db.update(reviews).set({ authorId: userId }).where(inArray(reviews.authorId, ids));
-  await db.update(notifications).set({ userId }).where(inArray(notifications.userId, ids));
 }
 
 // Sign-up step 1: buying goes to the buyer form; selling keeps the path for the shop setup.
@@ -475,9 +301,15 @@ export async function chooseJoinPath(form: FormData): Promise<void> {
   const path = String(form.get("path") ?? "");
   const raw = String(form.get("code") ?? "");
   const code = /^[A-Za-z0-9]{4,12}$/.test(raw) ? raw.toUpperCase() : "";
+  const jar = await cookies();
+  if (path === "buy") {
+    // Forget an earlier selling choice so sign-up doesn't send them to the member step.
+    jar.delete(PATH_COOKIE);
+    jar.delete(INVITE_COOKIE);
+  }
   if (!isSellerType(path)) redirect(path === "buy" ? "/register" : code ? `/join?code=${code}` : "/join");
   const trades = cleanTrades(path, form.getAll("trade").map(String));
-  const jar = await cookies();
   jar.set(PATH_COOKIE, JSON.stringify({ type: path, trades }), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  if (code) jar.set(INVITE_COOKIE, code, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 });
   redirect(`/join?step=details${code ? `&code=${code}` : ""}`);
 }
