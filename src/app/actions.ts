@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { authTokens, users } from "@/db/schema";
+import { authTokens, shops, users } from "@/db/schema";
+import { notify } from "@/lib/notify";
 import { endSession, hash, makeInviteCode, requireUser, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email-auth";
@@ -29,13 +30,30 @@ async function afterSignup(fallback: string): Promise<string> {
   return `/join?step=details${code ? `&code=${code}` : ""}`;
 }
 
+// Joining sellers give their ward and invite code on the account screen, so there's no extra step.
+async function memberFrom(form: FormData): Promise<{ error: string } | { ward: string; invitedById: string } | null> {
+  if (form.get("join") !== "1") return null;
+  const ward = String(form.get("ward") ?? "").trim().slice(0, 80);
+  const invite = String(form.get("invite") ?? "").trim().toUpperCase();
+  if (ward.length < 2) return { error: "Please enter your ward or branch." };
+  if (!invite) return { error: "Please enter the invite code a member gave you." };
+  const [inviter] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.inviteCode, invite), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true)))
+    .limit(1);
+  if (!inviter) return { error: "That invite code isn't valid. Please check it with the member who invited you." };
+  return { ward, invitedById: inviter.id };
+}
+const memberValues = (form: FormData) => ({ ward: String(form.get("ward") ?? ""), invite: String(form.get("invite") ?? "") });
+
 export async function startBuyerSignup(_: FormState, form: FormData): Promise<FormState> {
   const name = String(form.get("name") ?? "").trim();
   const email = emailAddress(String(form.get("email") ?? ""));
   const rawPhone = String(form.get("phone") ?? "");
   const phone = normalizePhone(rawPhone);
   const password = String(form.get("password") ?? "");
-  const values = { name, email, phone: rawPhone };
+  const values = { name, email, phone: rawPhone, ...memberValues(form) };
   const fail = (error: string): FormState => ({ error, values });
 
   if (!emailReady()) return fail("Email sign-up is not set up yet. Please use Google for now.");
@@ -43,6 +61,8 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
   if (email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Please enter a valid email address.");
   if (!phone) return fail("Please enter a valid Nigerian phone number, like 0803 123 4567.");
   if (password.length < 12 || password.length > 128) return fail("Use a password with at least 12 characters.");
+  const member = await memberFrom(form);
+  if (member && "error" in member) return fail(member.error);
   if (!allow(`signup:${await clientIp()}`, 5, 60 * 60_000)) return fail("Too many new accounts from this device. Please try again in an hour.");
 
   if (await verifiedEmailOwner(email)) return fail("That email already has an account. Log in or reset your password.");
@@ -52,7 +72,7 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
   // The phone isn't checked by SMS for now; it is saved for sellers to reach the buyer.
   const [created] = await db
     .insert(users)
-    .values({ name, phone, email, passwordHash: await hashPassword(password), ward: "Buyer", inviteCode: makeInviteCode(), role: "buyer" })
+    .values({ name, phone, email, passwordHash: await hashPassword(password), ward: member?.ward ?? "Buyer", invitedById: member?.invitedById, inviteCode: makeInviteCode(), role: member ? "member" : "buyer" })
     .returning({ id: users.id });
   let sent = true;
   try {
@@ -61,6 +81,10 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
     sent = false;
   }
   await startSession(created.id);
+  if (member) {
+    (await cookies()).delete(INVITE_COOKIE);
+    redirect("/sell");
+  }
   redirect(await afterSignup(`/me/security?email=${sent ? "pending" : "failed"}`));
 }
 
@@ -234,8 +258,10 @@ export async function startGoogleBuyerSignup(_: FormState, form: FormData): Prom
   const token = jar.get(GOOGLE_PENDING_COOKIE)?.value;
   const phoneRaw = String(form.get("phone") ?? "");
   const phone = normalizePhone(phoneRaw);
-  const values = { phone: phoneRaw };
+  const values = { phone: phoneRaw, ...memberValues(form) };
   if (!token || !phone) return { error: "Please enter a valid Nigerian phone number, like 0803 123 4567.", values };
+  const member = await memberFrom(form);
+  if (member && "error" in member) return { error: member.error, values };
 
   const [pending] = await db
     .select()
@@ -257,12 +283,16 @@ export async function startGoogleBuyerSignup(_: FormState, form: FormData): Prom
   if (!used) return { error: "Your Google sign-in expired. Please start again.", values };
   const [created] = await db
     .insert(users)
-    .values({ name: pending.name, phone, googleSubject: pending.providerSubject, ward: "Buyer", inviteCode: makeInviteCode(), role: "buyer" })
+    .values({ name: pending.name, phone, googleSubject: pending.providerSubject, ward: member?.ward ?? "Buyer", invitedById: member?.invitedById, inviteCode: makeInviteCode(), role: member ? "member" : "buyer" })
     .returning({ id: users.id });
   // Google already proved the email, so take it off anyone who only typed it.
   await claimEmail(created.id, pending.email);
   jar.delete(GOOGLE_PENDING_COOKIE);
   await startSession(created.id);
+  if (member) {
+    jar.delete(INVITE_COOKIE);
+    redirect("/sell");
+  }
   redirect(await afterSignup("/home"));
 }
 
@@ -276,10 +306,21 @@ export async function confirmMember(form: FormData): Promise<void> {
   const me = await requireUser();
   if (me.role !== "ward_contact" && me.role !== "admin") redirect("/home");
   const id = String(form.get("id") ?? "");
-  await db
+  const [done] = await db
     .update(users)
     .set({ confirmed: true, confirmedById: me.id, confirmedAt: new Date() })
-    .where(and(eq(users.id, id), eq(users.role, "member"), eq(users.confirmed, false)));
+    .where(and(eq(users.id, id), eq(users.role, "member"), eq(users.confirmed, false)))
+    .returning({ id: users.id });
+  if (done) {
+    // A shop built while waiting goes live now.
+    const [shop] = await db.update(shops).set({ isOpen: true }).where(eq(shops.ownerId, id)).returning({ id: shops.id });
+    await notify(
+      id,
+      "You're confirmed",
+      shop ? "Your shop is now live. Share it on WhatsApp to get your first order." : "You can now open your shop on Vouchly.",
+      shop ? "/shop/manage" : "/sell",
+    ).catch((e) => console.error("Confirm notice failed.", e instanceof Error ? e.message : e));
+  }
   redirect("/admin/members");
 }
 
@@ -302,7 +343,7 @@ export async function upgradeBuyerToMember(_: FormState, form: FormData): Promis
     .set({ role: "member", ward, invitedById: inviter.id, confirmed: false, confirmedById: null, confirmedAt: null })
     .where(eq(users.id, user.id));
   (await cookies()).delete(INVITE_COOKIE);
-  redirect("/home");
+  redirect("/sell");
 }
 
 // Sign-up step 1: buying goes to the buyer form; selling keeps the path for the shop setup.

@@ -19,6 +19,9 @@ import { shopStats } from "@/lib/shop-stats";
 import { slotLabel } from "@/lib/listings";
 import { aiReady } from "@/lib/ai";
 import PostMaker from "@/components/post-maker";
+import SetupChecklist from "./setup-checklist";
+import { helpUrl } from "@/components/help-link";
+import { holdMode } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -192,19 +195,23 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
           </p>
         </div>
         <div className="flex gap-2">
-          <form action={toggleShopOpen}>
-            <SubmitButton pendingText="…" className="h-11 rounded-xl border border-[#D5DAE3] bg-white px-4 text-sm font-extrabold">
-              {shop.isOpen ? "Close shop" : "Open shop"}
-            </SubmitButton>
-          </form>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent(`Order from ${shop.name} on Vouchly: ${link}`)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex h-11 items-center rounded-xl border border-[#D5DAE3] bg-white px-4 text-sm font-extrabold"
-          >
-            Share my page
-          </a>
+          {user.confirmed && (
+            <>
+              <form action={toggleShopOpen}>
+                <SubmitButton pendingText="…" className="h-11 rounded-xl border border-[#D5DAE3] bg-white px-4 text-sm font-extrabold">
+                  {shop.isOpen ? "Close shop" : "Open shop"}
+                </SubmitButton>
+              </form>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Order from ${shop.name} on Vouchly: ${link}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-11 items-center rounded-xl border border-[#D5DAE3] bg-white px-4 text-sm font-extrabold"
+              >
+                Share my page
+              </a>
+            </>
+          )}
           <Link href="/shop/manage/products/new" className="flex h-11 items-center rounded-xl bg-accent px-4 text-sm font-extrabold text-white">
             {type === "service" ? "Add a service" : "Add a product"}
           </Link>
@@ -214,7 +221,7 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
       <header className="flex items-center justify-between gap-3 px-4 pb-1.5 pt-[18px] lg:hidden">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-bold text-muted">
-            {shop.name} · <span className={shop.isOpen ? "text-[#1D7A46]" : "text-muted"}>{shop.isOpen ? "Open" : "Closed"}</span>
+            {shop.name} · <span className={shop.isOpen ? "text-[#1D7A46]" : "text-muted"}>{!user.confirmed ? "Hidden until confirmed" : shop.isOpen ? "Open" : "Closed"}</span>
           </p>
           <h1 className="mt-0.5 text-[26px] font-extrabold tracking-[-0.02em]">My shop</h1>
         </div>
@@ -226,6 +233,19 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
       <div className="flex flex-col gap-[22px] px-4 pt-3 lg:gap-[18px] lg:px-0 lg:pt-0">
         {saved === "product" && <Note tone="green">Saved.</Note>}
         {saved === "removed" && <Note tone="green">Removed.</Note>}
+        <SetupChecklist
+          confirmed={user.confirmed}
+          justMade={saved === "first"}
+          listings={items.filter((p) => p.isActive).length}
+          hasPayout={!!shop.paystackSubaccount}
+          hold={holdMode()}
+          delivers={type === "products" && items.some((p) => p.kind === "item")}
+          deliveryTouched={!!delivery && !(delivery.pickupOn && delivery.pickupSpot === shop.area && !delivery.dropOffOn && !delivery.riderOn)}
+          deliveryLine={delivery ? `Now: ${ways || "none"} · ${dayList(delivery.deliveryDays)}${delivery.pickupSpot ? ` · ${delivery.pickupSpot}` : ""}. Tap to change.` : "Set your days and how buyers get their order."}
+          hasPhoto={!!shop.coverPhoto}
+          shareUrl={`https://wa.me/?text=${encodeURIComponent(`Order from ${shop.name} on Vouchly: ${link}`)}`}
+          help={helpUrl()}
+        />
 
         <div className="hidden grid-cols-4 gap-3.5 lg:grid">
           {kpis.map((k) => (
@@ -387,7 +407,7 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
           ))}
         </nav>
 
-        <section className="rounded-[18px] bg-soft p-4 lg:hidden">
+        {user.confirmed && <section className="rounded-[18px] bg-soft p-4 lg:hidden">
           <p className="text-[15px] font-extrabold">Share your shop</p>
           <p className="mb-3 mt-1 text-[13px] leading-snug text-[#1E2A4A]">Anyone can buy from this link, even without an account.</p>
           <div className="flex gap-2">
@@ -413,7 +433,7 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
               </div>
             </details>
           )}
-        </section>
+        </section>}
 
         <section className={`${card} px-4 lg:hidden`}>
           <Link href="/shop/manage/payout" className="flex items-center justify-between gap-3 border-b border-line py-3.5">
@@ -422,7 +442,9 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
               <span className={`block truncate text-[13px] ${shop.paystackSubaccount ? "text-muted" : "font-bold text-[#7a4d06]"}`}>
                 {shop.paystackSubaccount
                   ? [shop.payoutBank, shop.payoutAccountLast4 && `···· ${shop.payoutAccountLast4}`].filter(Boolean).join(" · ") || "Set up"
-                  : "Add your bank account so buyers can pay you"}
+                  : holdMode()
+                    ? "Add your bank account so we can pay you"
+                    : "Add your bank account so buyers can pay you"}
               </span>
             </span>
             <span aria-hidden="true">›</span>
@@ -438,14 +460,24 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
           </Link>
           <div className="flex items-center justify-between gap-3 py-3.5">
             <span className="min-w-0">
-              <span className="block text-[15px] font-bold">{shop.isOpen ? "Shop is open" : "Shop is closed"}</span>
-              <span className="block text-[13px] text-muted">{shop.isOpen ? "Buyers can order now." : "Buyers can look but can't order."}</span>
+              <span className="block text-[15px] font-bold">{!user.confirmed ? "Waiting for confirmation" : shop.isOpen ? "Shop is open" : "Shop is closed"}</span>
+              <span className="block text-[13px] text-muted">
+                {!user.confirmed
+                  ? "Buyers see your shop once your ward contact confirms you."
+                  : !shop.isOpen
+                    ? "Buyers can look but can't order."
+                    : items.some((p) => p.isActive)
+                      ? "Buyers can order now."
+                      : "Add a listing so buyers can order."}
+              </span>
             </span>
-            <form action={toggleShopOpen}>
-              <SubmitButton pendingText="…" className="h-11 rounded-full border border-line px-4 text-[13px] font-bold">
-                {shop.isOpen ? "Close shop" : "Open shop"}
-              </SubmitButton>
-            </form>
+            {user.confirmed && (
+              <form action={toggleShopOpen}>
+                <SubmitButton pendingText="…" className="h-11 rounded-full border border-line px-4 text-[13px] font-bold">
+                  {shop.isOpen ? "Close shop" : "Open shop"}
+                </SubmitButton>
+              </form>
+            )}
           </div>
         </section>
 

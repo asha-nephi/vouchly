@@ -37,7 +37,7 @@ export default async function Me() {
 
   const steps = [
     { label: "Invited by a member", done: true },
-    { label: "Phone number checked", done: true },
+    { label: "Shop set up", done: !!shop },
     { label: "Ward contact confirms you", done: user.confirmed },
   ];
 
@@ -83,22 +83,22 @@ export default async function Me() {
             <Note>You can browse, order and track your purchases here. To sell, join as a member with an invite code.</Note>
             <Link href="/join" className="mt-3 flex h-11 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">Join as a member</Link>
           </section>
-        ) : user.confirmed ? (
+        ) : (
           <Link href={shop ? "/shop/manage" : "/sell"} className="flex items-center gap-3 rounded-[22px] bg-ink p-[18px] text-white">
             <span className="flex-1">
               <span className="block text-base font-extrabold">{shop ? "My shop" : "Sell on Vouchly"}</span>
               <span className="mt-1 block text-[13px] leading-snug text-[#c9d1e3]">
                 {shop
-                  ? `${shop.name} · ${shop.isOpen ? "open" : "closed"}${newOrders ? ` · ${newOrders} need${newOrders === 1 ? "s" : ""} you` : ""}`
-                  : "Set up your shop in about 5 minutes."}
+                  ? `${shop.name} · ${!user.confirmed ? "hidden until you're confirmed" : shop.isOpen ? "open" : "closed"}${newOrders ? ` · ${newOrders} need${newOrders === 1 ? "s" : ""} you` : ""}`
+                  : user.confirmed
+                    ? "Set up your shop in about 5 minutes."
+                    : "Set it up now. Buyers see it once you're confirmed."}
               </span>
             </span>
             <span className="flex size-10 items-center justify-center rounded-full bg-white text-ink" aria-hidden="true">
               →
             </span>
           </Link>
-        ) : (
-          <Note>You can open a shop once you&apos;re confirmed.</Note>
         )}
 
         {!isBuyer && <section className={`${card} p-4`}>

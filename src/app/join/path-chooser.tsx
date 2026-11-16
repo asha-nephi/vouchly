@@ -40,7 +40,7 @@ export default function PathChooser({ code, fromGuest, existingBuyer, picked }: 
       <main className="mx-auto max-w-[880px] px-4 pb-16 pt-7 lg:px-6 lg:pt-12">
         <form action={chooseJoinPath}>
           {code && <input type="hidden" name="code" value={code} />}
-          <p className="mb-1.5 text-sm font-extrabold text-accent">Step 1 of 3</p>
+          <p className="mb-1.5 text-sm font-extrabold text-accent">Step 1 of 4</p>
           <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.03em] lg:text-[40px]">{existingBuyer ? "What will you sell?" : "What brings you to Vouchly?"}</h1>
           <p className="mb-6 text-base text-muted lg:mb-7">Pick one. You can add more later from your account.</p>
           {fromGuest && (
@@ -91,7 +91,7 @@ export default function PathChooser({ code, fromGuest, existingBuyer, picked }: 
           <div className="mt-6 flex flex-col gap-3.5 lg:mt-7 lg:flex-row lg:items-center lg:justify-between">
             <p className="max-w-[52ch] text-sm text-muted">
               <span data-show="buy">Next: your name, email and phone number.</span>
-              <span data-show="sell">Next: make your account, then add your invite code. Your ward contact confirms you; you can set up your shop while you wait.</span>
+              <span data-show="sell">Next: make your account and add your invite code. Then set up your shop. Buyers see it once your ward contact confirms you.</span>
             </p>
             <button type="submit" className="flex h-[52px] items-center justify-center rounded-[14px] bg-ink px-7 text-base font-extrabold text-white">
               Continue

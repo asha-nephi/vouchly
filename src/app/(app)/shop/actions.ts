@@ -7,13 +7,13 @@ import { db } from "@/db";
 import { deliverySettings, orderItems, orders, products, shops } from "@/db/schema";
 import { notifyMany } from "@/lib/notify";
 import { requireUser } from "@/lib/auth";
-import { AREAS, CATEGORIES, CUTOFF_TIMES, DAY_KEYS, slugify, toKobo, type CategoryId } from "@/lib/catalog";
+import { AREAS, CUTOFF_TIMES, DAY_KEYS, slugify, toKobo, type CategoryId } from "@/lib/catalog";
 import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
 import { AMENITIES, CHECK_TIMES } from "@/lib/listings";
 import { saveFile } from "@/lib/files";
 import { myShop } from "@/lib/shops";
 import { cookies } from "next/headers";
-import { cleanTrades, isSellerType, PATH_COOKIE, type SellerType } from "@/lib/seller-types";
+import { categoryFor, cleanTrades, isSellerType, PATH_COOKIE, type SellerType } from "@/lib/seller-types";
 
 // The seller path and chips from a shop form.
 function pathFrom(form: FormData): { sellerType: SellerType; trades: string[] } | null {
@@ -23,10 +23,10 @@ function pathFrom(form: FormData): { sellerType: SellerType; trades: string[] } 
 
 export type ShopFormState = { error?: string; values?: Record<string, string>; saved?: boolean } | undefined;
 
-// Only confirmed members can sell.
+// Members can build their shop before they're confirmed; it stays hidden until then.
 async function requireSeller() {
   const user = await requireUser();
-  if (user.role === "buyer" || !user.confirmed) redirect("/sell");
+  if (user.role === "buyer") redirect("/sell");
   return user;
 }
 
@@ -51,14 +51,13 @@ export async function createShop(_: ShopFormState, form: FormData): Promise<Shop
 
   const name = String(form.get("name") ?? "").trim();
   const about = String(form.get("about") ?? "").trim();
-  const category = String(form.get("category") ?? "") as CategoryId;
   const area = String(form.get("area") ?? "");
   const path = pathFrom(form);
+  const category = (path ? categoryFor(path.sellerType, path.trades) : "") as CategoryId;
   const values = { name, about, category, area, sellerType: path?.sellerType ?? "", trades: path?.trades.join("|") ?? "" };
 
   if (name.length < 2) return { error: "Please give your shop a name.", values };
   if (!path) return { error: "Please pick what kind of seller you are.", values };
-  if (!CATEGORIES.some((c) => c.id === category)) return { error: "Please pick what you sell.", values };
   if (!AREAS.includes(area as (typeof AREAS)[number])) return { error: "Please pick your area.", values };
 
   let coverPhoto: string | null = null;
@@ -73,15 +72,13 @@ export async function createShop(_: ShopFormState, form: FormData): Promise<Shop
 
   const [shop] = await db
     .insert(shops)
-    .values({ ownerId: user.id, name, slug: await uniqueSlug(name), about: about || null, category, area, coverPhoto, ...path })
+    // Hidden from buyers until the ward contact confirms the owner.
+    .values({ ownerId: user.id, name, slug: await uniqueSlug(name), about: about || null, category, area, coverPhoto, isOpen: user.confirmed, ...path })
     .returning({ id: shops.id });
-  await db.insert(deliverySettings).values({ shopId: shop.id, dropOffAreas: [area] });
+  // Ready-made delivery: Saturday pickup in their area. They can change it from the checklist.
+  await db.insert(deliverySettings).values({ shopId: shop.id, pickupSpot: area, dropOffAreas: [area] });
   (await cookies()).delete(PATH_COOKIE);
-  // Service pros and online sellers start by adding a listing; product sellers set delivery first.
-  if (path.sellerType !== "products") redirect("/shop/manage/products/new?first=1");
-  // Stays and repair services don't deliver, so they skip the delivery step.
-  if (["stays", "repairs", "home_care"].includes(category)) redirect("/shop/manage/products/new?first=1");
-  redirect("/shop/manage/delivery?new=1");
+  redirect("/shop/manage/products/new?first=1");
 }
 
 export async function updateShop(_: ShopFormState, form: FormData): Promise<ShopFormState> {
@@ -110,7 +107,9 @@ export async function updateShop(_: ShopFormState, form: FormData): Promise<Shop
 }
 
 export async function toggleShopOpen(): Promise<void> {
-  const { shop } = await requireShop();
+  const { user, shop } = await requireShop();
+  // Opens by itself once the owner is confirmed.
+  if (!user.confirmed) redirect("/shop/manage");
   await db.update(shops).set({ isOpen: !shop.isOpen }).where(eq(shops.id, shop.id));
   revalidatePath("/shop/manage");
 }
@@ -282,7 +281,8 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     await db.insert(products).values({ ...data, shopId: shop.id });
   }
   revalidatePath("/shop/manage");
-  redirect("/shop/manage?saved=product");
+  // The first listing ends sign-up, so show the "your shop is ready" screen.
+  redirect(form.get("first") === "1" && !id ? "/shop/manage?saved=first" : "/shop/manage?saved=product");
 }
 
 export async function deleteProduct(form: FormData): Promise<void> {

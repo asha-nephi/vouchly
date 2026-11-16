@@ -122,8 +122,10 @@ export default function ProductForm({
               <span className="h-1.5 flex-1 rounded bg-ink" />
               <span className="h-1.5 flex-1 rounded bg-ink" />
               <span className="h-1.5 flex-1 rounded bg-ink" />
+              <span className="h-1.5 flex-1 rounded bg-ink" />
             </div>
-            <p className="text-[13px] font-bold text-muted">Step 3 of 3 · Your first listing</p>
+            <p className="text-[13px] font-bold text-muted">Step 4 of 4 · Your first listing</p>
+            <p className="text-[13px] text-muted">A photo, a name and a price is enough. Everything marked optional can wait.</p>
           </>
         )}
         {product && <input type="hidden" name="id" value={product.id} />}
@@ -430,6 +432,7 @@ export default function ProductForm({
           </label>
         )}
         <ErrorText message={state?.error} />
+        {first && <input type="hidden" name="first" value="1" />}
         {first && <Note>You can add more after this one.</Note>}
         <PrimaryButton pending={pending}>Save</PrimaryButton>
       </form>

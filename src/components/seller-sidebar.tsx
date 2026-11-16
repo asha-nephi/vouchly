@@ -1,3 +1,4 @@
+import { currentUser } from "@/lib/auth";
 import { Suspense } from "react";
 import Link from "next/link";
 import { and, eq, inArray } from "drizzle-orm";
@@ -81,7 +82,7 @@ export function SideShell({ card, items, foot, children }: { card: React.ReactNo
 }
 
 export default async function SellerSidebar({ shop, children }: { shop: { id: string; name: string; slug: string; isOpen: boolean; sellerType: SellerType }; children: React.ReactNode }) {
-  const counts = await waitingCounts(shop.id);
+  const [counts, me] = await Promise.all([waitingCounts(shop.id), currentUser()]);
   const card = (
     <div className="flex items-center gap-2.5 rounded-[14px] bg-white/8 p-3">
       <span className="grid size-[38px] shrink-0 place-items-center rounded-[11px] text-sm font-extrabold" style={{ background: toneFor(shop.name) }} aria-hidden="true">
@@ -90,7 +91,7 @@ export default async function SellerSidebar({ shop, children }: { shop: { id: st
       <span className="min-w-0">
         <span className="block truncate text-sm font-extrabold">{shop.name}</span>
         <span className="block text-xs font-bold text-[#AFC0F5]">
-          {PATH_NAME[shop.sellerType]} · {shop.isOpen ? "Open" : "Closed"}
+          {PATH_NAME[shop.sellerType]} · {!me?.confirmed ? "Hidden for now" : shop.isOpen ? "Open" : "Closed"}
         </span>
       </span>
     </div>

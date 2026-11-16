@@ -29,13 +29,14 @@ export function Field(props: {
   autoComplete?: string;
   hint?: string;
   required?: boolean;
+  optionalText?: string; // replaces "(optional)" when a field is needed only sometimes
 }) {
-  const { label, name, hint, required = true, ...rest } = props;
+  const { label, name, hint, required = true, optionalText, ...rest } = props;
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[13px] font-bold">
         {label}
-        {!required && <span className="font-medium text-muted"> (optional)</span>}
+        {!required && <span className="font-medium text-muted"> {optionalText ?? "(optional)"}</span>}
       </span>
       <input
         name={name}

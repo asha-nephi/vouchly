@@ -8,6 +8,7 @@ import BrowseView, { SectionSwitch } from "@/components/browse-view";
 import { unreadCount } from "@/lib/notifications";
 import { savedShopsOf } from "@/lib/saved-shops";
 import SavedShopsStrip from "@/components/saved-shops-strip";
+import { setupLeft } from "@/lib/shop-setup";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
   const f = readFilters(params);
   const area = f.area ?? user?.area ?? "Ikeja";
   const [unread, saved] = user ? await Promise.all([unreadCount(user.id), savedShopsOf(user.id)]) : [0, []];
+  const seller = user && user.role !== "buyer" ? await setupLeft(user.id) : null;
   const first = user?.name.split(" ")[0];
   const areaHref = (a: string) => `/home?${new URLSearchParams({ s: section, area: a })}`;
 
@@ -105,10 +107,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
         <SectionSwitch section={section} action="/home" area={f.area} />
       </section>
 
-      {user && user.role !== "buyer" && !user.confirmed && (
+      {seller && (seller.noShop || seller.left > 0 || !user!.confirmed) && (
         <div className="px-4 pt-4 lg:px-0 lg:pb-5 lg:pt-0">
-          <Link href="/me" className="block rounded-[18px] bg-[#fdf0d5] px-4 py-3 text-[13px] leading-relaxed text-[#3a2a08]">
-            <b>Almost there.</b> Your ward contact will confirm you soon. You can browse and order in the meantime.
+          <Link href={seller.noShop ? "/sell" : "/shop/manage"} className="flex items-center gap-3 rounded-[18px] bg-[#fdf0d5] px-4 py-3 text-[13px] leading-relaxed text-[#3a2a08]">
+            <span className="flex-1">
+              {seller.noShop ? (
+                <><b>Set up your shop.</b> It takes about 5 minutes.{!user!.confirmed && " Buyers see it once your ward contact confirms you."}</>
+              ) : seller.left > 0 ? (
+                <><b>Finish your shop.</b> {seller.left} {seller.left === 1 ? "thing" : "things"} left.{!user!.confirmed && " Buyers see it once you're confirmed."}</>
+              ) : (
+                <><b>Almost there.</b> Your shop is ready. Buyers see it once your ward contact confirms you.</>
+              )}
+            </span>
+            <span aria-hidden="true" className="text-base font-bold">›</span>
           </Link>
         </div>
       )}

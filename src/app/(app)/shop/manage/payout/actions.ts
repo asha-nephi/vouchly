@@ -14,7 +14,7 @@ export type PayoutState = { error?: string; accountName?: string; saved?: boolea
 export async function savePayout(_: PayoutState, form: FormData): Promise<PayoutState> {
   const user = await requireUser();
   const shop = await myShop(user.id);
-  if (!shop || !user.confirmed) return { error: "Only confirmed sellers can add a payout account." };
+  if (!shop || user.role === "buyer") return { error: "Only sellers can add a payout account." };
 
   const bankCode = String(form.get("bank") ?? "");
   const accountNumber = String(form.get("account") ?? "").replace(/\D/g, "");

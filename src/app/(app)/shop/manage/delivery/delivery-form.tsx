@@ -66,7 +66,7 @@ export default function DeliveryForm({ s, isNew }: { s: Settings; isNew: boolean
 
       <section className={card}>
         <Head title="Pickup" sub="Buyers collect from your spot. Free." name="pickupOn" on={s.pickupOn} />
-        <Field label="Pickup spot" name="pickupSpot" placeholder="e.g. Allen Avenue, Ikeja" required={false} defaultValue={s.pickupSpot ?? ""} />
+        <Field label="Pickup spot" name="pickupSpot" placeholder="e.g. Allen Avenue, Ikeja" required={false} optionalText="(needed for pickup)" defaultValue={s.pickupSpot ?? ""} />
         <Field label="Pickup hours" name="pickupHours" placeholder="e.g. 10am – 2pm" required={false} defaultValue={s.pickupHours ?? ""} />
       </section>
 

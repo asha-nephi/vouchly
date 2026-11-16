@@ -24,7 +24,7 @@ const POST_AGAIN = "AI couldn't make a post this time. Try again, or write your 
 export async function writeListing(input: { words: string; kind: string; image?: string }): Promise<WriteResult> {
   const user = await requireUser();
   const shop = await myShop(user.id);
-  if (!shop || user.role === "buyer" || !user.confirmed) return { ok: false, error: "Only sellers can use this." };
+  if (!shop || user.role === "buyer") return { ok: false, error: "Only sellers can use this." };
   if (!aiReady()) return { ok: false, error: TRY_AGAIN };
   const words = String(input.words ?? "").trim().slice(0, 300);
   if (words.length < 3) return { ok: false, error: "Write a few words about it first, like “zobo 1 litre, ginger, no sugar”." };
@@ -52,7 +52,8 @@ const KIND_NAME: Record<string, string> = { item: "a product", stay: "a place to
 export async function makePost(input: { productId?: string; type: string; lang: string; version: number }): Promise<PostResult> {
   const user = await requireUser();
   const shop = await myShop(user.id);
-  if (!shop || user.role === "buyer" || !user.confirmed) return { ok: false, error: "Only sellers can use this." };
+  if (!shop || user.role === "buyer") return { ok: false, error: "Only sellers can use this." };
+  if (!user.confirmed) return { ok: false, error: "You can make posts once your ward contact confirms you and your shop is live." };
   if (!aiReady()) return { ok: false, error: POST_AGAIN };
   const type = (Object.keys(POST_TYPES) as PostType[]).find((t) => t === input.type) ?? "status";
   const lang: PostLang = input.lang === "pcm" ? "pcm" : "en";

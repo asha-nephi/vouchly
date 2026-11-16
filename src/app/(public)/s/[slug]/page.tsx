@@ -64,6 +64,8 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
   if (!row) notFound();
   const { shop, ward, confirmed } = row;
   const isMine = shop.ownerId === me?.id;
+  // Shops of members still waiting for confirmation are hidden, except to them and ward contacts.
+  if (!confirmed && !isMine && me?.role !== "admin" && me?.role !== "ward_contact") notFound();
 
   const [items, [d], basket, shopReviews, stats, saved] = await Promise.all([
     db
@@ -166,7 +168,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
         </section>
 
         <div className="flex flex-col gap-3 px-4 pt-3 lg:px-0 lg:pt-5">
-          {isMine && <p className="rounded-[14px] bg-[#fdf0d5] px-4 py-3 text-[13px] font-semibold text-[#3a2a08]">This is how buyers see your shop.</p>}
+          {isMine && <p className="rounded-[14px] bg-[#fdf0d5] px-4 py-3 text-[13px] font-semibold text-[#3a2a08]">{confirmed ? "This is how buyers see your shop." : "Only you can see this for now. Buyers see it once your ward contact confirms you."}</p>}
           {!shop.isOpen && <p className="rounded-[14px] bg-chip px-4 py-3 text-[13px] font-semibold">This shop is closed for now.</p>}
           {d && nextLabel && (
             <section className="flex items-start gap-3 rounded-[18px] border border-line bg-white px-4 py-3.5">
@@ -209,7 +211,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
           {items.length === 0 ? (
             <div className="rounded-[22px] border-[1.5px] border-dashed border-[#c8ceda] p-8 text-center">
               <p className="text-[15px] font-bold">Nothing for sale yet</p>
-              <p className="mt-1 text-[13px] text-muted">{isMine ? "Add your first listing so buyers can order." : "Check back soon, or message the seller through a friend."}</p>
+              <p className="mt-1 text-[13px] text-muted">{isMine ? "Add your first listing so buyers can order." : "Check back soon."}</p>
               {isMine && (
                 <Link href="/shop/manage/products/new" className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-sm font-bold text-white">
                   Add a listing

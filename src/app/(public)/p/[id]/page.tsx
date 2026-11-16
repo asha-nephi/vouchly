@@ -60,6 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     .limit(1);
   if (!row || (!row.product.isActive && row.shop.ownerId !== me?.id)) notFound();
   const { product: p, shop, ward, confirmed } = row;
+  if (!confirmed && shop.ownerId !== me?.id && me?.role !== "admin" && me?.role !== "ward_contact") notFound();
   const [[d], basket, stats, latestReviews] = await Promise.all([
     db.select().from(deliverySettings).where(eq(deliverySettings.shopId, shop.id)).limit(1),
     basketStart(),

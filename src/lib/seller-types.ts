@@ -46,3 +46,13 @@ export function readPath(raw?: string): { type: SellerType; trades: string[] } |
     return null;
   }
 }
+
+// The shop category from the first chip that maps to one, so we don't ask twice.
+const CHIP_CATEGORY: Record<string, string> = {
+  Food: "food", Drinks: "food", Fashion: "fashion", Crafts: "fashion", "Home goods": "home_care", Stays: "stays",
+  Plumbing: "repairs", Electrical: "repairs", "AC repair": "repairs", Cleaning: "home_care", "Chef and catering": "chefs",
+  Tailoring: "fashion", "Hair and beauty": "fashion", Tutoring: "learning",
+  Downloads: "learning", "1-on-1 coaching": "learning", Classes: "learning", Events: "events",
+};
+const TYPE_CATEGORY: Record<SellerType, string> = { products: "food", service: "repairs", online: "learning" };
+export const categoryFor = (type: SellerType, trades: string[]) => trades.map((t) => CHIP_CATEGORY[t]).find(Boolean) ?? TYPE_CATEGORY[type];
