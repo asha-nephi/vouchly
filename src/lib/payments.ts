@@ -6,6 +6,7 @@ import { refundOrder } from "./after-order";
 import { paidClash } from "./bookings";
 import { markCodeUsed } from "./discounts";
 import { sessionClash, ticketsTaken } from "./sessions";
+import { takeStock } from "./stock";
 import { naira } from "./catalog";
 import { notify } from "./notify";
 import { deliveryDayLabel, holdMode } from "./orders";
@@ -71,6 +72,11 @@ export async function confirmPayment(reference: string): Promise<PaymentResult> 
       }
       // Paid tickets are ready at once.
       await db.update(orders).set({ status: "ready" }).where(eq(orders.id, order.id));
+    }
+    // Items with a stock count: take them off, or refund if they ran out first.
+    if (["pickup", "drop_off", "rider"].includes(order.method) && !(await takeStock(order.id))) {
+      await refundOrder(order.id, "Sorry, an item sold out just before your payment went through");
+      return { code: order.code };
     }
     // Digital products are delivered the moment they're paid for.
     if (order.method === "download") await db.update(orders).set({ status: "received", receivedAt: new Date() }).where(eq(orders.id, order.id));

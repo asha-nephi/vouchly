@@ -7,6 +7,7 @@ import { holdMode } from "./orders";
 import { notify } from "./notify";
 import { refundPayment } from "./paystack";
 import { recheckPending } from "./payments";
+import { giveBackStock } from "./stock";
 
 // Gives the buyer back the full amount and cancels the order.
 export async function refundOrder(orderId: string, reason: string): Promise<{ error?: string }> {
@@ -29,6 +30,7 @@ export async function refundOrder(orderId: string, reason: string): Promise<{ er
   }
   await db.update(payments).set({ status: "refunded", refundedKobo: pay.amountKobo }).where(eq(payments.id, pay.id));
   await db.update(orders).set({ status: "cancelled", cancelReason: reason, cancelledAt: new Date() }).where(eq(orders.id, order.id));
+  await giveBackStock(order.id).catch((e) => console.error("Stock not given back:", (e as Error).message));
   await notify(order.buyerId, "Order cancelled and refunded", `${shop.name}: ${reason}. ${naira(pay.amountKobo)} is on its way back to you.`, `/orders/${order.code}`);
   await notify(shop.ownerId, "Order cancelled", `Order ${order.code} was cancelled and the buyer refunded.`, `/shop/manage/orders/${order.code}`);
   return {};

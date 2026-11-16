@@ -5,6 +5,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { products, shops } from "@/db/schema";
 import { basketCount, MAX_QTY, readBasket, writeBasket } from "@/lib/basket";
+import { currentUser } from "@/lib/auth";
+import { stockLeft } from "@/lib/stock";
 
 export type BasketResult =
   | { ok: true; count: number; totalKobo: number }
@@ -17,13 +19,17 @@ export async function setBasketQty(productId: string, qty: number, replace = fal
   }
 
   const [row] = await db
-    .select({ shopId: products.shopId, shopName: shops.name, open: shops.isOpen })
+    .select({ id: products.id, stock: products.stock, shopId: products.shopId, shopName: shops.name, open: shops.isOpen })
     .from(products)
     .innerJoin(shops, eq(shops.id, products.shopId))
     .where(and(eq(products.id, productId), eq(products.kind, "item"), eq(products.isActive, true), eq(products.removed, false)))
     .limit(1);
   if (!row) return { ok: false, error: "This product isn't available any more." };
   if (!row.open) return { ok: false, error: "This shop is closed for now." };
+  if (qty > 0 && row.stock !== null) {
+    const left = (await stockLeft(row, (await currentUser())?.id)) ?? MAX_QTY;
+    if (qty > left) return { ok: false, error: left > 0 ? `Only ${left} left.` : "Sorry, this just sold out." };
+  }
 
   let basket = await readBasket();
   if (basket && basket.shopId !== row.shopId && qty > 0) {

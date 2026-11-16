@@ -22,6 +22,7 @@ type Product = {
   photos: string[];
   sellMode: "preorder" | "in_stock";
   maxPerDay: number | null;
+  stock: number | null;
   isActive: boolean;
   about: string | null;
   tags: string[];
@@ -190,6 +191,15 @@ export default function ProductForm({
               required={false}
               hint="We stop orders when you reach this. Leave empty for no limit."
               defaultValue={num("maxPerDay", product?.maxPerDay)}
+            />
+            <Field
+              label="How many you have now"
+              name="stock"
+              inputMode="numeric"
+              placeholder="e.g. 12"
+              required={false}
+              hint="It goes down as people pay. At 0 it shows Sold out and buyers can join a waitlist. Leave empty if you don't count."
+              defaultValue={num("stock", product?.stock)}
             />
           </>
         )}

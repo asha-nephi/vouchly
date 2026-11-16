@@ -12,6 +12,7 @@ import { filesFrom, isOurPhoto, savePhoto } from "@/lib/photos";
 import { AMENITIES, CHECK_TIMES } from "@/lib/listings";
 import { saveFile } from "@/lib/files";
 import { myShop } from "@/lib/shops";
+import { wakeWaitlist } from "@/lib/stock";
 import { cookies } from "next/headers";
 import { categoryFor, cleanTrades, isSellerType, PATH_COOKIE, type SellerType } from "@/lib/seller-types";
 
@@ -135,6 +136,7 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     size: str("size", 40),
     sellMode: form.get("sellMode") === "in_stock" ? "in_stock" : "preorder",
     maxPerDay: str("maxPerDay", 6),
+    stock: str("stock", 6),
     about: str("about", 1500),
     tags: str("tags", 300),
     included: str("included", 600),
@@ -178,6 +180,8 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
 
   const maxPerDay = kind === "item" && values.maxPerDay ? Number(values.maxPerDay) : null;
   if (maxPerDay !== null && (!Number.isInteger(maxPerDay) || maxPerDay < 1)) return fail("The most per day must be a whole number, like 20.");
+  const stock = kind === "item" && values.stock ? Number(values.stock) : null;
+  if (stock !== null && (!Number.isInteger(stock) || stock < 0)) return fail("How many you have must be a whole number, like 12. Use 0 if you've run out.");
   if (kind === "stay") {
     const bad = count("guests", "guests", 30) ?? count("bedrooms", "bedrooms", 20) ?? count("bathrooms", "bathrooms", 20) ?? count("minNights", "nights", 30, false);
     if (bad) return fail(bad);
@@ -251,6 +255,7 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     size: kind === "item" ? values.size || null : null,
     sellMode: values.sellMode as "preorder" | "in_stock",
     maxPerDay,
+    stock,
     guests: kind === "stay" ? n("guests") : null,
     bedrooms: kind === "stay" ? n("bedrooms") : null,
     bathrooms: kind === "stay" ? n("bathrooms") : null,
@@ -277,6 +282,8 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
   } as const;
   if (id) {
     await db.update(products).set(data).where(and(eq(products.id, id), eq(products.shopId, shop.id)));
+    // Back in stock, or more seats: tell anyone waiting.
+    await wakeWaitlist(id).catch((e) => console.error("Waitlist not told:", (e as Error).message));
   } else {
     await db.insert(products).values({ ...data, shopId: shop.id });
   }

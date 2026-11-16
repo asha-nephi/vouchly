@@ -12,6 +12,7 @@ import { AREAS } from "@/lib/catalog";
 import { holdMode, nextDeliveryDay } from "@/lib/orders";
 import { paystackReady } from "@/lib/paystack";
 import { newOrderCode, startPayment } from "@/lib/start-payment";
+import { heldByOthers } from "@/lib/stock";
 
 export type CheckoutState = { error?: string; values?: Record<string, string> } | undefined;
 
@@ -58,6 +59,15 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const lines = rows.map((p) => ({ p, qty: basket.items[p.id] }));
   // Never trust the cookie: every amount must be a whole number in range.
   if (lines.some((l) => !Number.isInteger(l.qty) || l.qty < 1 || l.qty > MAX_QTY)) return fail("Please check the amounts in your basket.");
+  // Items with a stock count: never more than what's left.
+  const counted = lines.filter((l) => l.p.stock !== null);
+  if (counted.length) {
+    const held = await heldByOthers(counted.map((l) => l.p.id), me?.id);
+    for (const l of counted) {
+      const left = Math.max(0, l.p.stock! - (held.get(l.p.id) ?? 0));
+      if (l.qty > left) return fail(left > 0 ? `Only ${left} “${l.p.name}” left. Please change the amount in your basket.` : `“${l.p.name}” just sold out. Please take it out of your basket.`);
+    }
+  }
   const disc = await discountFor(shop.id, form.get("discount"), lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0), me?.id);
   if ("error" in disc) return fail(disc.error);
   const itemsKobo = lines.reduce((s, l) => s + l.p.priceKobo * l.qty, 0) - disc.kobo;

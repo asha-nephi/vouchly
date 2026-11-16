@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, orderItems, orders, payments, products, users } from "@/db/schema";
+import { deliverySettings, orderItems, orders, payments, products, users, waitlist } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { cutoffLabel, dayList, naira } from "@/lib/catalog";
 import { myShop } from "@/lib/shops";
@@ -145,10 +145,17 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
   };
 
   const stat = new Map(perProduct.map((p) => [p.id, p]));
+  // People on each listing's waitlist.
+  const waitRows = items.length
+    ? await db.select({ id: waitlist.productId, n: sql<number>`count(*)::int` }).from(waitlist).where(inArray(waitlist.productId, items.map((p) => p.id))).groupBy(waitlist.productId)
+    : [];
+  const waiting = new Map(waitRows.map((w) => [w.id, w.n]));
+  const waitBit = (id: string) => (waiting.get(id) ? `${waiting.get(id)} waiting` : null);
   const statusLine = (p: (typeof items)[number]) => {
     const s = stat.get(p.id);
-    if (p.kind === "item") return [p.sellMode === "preorder" ? "Pre-order" : "In stock", s?.week ? `${s.week} sold this week` : "No sales this week"].join(" · ");
-    if (p.kind === "event") return [eventWhen(p.eventAt).split(",").slice(0, -1).join(",") || "Event", p.seats ? `${s?.all ?? 0} of ${p.seats} seats taken` : `${s?.all ?? 0} going`].join(" · ");
+    if (p.kind === "item")
+      return [p.sellMode === "preorder" ? "Pre-order" : "In stock", p.stock === null ? null : p.stock === 0 ? "Sold out" : `${p.stock} left`, s?.week ? `${s.week} sold this week` : "No sales this week", waitBit(p.id)].filter(Boolean).join(" · ");
+    if (p.kind === "event") return [eventWhen(p.eventAt).split(",").slice(0, -1).join(",") || "Event", p.seats ? `${s?.all ?? 0} of ${p.seats} seats taken` : `${s?.all ?? 0} going`, waitBit(p.id)].filter(Boolean).join(" · ");
     if (p.kind === "digital") return [p.fileName?.split(".").pop()?.toUpperCase() || "Download", `${s?.downloads ?? 0} ${s?.downloads === 1 ? "download" : "downloads"}`].join(" · ");
     return [listingLine(p).split(" · ")[0], s?.week ? `${s.week} booked this week` : "No bookings this week"].join(" · ");
   };

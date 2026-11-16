@@ -163,6 +163,7 @@ export const products = pgTable("products", {
   photos: jsonb("photos").$type<string[]>().notNull().default([]),
   sellMode: sellMode("sell_mode").notNull().default("preorder"),
   maxPerDay: integer("max_per_day"),
+  stock: integer("stock"), // items: how many are left; empty = no limit
   kind: productKind("kind").notNull().default("item"),
   about: text("about"), // longer description
   tags: jsonb("tags").$type<string[]>().notNull().default([]), // search words, never shown
@@ -244,6 +245,7 @@ export const orders = pgTable("orders", {
   downloads: integer("downloads").notNull().default(0),
   discountCode: text("discount_code"),
   discountKobo: integer("discount_kobo").notNull().default(0), // itemsKobo is already after this
+  stockTaken: boolean("stock_taken").notNull().default(false), // stock was taken off when paid
   accessToken: text("access_token"), // private link so a guest can open the order anywhere
   autoClosed: boolean("auto_closed").notNull().default(false), // marked received after the 48h window
   problem: text("problem"), // what the buyer reported
@@ -324,3 +326,20 @@ export const savedShops = pgTable("saved_shops", {
   shopId: uuid("shop_id").notNull().references(() => shops.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.shopId] }), index("saved_shops_user_idx").on(t.userId, t.createdAt)]);
+
+// People waiting for a sold-out item or a full event. Told by the bell when it's back.
+export const waitlist = pgTable("waitlist", {
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.productId, t.userId] })]);
+
+// A seller's group of listings with its own link, like "Christmas gifts".
+export const collections = pgTable("collections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  shopId: uuid("shop_id").notNull().references(() => shops.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  productIds: jsonb("product_ids").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("collections_shop_slug_idx").on(t.shopId, t.slug)]);

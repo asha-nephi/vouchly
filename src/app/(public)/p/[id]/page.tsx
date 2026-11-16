@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products, reviews, shops, users } from "@/db/schema";
+import { deliverySettings, products, reviews, shops, users, waitlist } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
 import { AREAS, categoryLabel, cutoffLabel, dayList, naira } from "@/lib/catalog";
@@ -22,6 +22,8 @@ import DigitalBuy from "./digital-buy";
 import EventTickets from "./event-tickets";
 import SessionBooking from "./session-booking";
 import { sessionSlots, ticketsTaken } from "@/lib/sessions";
+import { stockLeft } from "@/lib/stock";
+import WaitlistBox from "@/components/waitlist-button";
 import { fileLabel } from "@/lib/file-types";
 import { BasketProvider, ItemBar } from "@/components/basket-controls";
 import ActionBar from "@/components/action-bar";
@@ -93,6 +95,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   }
   const slots = p.kind === "session" ? await sessionSlots(p) : [];
   const left = p.kind === "event" && p.seats ? p.seats - (await ticketsTaken(p.id)) : 0;
+  const itemLeft = p.kind === "item" ? await stockLeft(p, me?.id) : null;
+  const soldOut = (p.kind === "item" && itemLeft === 0) || (p.kind === "event" && left <= 0);
+  const onList = soldOut && me ? (await db.select({ u: waitlist.userId }).from(waitlist).where(and(eq(waitlist.productId, p.id), eq(waitlist.userId, me.id))).limit(1)).length > 0 : false;
+  const waitBox = <WaitlistBox productId={p.id} joined={onList} signedIn={!!me && !me.isGuest} event={p.kind === "event"} />;
   const unit = p.kind === "session" ? "a session" : p.kind === "stay" ? "a night" : p.kind === "service" ? (p.priceUnit ?? "") : (p.size ?? "");
   const price =
     p.kind === "service" && p.priceType === "quote" ? "Price after a quick chat" : (p.kind === "digital" || p.kind === "event") && p.priceKobo === 0 ? "Free" : naira(p.priceKobo);
@@ -121,6 +127,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             : p.kind === "session"
               ? { text: ["Session", durationLabel(p.durationMins)].filter(Boolean).join(" · "), warm: false }
               : { text: eventWhen(p.eventAt) || "Event", warm: false };
+  if (itemLeft !== null && itemLeft > 0 && itemLeft <= 10) pill.text += ` · Only ${itemLeft} left`;
+  if (p.kind === "item" && soldOut) pill.text = "Sold out";
   const free = (p.kind === "digital" || p.kind === "event") && p.priceKobo === 0;
   const infoCard = (rows: ({ title: string; body: string } | false | null | "" | 0 | undefined)[]) => {
     const list = rows.filter((f): f is { title: string; body: string } => !!f);
@@ -322,14 +330,17 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               />
             )}
             {p.kind === "session" && <SessionBooking productId={p.id} priceKobo={p.priceKobo} slots={slots} guest={!me} disabled={blocked} />}
-            {p.kind === "event" && <EventTickets productId={p.id} priceKobo={p.priceKobo} left={left} guest={!me} disabled={blocked} />}
+            {p.kind === "event" && soldOut && !blocked && waitBox}
+            {p.kind === "event" && !(soldOut && !blocked) && <EventTickets productId={p.id} priceKobo={p.priceKobo} left={left} guest={!me} disabled={blocked} />}
             {p.kind === "digital" && (
               <DigitalBuy productId={p.id} priceKobo={p.priceKobo} fileText={fileLabel(p.fileName, p.fileSize)} guest={!me} disabled={blocked} />
             )}
             {p.kind === "item" && (
               <div className="hidden gap-2.5 lg:flex">
-                {canBuy ? (
-                  <ItemBar productId={p.id} name={p.name} priceKobo={p.priceKobo} />
+                {canBuy && soldOut ? (
+                  waitBox
+                ) : canBuy ? (
+                  <ItemBar productId={p.id} name={p.name} priceKobo={p.priceKobo} max={itemLeft ?? 99} />
                 ) : (
                   <p className="w-full rounded-[14px] bg-chip px-4 py-3.5 text-center text-[13px] font-semibold">{mine ? "This is your product." : "Not available to order right now."}</p>
                 )}
@@ -401,8 +412,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         {p.kind === "item" && (
           <div className="lg:hidden">
             <ActionBar>
-              {canBuy ? (
-                <ItemBar productId={p.id} name={p.name} priceKobo={p.priceKobo} />
+              {canBuy && soldOut ? (
+                waitBox
+              ) : canBuy ? (
+                <ItemBar productId={p.id} name={p.name} priceKobo={p.priceKobo} max={itemLeft ?? 99} />
               ) : (
                 <p className="w-full rounded-[14px] bg-chip px-4 py-3.5 text-center text-[13px] font-semibold">{mine ? "This is your product." : "Not available to order right now."}</p>
               )}

@@ -159,10 +159,10 @@ export function BasketBar() {
 }
 
 // Listing page, items: pick how many, then add. Sits in the bottom bar.
-export function ItemBar({ productId, name, priceKobo }: { productId: string; name: string; priceKobo: number }) {
+export function ItemBar({ productId, name, priceKobo, max = 99 }: { productId: string; name: string; priceKobo: number; max?: number }) {
   const { qty, change, pending } = useBasket();
   const inBasket = qty[productId] ?? 0;
-  const [n, setN] = useState(Math.max(inBasket, 1));
+  const [n, setN] = useState(Math.min(max, Math.max(inBasket, 1)));
   const same = inBasket > 0 && n === inBasket;
   return (
     <>
@@ -173,7 +173,7 @@ export function ItemBar({ productId, name, priceKobo }: { productId: string; nam
         <span className="w-6 text-center text-base font-extrabold tabular-nums" aria-live="polite">
           {n}
         </span>
-        <button type="button" onClick={() => setN((v) => Math.min(99, v + 1))} aria-label={`One more ${name}`} className="size-11 text-xl font-bold">
+        <button type="button" onClick={() => setN((v) => Math.min(max, v + 1))} aria-label={`One more ${name}`} className="size-11 text-xl font-bold">
           +
         </button>
       </div>

@@ -52,6 +52,7 @@ type ListingLike = {
   priceUnit: string | null;
   size: string | null;
   sellMode: "preorder" | "in_stock";
+  stock?: number | null;
   guests: number | null;
   bedrooms: number | null;
   serviceAreas: string[];
@@ -102,6 +103,7 @@ export function ctaLabel(p: { kind: ListingLike["kind"]; priceKobo: number; pric
 
 // The small white pill on a listing's photo. Empty when there's nothing useful to say.
 export function tileTag(p: ListingLike, readyDay?: string) {
+  if (p.kind === "item" && p.stock === 0) return "Sold out";
   if (p.kind === "item") return p.sellMode === "preorder" ? (readyDay ? `Pre-order · ${readyDay}` : "Pre-order") : "In stock";
   if (p.kind === "event") {
     const w = eventWhen(p.eventAt ?? null);

@@ -236,7 +236,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
                         {p.kind === "stay" || p.kind === "session" ? naira(p.priceKobo) : priceText(p).replace("Price after a chat", "Ask for a price")}
                       </p>
                       {p.kind === "item" ? (
-                        canBuy && <TileAdd productId={p.id} name={p.name} />
+                        canBuy && p.stock !== 0 && <TileAdd productId={p.id} name={p.name} />
                       ) : (
                         <Link href={`/p/${p.id}`} className="relative flex h-[34px] items-center rounded-full bg-soft px-3.5 text-[13px] font-extrabold text-deep after:absolute after:-inset-1.5 after:content-['']">
                           {ctaLabel(p)}
