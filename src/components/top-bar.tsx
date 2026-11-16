@@ -18,7 +18,7 @@ export default async function TopBar() {
   return (
     <Suspense>
       <HideOn prefixes={["/shop/manage", "/admin"]}>
-        <header className="sticky top-0 z-30 hidden border-b border-line bg-white lg:block">
+        <header className="sticky top-0 z-30 hidden border-b border-line bg-white lg:block print:hidden">
           <div className="mx-auto flex max-w-[1280px] items-center gap-5 px-6 py-3">
             <Link href={member ? "/home" : "/"} className="text-[22px] font-extrabold tracking-[-0.02em] text-ink">
               Vouchly

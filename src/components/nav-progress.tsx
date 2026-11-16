@@ -34,7 +34,7 @@ export default function NavProgress() {
 
   if (!busy) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[3px] overflow-hidden" role="progressbar" aria-label="Loading">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[3px] overflow-hidden print:hidden" role="progressbar" aria-label="Loading">
       <div className="nav-progress h-full w-1/3 rounded-full bg-accent" />
     </div>
   );

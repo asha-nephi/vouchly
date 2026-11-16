@@ -63,7 +63,7 @@ function menu(type: SellerType, c: { requests: number; other: number; all: numbe
 export function SideShell({ card, items, foot, tools, children }: { card: React.ReactNode; items: SideItem[]; foot: SideItem[]; tools?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="lg:flex lg:min-h-dvh">
-      <aside className="sticky top-0 hidden h-dvh w-[250px] shrink-0 flex-col gap-1 overflow-y-auto bg-ink px-3.5 py-5 text-white lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[250px] shrink-0 flex-col gap-1 overflow-y-auto bg-ink px-3.5 py-5 text-white lg:flex print:hidden">
         <Link href="/home" className="px-2.5 pb-[18px] pt-1 text-[22px] font-extrabold tracking-[-0.02em] text-white">
           Vouchly
         </Link>

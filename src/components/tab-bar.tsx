@@ -19,7 +19,7 @@ export default async function TabBar({ active }: { active: (typeof TABS)[number]
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-20 border-t lg:hidden border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-20 border-t lg:hidden print:hidden border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
       <div className="mx-auto grid max-w-md grid-cols-4 px-2 pb-2.5 pt-2">
         {TABS.map((t) => {
@@ -63,7 +63,7 @@ function GuestBar({ active, count, unread, guest }: { active: string; count: num
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-20 border-t lg:hidden border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-20 border-t lg:hidden print:hidden border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
       <div className="mx-auto flex max-w-md items-center gap-1 px-2 pb-2.5 pt-2">
         {tabs.map((t) => {
