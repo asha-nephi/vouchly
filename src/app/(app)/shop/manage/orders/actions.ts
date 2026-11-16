@@ -2,17 +2,24 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { orders } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { naira, toKobo } from "@/lib/catalog";
 import { notify } from "@/lib/notify";
-import { buyerMessage, sellerNext } from "@/lib/order-status";
+import { buyerMessage, sellerNext, statusLabel } from "@/lib/order-status";
+import { runEach, type BulkResult } from "@/components/data/bulk";
 import { normalizePhone } from "@/lib/phone";
 import { refundOrder } from "@/lib/after-order";
 import { myShop } from "@/lib/shops";
 import { orderItems } from "@/db/schema";
+
+// Redraw the order and the Orders list (the computer table shows it too).
+function redraw(code: string) {
+  revalidatePath(`/shop/manage/orders/${code}`);
+  revalidatePath("/shop/manage/orders");
+}
 
 export type OrderFormState = { error?: string; values?: Record<string, string> } | undefined;
 
@@ -42,7 +49,7 @@ export async function advanceOrder(form: FormData): Promise<void> {
     .where(and(eq(orders.id, order.id), eq(orders.status, order.status)))
     .returning({ id: orders.id });
   if (done.length) await notify(order.buyerId, "Order update", buyerMessage(next.to, shop.name, order.method), `/orders/${code}`);
-  revalidatePath(`/shop/manage/orders/${code}`);
+  redraw(code);
   revalidatePath("/shop/manage");
 }
 
@@ -70,7 +77,7 @@ export async function sendRider(_: OrderFormState, form: FormData): Promise<Orde
     .set({ status: "on_the_way", riderName: values.riderName, riderPhone: phone, riderCostKobo: cost, riderTrackingUrl: values.tracking || null })
     .where(and(eq(orders.id, order.id), eq(orders.status, order.status)));
   await notify(order.buyerId, "Your rider is on the way", `${values.riderName} is bringing your order from ${shop.name}.`, `/orders/${code}`);
-  revalidatePath(`/shop/manage/orders/${code}`);
+  redraw(code);
   return undefined;
 }
 
@@ -84,7 +91,7 @@ export async function sellerRefund(_: OrderFormState, form: FormData): Promise<O
   const res = await refundOrder(order.id, reason);
   if (res.error) return { error: res.error, values: { reason } };
   if (order.status === "disputed") await db.update(orders).set({ problemResolution: "The seller refunded you." }).where(eq(orders.id, order.id));
-  revalidatePath(`/shop/manage/orders/${code}`);
+  redraw(code);
   return undefined;
 }
 
@@ -103,7 +110,7 @@ export async function sendCheckIn(_: OrderFormState, form: FormData): Promise<Or
     session ? `${shop.name} sent the details for your session.` : `${shop.name} sent the address and how to get in.`,
     `/orders/${code}`,
   );
-  revalidatePath(`/shop/manage/orders/${code}`);
+  redraw(code);
   return undefined;
 }
 
@@ -118,7 +125,7 @@ export async function sendQuote(_: OrderFormState, form: FormData): Promise<Orde
   await db.update(orders).set({ status: "quoted", itemsKobo: amount, quoteNote: values.quoteNote || null, quotedAt: new Date() }).where(eq(orders.id, order.id));
   await db.update(orderItems).set({ priceKobo: amount }).where(eq(orderItems.orderId, order.id));
   await notify(order.buyerId, "Your quote is ready", `${shop.name} can do it for ${naira(amount)}. Pay to book the visit.`, `/orders/${code}`);
-  revalidatePath(`/shop/manage/orders/${code}`);
+  redraw(code);
   return undefined;
 }
 
@@ -131,6 +138,62 @@ export async function declineRequest(_: OrderFormState, form: FormData): Promise
   if (!reason) return { error: "Please say why, so the customer understands.", values: { reason } };
   await db.update(orders).set({ status: "cancelled", cancelReason: reason, cancelledAt: new Date() }).where(eq(orders.id, order.id));
   await notify(order.buyerId, "Request declined", `${shop.name}: ${reason}`, `/orders/${code}`);
-  revalidatePath(`/shop/manage/orders/${code}`);
+  redraw(code);
   return undefined;
+}
+
+// Bulk actions from the Orders table. Each order goes through the same steps as its own page.
+async function bulk(codes: string[], step: (o: typeof orders.$inferSelect, shopName: string) => Promise<string | null>): Promise<BulkResult> {
+  const user = await requireUser();
+  const shop = await myShop(user.id);
+  if (!shop) return { done: 0, total: codes.length, failed: [] };
+  const list = codes.map(String).slice(0, 100);
+  const rows = list.length ? await db.select().from(orders).where(and(eq(orders.shopId, shop.id), inArray(orders.code, list))) : [];
+  const byCode = new Map(rows.map((r) => [r.code, r]));
+  const res = await runEach(list, (c) => c, async (code) => {
+    const o = byCode.get(code);
+    if (!o) return "Not found in your shop.";
+    return step(o, shop.name);
+  });
+  revalidatePath("/shop/manage/orders");
+  revalidatePath("/shop/manage");
+  return res;
+}
+
+// Move one order through plain steps (no form needed) until it reaches `target`. The buyer gets one message.
+async function stepTo(o: typeof orders.$inferSelect, shopName: string, target: string): Promise<string | null> {
+  let status: string = o.status;
+  for (let i = 0; i < 4 && status !== target; i++) {
+    const next = sellerNext(status, o.method);
+    if (!next || next.form) break;
+    const done = await db
+      .update(orders)
+      .set({ status: next.to as typeof o.status })
+      .where(and(eq(orders.id, o.id), eq(orders.status, status as typeof o.status)))
+      .returning({ id: orders.id });
+    if (!done.length) return "It changed just now. Refresh and try again.";
+    status = next.to;
+  }
+  if (status !== o.status) await notify(o.buyerId, "Order update", buyerMessage(status, shopName, o.method), `/orders/${o.code}`);
+  return null;
+}
+
+export async function bulkConfirm(codes: string[]): Promise<BulkResult> {
+  return bulk(codes, async (o, shopName) => {
+    const next = sellerNext(o.status, o.method);
+    if (!next || next.to !== "confirmed") return o.status === "paid" ? "Nothing to confirm for this one." : `Already ${statusLabel(o.status, o.method, true).toLowerCase()}.`;
+    return stepTo(o, shopName, "confirmed");
+  });
+}
+
+// Pickup orders only: confirm, get ready and mark ready in one go.
+export async function bulkReady(codes: string[]): Promise<BulkResult> {
+  return bulk(codes, async (o, shopName) => {
+    if (o.status === "ready") return "Already ready.";
+    if (!["paid", "confirmed", "preparing"].includes(o.status)) return `Can't, it's ${statusLabel(o.status, o.method, true).toLowerCase()}.`;
+    if (o.method === "rider") return "Needs the rider's details. Open the order.";
+    if (o.method === "drop_off") return "Drop-off: open the order and tap “I'm on my way” when you leave.";
+    if (o.method !== "pickup") return "Only for pickup orders.";
+    return stepTo(o, shopName, "ready");
+  });
 }

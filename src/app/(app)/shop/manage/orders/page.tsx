@@ -11,6 +11,8 @@ import { dateToKey } from "@/lib/dates";
 import { SELLER_STATUS, statusLabel, TO_DO, TONE } from "@/lib/order-status";
 import { myShop } from "@/lib/shops";
 import { BackBar } from "@/components/ui";
+import type { Params } from "@/components/data/params";
+import { OrdersDesk } from "./orders-desk";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +31,14 @@ const METHOD = {
 export default async function ShopOrders({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; show?: string }>;
+  searchParams: Promise<Params>;
 }) {
   const user = await requireUser();
   const shop = await myShop(user.id);
   if (!shop) redirect("/sell");
   await maybeSettle();
   const sp = await searchParams;
+  const desk = <OrdersDesk shop={shop} sp={sp} />;
   const done = sp.tab === "done";
   // Service pros see price requests on their own.
   const requests = !done && sp.show === "requests";
@@ -47,7 +50,14 @@ export default async function ShopOrders({
     .where(
       and(
         eq(orders.shopId, shop.id),
-        inArray(orders.status, done ? ["received", "cancelled"] : requests ? ["requested", "quoted"] : [...TO_DO]),
+        inArray(
+          orders.status,
+          done
+            ? ["received", "cancelled"]
+            : requests
+              ? ["requested", "quoted"]
+              : [...TO_DO],
+        ),
       ),
     )
     .orderBy(
@@ -73,7 +83,7 @@ export default async function ShopOrders({
     { label: string; day: string; rows: typeof rows; make: Map<string, number> }
   >();
   for (const r of rows) {
-    const key = r.order.deliveryDay.toISOString();
+    const key = dateToKey(r.order.deliveryDay);
     if (!days.has(key))
       days.set(key, {
         label: deliveryDayLabel(r.order.deliveryDay),
@@ -83,7 +93,10 @@ export default async function ShopOrders({
       });
     const g = days.get(key)!;
     g.rows.push(r);
-    if (r.order.status !== "cancelled" && ["pickup", "drop_off", "rider"].includes(r.order.method)) {
+    if (
+      r.order.status !== "cancelled" &&
+      ["pickup", "drop_off", "rider"].includes(r.order.method)
+    ) {
       for (const it of items.filter((i) => i.orderId === r.order.id)) {
         const name = [it.name, it.size].filter(Boolean).join(", ");
         g.make.set(name, (g.make.get(name) ?? 0) + it.quantity);
@@ -101,81 +114,94 @@ export default async function ShopOrders({
   );
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-10">
-      <BackBar title={requests ? "Price requests" : "Orders"} href="/shop/manage" />
-      <div className="flex flex-col gap-4 px-4">
-        <div className="flex rounded-full bg-white p-1 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
-          {tab("/shop/manage/orders", "To do", !done)}
-          {tab("/shop/manage/orders?tab=done", "Done", done)}
-        </div>
+    <>
+      {desk}
+      {/* Phones keep the simple list. */}
+      <main className="mx-auto min-h-dvh max-w-md pb-10 lg:hidden">
+        <BackBar
+          title={requests ? "Price requests" : "Orders"}
+          href="/shop/manage"
+        />
+        <div className="flex flex-col gap-4 px-4">
+          <div className="flex rounded-full bg-white p-1 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
+            {tab("/shop/manage/orders", "To do", !done)}
+            {tab("/shop/manage/orders?tab=done", "Done", done)}
+          </div>
 
-        {rows.length === 0 && (
-          <p className="rounded-[20px] border-[1.5px] border-dashed border-[#c8ceda] p-6 text-center text-sm text-muted">
-            {done
-              ? "Finished orders will show here."
-              : "No orders to work on. New ones will show here."}
-          </p>
-        )}
+          {rows.length === 0 && (
+            <p className="rounded-[20px] border-[1.5px] border-dashed border-[#c8ceda] p-6 text-center text-sm text-muted">
+              {done
+                ? "Finished orders will show here."
+                : "No orders to work on. New ones will show here."}
+            </p>
+          )}
 
-        {[...days.values()].map((g) => (
-          <section key={g.label} className="flex flex-col gap-2.5">
-            <h2 className="pt-1 text-base font-extrabold">
-              {g.label}{" "}
-              <span className="text-sm font-semibold text-muted">
-                · {g.rows.length} {g.rows.length === 1 ? "order" : "orders"}
-              </span>
-            </h2>
-            {!done && g.make.size > 0 && (
-              <div className="rounded-[18px] bg-soft px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-deep">To make</p>
-                  <Link href={`/shop/manage/orders/day/${g.day}`} className="flex h-9 items-center rounded-full bg-white px-3 text-[13px] font-bold text-accent">
-                    Day list and rider
-                  </Link>
-                </div>
-                {[...g.make].map(([name, n]) => (
-                  <p key={name} className="text-[15px] font-bold">
-                    {n} × {name}
-                  </p>
-                ))}
-              </div>
-            )}
-            <div className="cards">
-              {g.rows.map(({ order: o, buyer }) => {
-                const s = { label: statusLabel(o.status, o.method, true), tone: SELLER_STATUS[o.status].tone };
-                const lines = items.filter((i) => i.orderId === o.id);
-                return (
-                  <Link
-                    key={o.id}
-                    href={`/shop/manage/orders/${o.code}`}
-                    className={`${card} flex items-center gap-3 p-4`}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-bold">
-                        {buyer}
-                      </span>
-                      <span className="block truncate text-[13px] text-muted">
-                        {lines
-                          .map((l) => `${l.quantity} × ${l.name}`)
-                          .join(", ")}
-                      </span>
-                      <span className="block text-xs font-semibold text-muted">
-                        {o.code} · {METHOD[o.method]} ·{" "}
-                        {naira(o.itemsKobo + o.deliveryFeeKobo)}
-                      </span>
-                    </span>
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${TONE[s.tone]}`}
+          {[...days.values()].map((g) => (
+            <section key={g.label} className="flex flex-col gap-2.5">
+              <h2 className="pt-1 text-base font-extrabold">
+                {g.label}{" "}
+                <span className="text-sm font-semibold text-muted">
+                  · {g.rows.length} {g.rows.length === 1 ? "order" : "orders"}
+                </span>
+              </h2>
+              {!done && g.make.size > 0 && (
+                <div className="rounded-[18px] bg-soft px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-deep">To make</p>
+                    <Link
+                      href={`/shop/manage/orders/day/${g.day}`}
+                      className="flex h-9 items-center rounded-full bg-white px-3 text-[13px] font-bold text-accent"
                     >
-                      {s.label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+                      Day list and rider
+                    </Link>
+                  </div>
+                  {[...g.make].map(([name, n]) => (
+                    <p key={name} className="text-[15px] font-bold">
+                      {n} × {name}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="cards">
+                {g.rows.map(({ order: o, buyer }) => {
+                  const s = {
+                    label: statusLabel(o.status, o.method, true),
+                    tone: SELLER_STATUS[o.status].tone,
+                  };
+                  const lines = items.filter((i) => i.orderId === o.id);
+                  return (
+                    <Link
+                      key={o.id}
+                      href={`/shop/manage/orders/${o.code}`}
+                      className={`${card} flex items-center gap-3 p-4`}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-bold">
+                          {buyer}
+                        </span>
+                        <span className="block truncate text-[13px] text-muted">
+                          {lines
+                            .map((l) => `${l.quantity} × ${l.name}`)
+                            .join(", ")}
+                        </span>
+                        <span className="block text-xs font-semibold text-muted">
+                          {o.code} · {METHOD[o.method]} ·{" "}
+                          {naira(o.itemsKobo + o.deliveryFeeKobo)}
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${TONE[s.tone]}`}
+                      >
+                        {s.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      </main>
+    </>
   );
 }
