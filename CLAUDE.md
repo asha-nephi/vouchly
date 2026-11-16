@@ -56,7 +56,7 @@ src/db/schema.ts      all tables and enums
 src/lib/              business logic (payments, orders, order-status, sessions, discounts,
                       guest, files, photos, listings, notify, sms, paystack ...)
 src/components/       shared UI
-drizzle/              SQL migrations 0000–0009 (all applied on live)
+drizzle/              SQL migrations (all applied on live)
 ```
 
 Key files to understand before changing buying flows:
@@ -71,6 +71,7 @@ Key files to understand before changing buying flows:
   - `requireBuyer()`: guests allowed
 - `src/app/(app)/book/actions.ts`: stays, services, digital, sessions, tickets, quotes.
 - `src/app/(app)/shop/actions.ts` → `saveProduct()`. It handles all six kinds.
+- `src/components/data/`: compact view pieces for seller and admin tables (see `docs/compact-view.md`). `DataTable`, `FilterBar` (saved views in `saved_views`), `ColumnPicker`, `SidePanel` + `DataLayout`, `BulkBar` (+ `runEach()` in `bulk.ts`), `DensitySwitch` (`vl_density` cookie, `getDensity()`), and formula-safe `toCsv()`. Computers only: they hide below `lg`, so each page keeps its phone layout too. Filters, sort, page and `?open=` live in the URL.
 - `src/lib/ai.ts` → `aiJSON()`. The one AI switch every AI feature calls (see "AI help" below).
 
 Order delivery methods: `pickup`, `drop_off`, `rider`, `check_in`, `visit`, `download`, `session`, `event`.

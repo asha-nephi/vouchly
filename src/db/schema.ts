@@ -343,3 +343,13 @@ export const collections = pgTable("collections", {
   productIds: jsonb("product_ids").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("collections_shop_slug_idx").on(t.shopId, t.slug)]);
+
+// Saved filter views and column choices for the seller and admin tables. name "__columns" holds the column list.
+export const savedViews = pgTable("saved_views", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  page: text("page").notNull(),
+  name: text("name").notNull(),
+  query: text("query").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("saved_views_user_page_name_idx").on(t.userId, t.page, t.name)]);
