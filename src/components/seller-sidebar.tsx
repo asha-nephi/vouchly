@@ -8,6 +8,8 @@ import { initials, toneFor } from "@/lib/initials";
 import { sellerNext, TO_DO } from "@/lib/order-status";
 import type { SellerType } from "@/lib/seller-types";
 import { SideLinks, type SideItem } from "@/components/side-nav";
+import { DensitySwitch } from "@/components/data/density-switch";
+import { getDensity } from "@/components/data/density";
 
 const PATH_NAME: Record<SellerType, string> = { service: "Service pro", online: "Online seller", products: "Product seller" };
 
@@ -58,7 +60,7 @@ function menu(type: SellerType, c: { requests: number; other: number; all: numbe
 }
 
 // The navy left sidebar for sellers and admins on computers. Phones never see it.
-export function SideShell({ card, items, foot, children }: { card: React.ReactNode; items: SideItem[]; foot: SideItem[]; children: React.ReactNode }) {
+export function SideShell({ card, items, foot, tools, children }: { card: React.ReactNode; items: SideItem[]; foot: SideItem[]; tools?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="lg:flex lg:min-h-dvh">
       <aside className="sticky top-0 hidden h-dvh w-[250px] shrink-0 flex-col gap-1 overflow-y-auto bg-ink px-3.5 py-5 text-white lg:flex">
@@ -70,6 +72,7 @@ export function SideShell({ card, items, foot, children }: { card: React.ReactNo
           <SideLinks items={items} />
         </Suspense>
         <div className="mt-auto flex flex-col gap-1 border-t border-white/12 pt-[18px]">
+          {tools && <div className="px-1 pb-2">{tools}</div>}
           {foot.map((f) => (
             <Link key={f.href} href={f.href} className="flex h-10 items-center rounded-[10px] px-3 text-sm font-bold text-[#C9D3EE] hover:bg-white/6 hover:text-white">
               {f.label}
@@ -83,7 +86,7 @@ export function SideShell({ card, items, foot, children }: { card: React.ReactNo
 }
 
 export default async function SellerSidebar({ shop, children }: { shop: { id: string; name: string; slug: string; isOpen: boolean; sellerType: SellerType }; children: React.ReactNode }) {
-  const [counts, me] = await Promise.all([waitingCounts(shop.id), currentUser()]);
+  const [counts, me, density] = await Promise.all([waitingCounts(shop.id), currentUser(), getDensity("seller")]);
   const card = (
     <div className="flex items-center gap-2.5 rounded-[14px] bg-white/8 p-3">
       <span className="grid size-[38px] shrink-0 place-items-center rounded-[11px] text-sm font-extrabold" style={{ background: toneFor(shop.name) }} aria-hidden="true">
@@ -105,6 +108,12 @@ export default async function SellerSidebar({ shop, children }: { shop: { id: st
         { href: `/s/${shop.slug}`, label: "View my page" },
         { href: "/home", label: "Switch to buying" },
       ]}
+      tools={
+        <>
+          <p className="px-1.5 pb-1.5 text-[11px] font-extrabold uppercase tracking-wide text-[#AFC0F5]">Table size</p>
+          <DensitySwitch value={density} dark />
+        </>
+      }
     >
       {children}
     </SideShell>
