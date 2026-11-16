@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { clip, shareMeta } from "@/lib/share-meta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverySettings, products, reviews, savedShops, shops, users } from "@/db/schema";
+import { collections, deliverySettings, products, reviews, savedShops, shops, users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { basketStart } from "@/lib/basket-view";
 import { categoryLabel, cutoffLabel, naira } from "@/lib/catalog";
@@ -23,10 +23,24 @@ import { initials, toneFor } from "@/lib/initials";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ c?: string }> }): Promise<Metadata> {
   const { slug } = await params;
+  const { c } = await searchParams;
   const [shop] = await db.select().from(shops).where(eq(shops.slug, slug)).limit(1);
   if (!shop) return { title: "Shop not found" };
+  // A shared collection link gets its own title and first photo.
+  const [col] = c ? await db.select().from(collections).where(and(eq(collections.shopId, shop.id), eq(collections.slug, c))).limit(1) : [];
+  if (col) {
+    const [firstPhoto] = col.productIds.length
+      ? await db.select({ photos: products.photos }).from(products).where(and(inArray(products.id, col.productIds), eq(products.isActive, true), eq(products.removed, false))).limit(1)
+      : [];
+    return shareMeta({
+      title: `${col.name} from ${shop.name}`,
+      description: `${col.name} from ${shop.name}, a Latter-day Saint business in ${shop.area}, Lagos. Order and pay safely on Vouchly.`,
+      path: `/s/${shop.slug}?c=${col.slug}`,
+      photo: firstPhoto?.photos[0] ?? shop.coverPhoto,
+    });
+  }
   const [first] = await db
     .select({ photos: products.photos })
     .from(products)
@@ -51,10 +65,10 @@ const GROUPS = [
 
 const sizes = "(min-width: 1024px) 300px, (min-width: 768px) 22rem, 50vw";
 
-export default async function ShopPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ k?: string }> }) {
+export default async function ShopPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ k?: string; c?: string }> }) {
   const me = await currentUser();
   const { slug } = await params;
-  const { k } = await searchParams;
+  const { k, c } = await searchParams;
   const [row] = await db
     .select({ shop: shops, ward: users.ward, confirmed: users.confirmed })
     .from(shops)
@@ -67,7 +81,7 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
   // Shops of members still waiting for confirmation are hidden, except to them and ward contacts.
   if (!confirmed && !isMine && me?.role !== "admin" && me?.role !== "ward_contact") notFound();
 
-  const [items, [d], basket, shopReviews, stats, saved] = await Promise.all([
+  const [items, [d], basket, shopReviews, stats, saved, cols] = await Promise.all([
     db
       .select()
       .from(products)
@@ -86,14 +100,27 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
     me && !me.isGuest
       ? db.select({ id: savedShops.shopId }).from(savedShops).where(and(eq(savedShops.userId, me.id), eq(savedShops.shopId, shop.id))).limit(1)
       : [],
+    db.select().from(collections).where(eq(collections.shopId, shop.id)).orderBy(asc(collections.createdAt)),
   ]);
   const when = new Intl.DateTimeFormat("en-NG", { month: "short", year: "numeric", timeZone: "Africa/Lagos" });
   const since = new Intl.DateTimeFormat("en-NG", { year: "numeric", timeZone: "Africa/Lagos" }).format(shop.createdAt);
   const canBuy = shop.isOpen && !isMine;
 
   const chips = GROUPS.map((g) => ({ ...g, n: items.filter((i) => (g.kinds as readonly string[]).includes(i.kind)).length })).filter((g) => g.n > 0);
-  const active = chips.find((c) => c.key === k);
-  const shown = active ? items.filter((i) => (active.kinds as readonly string[]).includes(i.kind)) : items;
+  // Collections the seller made, as chips first. Only ones with something for sale.
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const colChips = cols
+    .map((col) => ({ key: `c:${col.slug}`, slug: col.slug, label: col.name, list: col.productIds.map((id) => byId.get(id)).filter((i) => i !== undefined) }))
+    .filter((col) => col.list.length > 0);
+  const activeCol = colChips.find((col) => col.slug === c);
+  const active = activeCol ? undefined : chips.find((g) => g.key === k);
+  const shown = activeCol ? activeCol.list : active ? items.filter((i) => (active.kinds as readonly string[]).includes(i.kind)) : items;
+  const allChips = [
+    { key: "", label: "All", n: items.length, href: `/s/${shop.slug}` },
+    ...colChips.map((col) => ({ key: col.key, label: col.label, n: col.list.length, href: `/s/${shop.slug}?c=${col.slug}` })),
+    ...(chips.length > 1 ? chips.map((g) => ({ key: g.key, label: g.label, n: g.n, href: `/s/${shop.slug}?k=${g.key}` })) : []),
+  ];
+  const onKey = activeCol?.key ?? active?.key ?? "";
 
   // Next delivery for ready-made and pre-order items.
   const hasItems = items.some((i) => i.kind === "item");
@@ -187,14 +214,14 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
           )}
         </div>
 
-        {chips.length > 1 && (
+        {allChips.length > 1 && (
           <nav aria-label="Filter listings" className="hide-scroll flex gap-2 overflow-x-auto px-4 pb-1 pt-5 lg:px-0">
-            {[{ key: "", label: "All", n: items.length }, ...chips].map((c) => {
-              const on = (c.key || undefined) === active?.key;
+            {allChips.map((c) => {
+              const on = c.key === onKey;
               return (
                 <Link
                   key={c.key}
-                  href={c.key ? `/s/${shop.slug}?k=${c.key}` : `/s/${shop.slug}`}
+                  href={c.href}
                   replace
                   scroll={false}
                   aria-current={on ? "true" : undefined}
@@ -208,6 +235,17 @@ export default async function ShopPage({ params, searchParams }: { params: Promi
         )}
 
         <section className="px-4 pt-3.5 lg:px-0">
+          {activeCol && (
+            <div className="mb-3.5 flex items-center justify-between gap-3">
+              <h2 className="min-w-0 text-xl font-extrabold leading-tight">{activeCol.label}</h2>
+              <ShareButton
+                title={`${activeCol.label} from ${shop.name}`}
+                text={`${activeCol.label} from ${shop.name} on Vouchly`}
+                path={`/s/${shop.slug}?c=${activeCol.slug}`}
+                className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white"
+              />
+            </div>
+          )}
           {items.length === 0 ? (
             <div className="rounded-[22px] border-[1.5px] border-dashed border-[#c8ceda] p-8 text-center">
               <p className="text-[15px] font-bold">Nothing for sale yet</p>

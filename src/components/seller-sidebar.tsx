@@ -25,6 +25,7 @@ export async function waitingCounts(shopId: string) {
 // The menu a seller sees first depends on the path they picked.
 function menu(type: SellerType, c: { requests: number; other: number; all: number }): SideItem[] {
   const tail: SideItem[] = [
+    { href: "/shop/manage/collections", label: "Collections" },
     { href: "/shop/manage/discounts", label: "Discounts" },
     { href: "/shop/manage/payout", label: "Payout account" },
     { href: "/shop/manage/edit", label: "Shop settings" },
