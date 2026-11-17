@@ -199,6 +199,7 @@ export const products = pgTable("products", {
   isActive: boolean("is_active").notNull().default(true), // seller paused it
   removed: boolean("removed").notNull().default(false), // seller deleted it
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(), // last change by the seller
 }, (t) => [index("products_shop_idx").on(t.shopId)]);
 
 export const deliverySettings = pgTable("delivery_settings", {

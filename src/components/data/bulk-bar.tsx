@@ -6,7 +6,8 @@ import { useSelection } from "./selection";
 import type { BulkResult } from "./bulk";
 import { downloadCsv, type ExportAction } from "./export-button";
 
-export type BulkAction = { label: string; run: (ids: string[]) => Promise<BulkResult>; confirm?: string };
+// pick: the action needs one choice first, like which collection.
+export type BulkAction = { label: string; run: (ids: string[], value?: string) => Promise<BulkResult>; confirm?: string; pick?: { value: string; label: string }[] };
 
 const OFFLINE = "Couldn't reach Vouchly. Check your connection and try again.";
 
@@ -22,14 +23,14 @@ export function BulkBar({ actions, exportCsv, query, filename }: { actions: Bulk
   const n = sel.picked.size;
   if (!n && !result && !error) return null;
 
-  const run = (a: BulkAction) => {
+  const run = (a: BulkAction, value?: string) => {
     if (a.confirm && !window.confirm(a.confirm.replace("{n}", String(n)))) return;
     const ids = sel.ids;
     setError("");
     setResult(null);
     setBusy(a.label);
     start(async () => {
-      const res = await a.run(ids).catch(() => null);
+      const res = await a.run(ids, value).catch(() => null);
       setBusy("");
       if (!res) return setError(OFFLINE);
       setResult({ label: a.label, res });
@@ -58,11 +59,29 @@ export function BulkBar({ actions, exportCsv, query, filename }: { actions: Bulk
       <div className="flex flex-wrap items-center gap-1.5">
         {n > 0 && <span className="pr-1.5 text-[13px] font-extrabold">{n} selected</span>}
         {n > 0 &&
-          actions.map((a) => (
-            <button key={a.label} type="button" disabled={pending} onClick={() => run(a)} className={`${btn} bg-white/12 hover:bg-white/20`}>
-              {busy === a.label ? "Working…" : a.label}
-            </button>
-          ))}
+          actions.map((a) =>
+            a.pick ? (
+              <select
+                key={a.label}
+                aria-label={a.label}
+                disabled={pending}
+                value=""
+                onChange={(e) => e.target.value && run(a, e.target.value)}
+                className={`${btn} cursor-pointer border-0 bg-white/12 pr-7 text-white hover:bg-white/20 [&>option]:text-ink`}
+              >
+                <option value="">{busy === a.label ? "Working…" : `${a.label}…`}</option>
+                {a.pick.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <button key={a.label} type="button" disabled={pending} onClick={() => run(a)} className={`${btn} bg-white/12 hover:bg-white/20`}>
+                {busy === a.label ? "Working…" : a.label}
+              </button>
+            ),
+          )}
         {n > 0 && exportCsv && (
           <button type="button" disabled={pending} onClick={exportPicked} className={`${btn} bg-white/12 hover:bg-white/20`}>
             {busy === "Export CSV" ? "Making file…" : "Export CSV"}

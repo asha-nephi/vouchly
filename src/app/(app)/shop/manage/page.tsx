@@ -492,6 +492,11 @@ export default async function MyShop({ searchParams }: { searchParams: Promise<{
           <div className="mb-2.5 flex items-baseline justify-between">
             <h2 className="text-[17px] font-extrabold">{type === "service" ? "My services" : "Your listings"}</h2>
             <span className="flex gap-4">
+              {items.length > 0 && (
+                <Link href="/shop/manage/listings" className="hidden text-sm font-bold text-accent lg:inline">
+                  Manage all listings
+                </Link>
+              )}
               {items.length > 1 && (
                 <Link href="/shop/manage/collections" className="text-sm font-bold text-accent">
                   Collections

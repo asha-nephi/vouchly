@@ -37,7 +37,7 @@ function menu(type: SellerType, c: { requests: number; other: number; all: numbe
       { href: "/shop/manage", label: "Overview" },
       { href: "/shop/manage/orders?show=requests", label: "Requests", count: c.requests },
       { href: "/shop/manage/orders", label: "Bookings", count: c.other },
-      { href: "/shop/manage#listings", label: "My services" },
+      { href: "/shop/manage/listings", label: "My services" },
       { href: "/shop/manage/sales", label: "Sales" },
       ...tail,
     ];
@@ -46,14 +46,14 @@ function menu(type: SellerType, c: { requests: number; other: number; all: numbe
       { href: "/shop/manage", label: "Overview" },
       { href: "/shop/manage/sales", label: "Sales" },
       { href: "/shop/manage/orders", label: "Sessions and tickets", count: c.all },
-      { href: "/shop/manage#listings", label: "Classes and downloads" },
+      { href: "/shop/manage/listings", label: "Classes and downloads" },
       ...tail,
     ];
   return [
     { href: "/shop/manage", label: "Overview" },
     { href: "/shop/manage/orders", label: "Orders", count: c.all },
     { href: "/shop/manage/delivery", label: "Delivery days" },
-    { href: "/shop/manage#listings", label: "Products" },
+    { href: "/shop/manage/listings", label: "Products" },
     { href: "/shop/manage/sales", label: "Sales" },
     ...tail,
   ];

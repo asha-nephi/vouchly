@@ -13,6 +13,7 @@ import { AMENITIES, CHECK_TIMES } from "@/lib/listings";
 import { saveFile } from "@/lib/files";
 import { myShop } from "@/lib/shops";
 import { wakeWaitlist } from "@/lib/stock";
+import { copyListing } from "@/lib/copy-listing";
 import { cookies } from "next/headers";
 import { categoryFor, cleanTrades, isSellerType, PATH_COOKIE, type SellerType } from "@/lib/seller-types";
 
@@ -279,6 +280,7 @@ export async function saveProduct(_: ShopFormState, form: FormData): Promise<Sho
     fileId: kind === "digital" ? file!.id : null,
     fileName: kind === "digital" ? file!.name : null,
     fileSize: kind === "digital" ? file!.bytes : null,
+    updatedAt: new Date(),
   } as const;
   if (id) {
     await db.update(products).set(data).where(and(eq(products.id, id), eq(products.shopId, shop.id)));
@@ -304,19 +306,10 @@ export async function deleteProduct(form: FormData): Promise<void> {
 // Makes a new listing from an old one. It starts hidden so the seller can change it first.
 export async function copyProduct(form: FormData): Promise<void> {
   const { shop } = await requireShop();
-  const id = String(form.get("id") ?? "");
-  if (!/^[0-9a-f-]{36}$/.test(id)) redirect("/shop/manage");
-  const [p] = await db.select().from(products).where(and(eq(products.id, id), eq(products.shopId, shop.id), eq(products.removed, false))).limit(1);
-  if (!p) redirect("/shop/manage");
-  const rest: Partial<typeof p> = { ...p };
-  delete rest.id;
-  delete rest.createdAt;
-  const [copy] = await db
-    .insert(products)
-    .values({ ...(rest as Omit<typeof p, "id" | "createdAt">), name: `${p.name} (copy)`.slice(0, 80), isActive: false })
-    .returning({ id: products.id });
+  const copy = await copyListing(shop.id, String(form.get("id") ?? ""));
+  if (!copy) redirect("/shop/manage");
   revalidatePath("/shop/manage");
-  redirect(`/shop/manage/products/${copy.id}?copied=1`);
+  redirect(`/shop/manage/products/${copy}?copied=1`);
 }
 
 export async function saveDelivery(_: ShopFormState, form: FormData): Promise<ShopFormState> {
