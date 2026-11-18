@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { currentUser, makeInviteCode, startSession } from "./auth";
 import { normalizePhone } from "./phone";
+import { allow, clientIp } from "./rate-limit";
 
 export type GuestValues = { guestName: string; guestPhone: string; guestEmail: string };
 
@@ -28,6 +29,8 @@ export async function buyerFor(form: FormData): Promise<{ user: typeof users.$in
   const [member] = await db.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), eq(users.isGuest, false))).limit(1);
   if (member) return { error: "This number has a Vouchly account. Please log in first, then come back to buy." };
 
+  // Stops a script from filling the site with fake guests.
+  if (!allow(`guest:${await clientIp()}`, 10, 60 * 60_000)) return { error: "Too many orders from this device. Please wait a while and try again." };
   const [guest] = await db
     .insert(users)
     .values({ name: v.guestName, phone, email: v.guestEmail || null, ward: "Guest", inviteCode: `G${makeInviteCode()}${makeInviteCode()}`, isGuest: true })

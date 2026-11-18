@@ -1,3 +1,4 @@
+import { escLike } from "@/lib/like";
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, inArray, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
@@ -84,7 +85,7 @@ export function orderFilters(shopId: string, sp: Params, codes?: string[]) {
   if (day) parts.push(gte(orders.deliveryDay, keyToDate(day[0])), lt(orders.deliveryDay, keyToDate(day[1])));
   const placed = dayRange(f.placed, f.placed_from, f.placed_to, true);
   if (placed) parts.push(gte(orders.createdAt, keyToDate(placed[0])), lt(orders.createdAt, keyToDate(placed[1])));
-  if (st.q) parts.push(or(ilike(users.name, `%${st.q}%`), ilike(orders.code, `%${st.q}%`)));
+  if (st.q) parts.push(or(ilike(users.name, `%${escLike(st.q)}%`), ilike(orders.code, `%${escLike(st.q)}%`)));
   if (codes) parts.push(inArray(orders.code, codes.length ? codes : ["-"]));
   const col = { placed: orders.createdAt, day: orders.deliveryDay, buyer: users.name, total: sql`${orders.itemsKobo} + ${orders.deliveryFeeKobo}` }[st.sort as "placed"];
   // Ties keep a fixed order, so rows don't jump about.

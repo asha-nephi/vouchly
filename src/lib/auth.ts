@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 
@@ -38,6 +38,13 @@ export async function endSession() {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) await db.delete(sessions).where(eq(sessions.tokenHash, hash(token)));
   jar.delete(SESSION_COOKIE);
+}
+
+// Signs out every other device for this person. Their current device stays signed in.
+export async function endOtherSessions(userId: string) {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const mine = eq(sessions.userId, userId);
+  await db.delete(sessions).where(token ? and(mine, ne(sessions.tokenHash, hash(token))) : mine);
 }
 
 // The signed-in member, or null.

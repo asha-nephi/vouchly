@@ -1,3 +1,4 @@
+import { escLike } from "@/lib/like";
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
@@ -47,7 +48,7 @@ export async function loadPayments(sp: Params, opts: { all?: boolean; ids?: stri
   const r = range(f);
   if (r) parts.push(gte(payments.createdAt, keyToDate(r[0])), lt(payments.createdAt, keyToDate(r[1])));
   if (f.shop && /^[0-9a-f-]{36}$/.test(f.shop)) parts.push(eq(orders.shopId, f.shop));
-  if (st.q) parts.push(or(ilike(payments.paystackReference, `%${st.q}%`), ilike(orders.code, `%${st.q}%`)));
+  if (st.q) parts.push(or(ilike(payments.paystackReference, `%${escLike(st.q)}%`), ilike(orders.code, `%${escLike(st.q)}%`)));
   if (opts.ids) parts.push(inArray(payments.id, opts.ids.length ? opts.ids : ["00000000-0000-0000-0000-000000000000"]));
   const where = and(...parts);
   const col = { date: payments.createdAt, amount: payments.amountKobo, fee: payments.feeKobo }[st.sort as "date"];

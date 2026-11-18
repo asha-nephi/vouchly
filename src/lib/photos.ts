@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import sharp from "sharp";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { photos } from "@/db/schema";
@@ -45,16 +46,28 @@ export const isOurPhoto = (url: string) => LOCAL.test(url) || isR2Photo(url);
 export async function savePhoto(ownerId: string, file: File): Promise<string> {
   if (!ALLOWED.includes(file.type)) throw new Error("Please use a JPG, PNG or WebP photo.");
   if (file.size > MAX_BYTES) throw new Error("That photo is too big. Please pick a smaller one.");
-  const data = Buffer.from(await file.arrayBuffer());
+  // Make a fresh copy of the picture. This proves it is a real photo and drops hidden data like GPS.
+  let data: Buffer;
+  try {
+    data = await sharp(Buffer.from(await file.arrayBuffer()), { limitInputPixels: 40_000_000 })
+      .timeout({ seconds: 10 })
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+  } catch {
+    throw new Error("That doesn't look like a photo we can use. Please try another one.");
+  }
+  const mime = "image/webp";
 
   if (r2) {
-    const key = `p/${ownerId}/${randomUUID()}.${EXT[file.type]}`;
+    const key = `p/${ownerId}/${randomUUID()}.${EXT[mime]}`;
     await r2.send(
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET ?? "vouchly-photos",
         Key: key,
         Body: data,
-        ContentType: file.type,
+        ContentType: mime,
         CacheControl: "public, max-age=31536000, immutable",
       }),
     );
@@ -63,7 +76,7 @@ export async function savePhoto(ownerId: string, file: File): Promise<string> {
 
   const [row] = await db
     .insert(photos)
-    .values({ ownerId, mime: file.type, bytes: data.length, data })
+    .values({ ownerId, mime, bytes: data.length, data })
     .returning({ id: photos.id });
   return photoUrl(row.id);
 }

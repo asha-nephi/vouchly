@@ -29,6 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
       "Content-Type": file.mime,
       "Content-Disposition": `attachment; filename="${file.name.replace(/"/g, "")}"`,
       "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

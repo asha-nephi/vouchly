@@ -11,6 +11,7 @@ import { MAX_QTY, readBasket } from "@/lib/basket";
 import { AREAS } from "@/lib/catalog";
 import { holdMode, nextDeliveryDay } from "@/lib/orders";
 import { paystackReady } from "@/lib/paystack";
+import { allow, clientIp } from "@/lib/rate-limit";
 import { newOrderCode, startPayment } from "@/lib/start-payment";
 import { heldByOthers } from "@/lib/stock";
 
@@ -103,6 +104,7 @@ export async function placeOrder(_: CheckoutState, form: FormData): Promise<Chec
   const totalKobo = itemsKobo + deliveryFeeKobo;
 
   if (!paystackReady()) return fail("Payments aren't switched on yet. Please try again later.");
+  if (!allow(`order:${await clientIp()}`, 20, 10 * 60_000)) return fail("Too many orders from this device. Please wait a few minutes and try again.");
 
   // Signed-in buyer, or a guest made from the name and phone they typed.
   const who = await buyerFor(form);
