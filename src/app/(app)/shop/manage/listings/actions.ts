@@ -28,13 +28,18 @@ async function shop() {
 function redraw(slug: string, ids: string[] = []) {
   revalidatePath("/shop/manage");
   revalidatePath(LISTINGS_PAGE);
+  revalidatePath("/shop/manage/collections", "layout");
   revalidatePath(`/s/${slug}`);
   for (const id of ids.slice(0, 20)) revalidatePath(`/p/${id}`);
 }
 
 async function mine(shopId: string, id: string) {
   if (!isId(id)) return null;
-  const [p] = await db.select().from(products).where(and(eq(products.id, id), eq(products.shopId, shopId), eq(products.removed, false))).limit(1);
+  const [p] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, id), eq(products.shopId, shopId), eq(products.removed, false)))
+    .limit(1);
   return p ?? null;
 }
 
@@ -87,7 +92,12 @@ async function bulk(ids: string[], fn: (shopId: string, p: typeof products.$infe
   const s = await shop();
   const list = Array.isArray(ids) ? ids.filter(isId).slice(0, 100) : [];
   if (!s) return { done: 0, total: list.length, failed: list.map((id) => ({ id, label: "Listing", error: "Please log in again." })) };
-  const rows = list.length ? await db.select().from(products).where(and(inArray(products.id, list), eq(products.shopId, s.id), eq(products.removed, false))) : [];
+  const rows = list.length
+    ? await db
+        .select()
+        .from(products)
+        .where(and(inArray(products.id, list), eq(products.shopId, s.id), eq(products.removed, false)))
+    : [];
   const name = (id: string) => rows.find((r) => r.id === id)?.name ?? "Listing";
   const res = await runEach(list, name, async (id) => {
     const p = rows.find((r) => r.id === id);
@@ -121,7 +131,14 @@ export async function bulkCopy(ids: string[]) {
 
 export async function bulkAddTo(ids: string[], collectionId?: string) {
   const s = await shop();
-  const [c] = s && isId(collectionId) ? await db.select().from(collections).where(and(eq(collections.id, collectionId), eq(collections.shopId, s.id))).limit(1) : [];
+  const [c] =
+    s && isId(collectionId)
+      ? await db
+          .select()
+          .from(collections)
+          .where(and(eq(collections.id, collectionId), eq(collections.shopId, s.id)))
+          .limit(1)
+      : [];
   if (!c) return { done: 0, total: ids.length, failed: ids.slice(0, 100).map((id) => ({ id, label: "Listing", error: "We couldn't find that collection." })) };
   const now = [...c.productIds];
   const res = await bulk(ids, async (_, p) => {
@@ -131,7 +148,37 @@ export async function bulkAddTo(ids: string[], collectionId?: string) {
     return null;
   });
   if (now.length !== c.productIds.length) await db.update(collections).set({ productIds: now }).where(eq(collections.id, c.id));
-  revalidatePath("/shop/manage/collections");
+  revalidatePath("/shop/manage/collections", "layout");
+  return res;
+}
+
+// Inside one collection: take the ticked listings out. The listings themselves stay.
+export async function bulkRemoveFrom(collectionId: string, ids: string[]) {
+  const s = await shop();
+  const [c] =
+    s && isId(collectionId)
+      ? await db
+          .select()
+          .from(collections)
+          .where(and(eq(collections.id, collectionId), eq(collections.shopId, s.id)))
+          .limit(1)
+      : [];
+  const list = Array.isArray(ids) ? ids.filter(isId).slice(0, 100) : [];
+  if (!c || !s) return { done: 0, total: list.length, failed: list.map((id) => ({ id, label: "Listing", error: "We couldn't find that collection." })) };
+  const now = c.productIds.filter((id) => !list.includes(id));
+  const names = list.length
+    ? await db
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(and(inArray(products.id, list), eq(products.shopId, s.id)))
+    : [];
+  const res = await runEach(
+    list,
+    (id) => names.find((n) => n.id === id)?.name ?? "Listing",
+    async (id) => (c.productIds.includes(id) ? null : "It wasn't in this collection."),
+  );
+  if (now.length !== c.productIds.length) await db.update(collections).set({ productIds: now }).where(eq(collections.id, c.id));
+  redraw(s.slug);
   return res;
 }
 

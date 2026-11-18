@@ -15,7 +15,7 @@ export default function CollectionForm({ id, name, picked, listings }: { id?: st
     <form key={JSON.stringify(v ?? null)} action={action} className="flex flex-col gap-3.5 rounded-[20px] bg-white p-4 shadow-[0_1px_3px_rgba(20,33,61,0.08)]">
       {id && <input type="hidden" name="id" value={id} />}
       <Field label="Name" name="name" placeholder="e.g. Christmas gifts" defaultValue={v?.name ?? name ?? ""} />
-      <fieldset className="flex flex-col gap-2">
+      <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="mb-1.5 text-[13px] font-bold">What goes in it</legend>
         {listings.length === 0 && <p className="text-[13px] text-muted">Add a listing first, then make a collection.</p>}
         {listings.map((l) => (

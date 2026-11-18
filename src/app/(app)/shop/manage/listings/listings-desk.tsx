@@ -13,7 +13,7 @@ import { getColumns } from "@/components/data/views";
 import { hrefWith, viewQuery, type Params } from "@/components/data/params";
 import { KIND_FILTER, loadListings, SOLD_OUT_FILTER, SOLD_WEEK_FILTER, STATUS_FILTER, type ListingRow } from "./listings-query";
 import { LISTING_COLUMN_IDS, LISTING_COLUMNS, LISTING_DEFAULT, LISTINGS_PAGE } from "./listing-columns";
-import { bulkAddTo, bulkCopy, bulkOff, bulkOn, exportListings } from "./actions";
+import { bulkAddTo, bulkCopy, bulkOff, bulkOn, bulkRemoveFrom, exportListings } from "./actions";
 import { ActiveSwitch } from "./inline-edit";
 
 // Quick view of one listing in the side panel.
@@ -72,11 +72,36 @@ function QuickView({ r, ai }: { r: ListingRow; ai: boolean }) {
   );
 }
 
+// Saved views for the inside-a-collection table, shared by every collection.
+const IN_COLLECTION_PAGE = "/shop/manage/collections/one";
+
 // Listings on a computer: a table with filters, saved views, in-row editing, a side panel and bulk actions.
-export async function ListingsDesk({ shopId, sp, ai, title }: { shopId: string; sp: Params; ai: boolean; title: string }) {
-  const [density, visible, { st, rows, total, collections }] = await Promise.all([getDensity("seller"), getColumns(LISTINGS_PAGE, LISTING_COLUMN_IDS, LISTING_DEFAULT), loadListings(shopId, sp)]);
-  const open = st.open ? (await loadListings(shopId, {}, { all: true, ids: [st.open] })).rows[0] : null;
+// With `collection`, it shows only that collection, and can take listings out of it.
+export async function ListingsDesk({
+  shopId,
+  sp,
+  ai,
+  title,
+  collection,
+  head,
+  panel,
+}: {
+  shopId: string;
+  sp: Params;
+  ai: boolean;
+  title: string;
+  collection?: { id: string; path: string };
+  head?: React.ReactNode;
+  panel?: React.ReactNode;
+}) {
+  const path = collection?.path ?? LISTINGS_PAGE;
+  const scoped = collection ? { ...sp, collection: collection.id } : sp;
+  const [density, visible, { st, rows, total, collections }] = await Promise.all([getDensity("seller"), getColumns(LISTINGS_PAGE, LISTING_COLUMN_IDS, LISTING_DEFAULT), loadListings(shopId, scoped)]);
+  const open = st.open && !panel ? (await loadListings(shopId, {}, { all: true, ids: [st.open] })).rows[0] : null;
   const query = viewQuery(sp);
+  // CSV keeps the collection, even though it isn't in the address.
+  const csvQuery = viewQuery(scoped);
+  const others = collections.filter((c) => c.id !== collection?.id);
 
   return (
     <main className="hidden px-8 py-6 lg:block">
@@ -85,30 +110,37 @@ export async function ListingsDesk({ shopId, sp, ai, title }: { shopId: string; 
           <h1 className="text-[26px] font-extrabold tracking-[-0.02em]">{title}</h1>
           <span className="text-sm font-semibold text-muted">{total} shown</span>
         </div>
-        <Link href="/shop/manage/products/new" className="inline-flex h-10 items-center rounded-xl bg-accent px-4 text-sm font-extrabold text-white">
-          + Add a listing
-        </Link>
+        {head ?? (
+          <Link href="/shop/manage/products/new" className="inline-flex h-10 items-center rounded-xl bg-accent px-4 text-sm font-extrabold text-white">
+            + Add a listing
+          </Link>
+        )}
       </div>
       <DataLayout
         panel={
-          open && (
-            <SidePanel title={open.p.name} sub={`${KIND_LABEL[open.p.kind]} · ${open.p.priceType === "quote" ? "Price after a chat" : naira(open.p.priceKobo)}`} closeHref={hrefWith(LISTINGS_PAGE, sp, { open: null })}>
+          panel ||
+          (open && (
+            <SidePanel
+              title={open.p.name}
+              sub={`${KIND_LABEL[open.p.kind]} · ${open.p.priceType === "quote" ? "Price after a chat" : naira(open.p.priceKobo)}`}
+              closeHref={hrefWith(path, sp, { open: null })}
+            >
               <QuickView r={open} ai={ai} />
             </SidePanel>
-          )
+          ))
         }
       >
         <FilterBar
-          path={LISTINGS_PAGE}
+          path={path}
           sp={sp}
-          page={LISTINGS_PAGE}
+          page={collection ? IN_COLLECTION_PAGE : LISTINGS_PAGE}
           search="Search listings"
           filters={[
             { id: "kind", label: "Kind", options: KIND_FILTER },
             { id: "status", label: "On or off", options: STATUS_FILTER },
             { id: "soldout", label: "Sold out", options: SOLD_OUT_FILTER },
             { id: "sold", label: "Sales this week", options: SOLD_WEEK_FILTER },
-            ...(collections.length ? [{ id: "collection", label: "Collection", options: collections.map((c) => ({ value: c.id, label: c.name })) }] : []),
+            ...(collections.length && !collection ? [{ id: "collection", label: "Collection", options: collections.map((c) => ({ value: c.id, label: c.name })) }] : []),
           ]}
           presets={[
             { name: "Sold out", query: "soldout=yes" },
@@ -117,14 +149,14 @@ export async function ListingsDesk({ shopId, sp, ai, title }: { shopId: string; 
           ]}
           tools={
             <>
-              <ExportButton action={exportListings} query={query} filename="vouchly-listings" />
+              <ExportButton action={exportListings} query={csvQuery} filename="vouchly-listings" />
               <ColumnPicker page={LISTINGS_PAGE} columns={LISTING_COLUMNS.map(({ id, label }) => ({ id, label }))} visible={visible} fallback={LISTING_DEFAULT} locked={["name"]} />
             </>
           }
         />
         <DataTable
           label="Listings"
-          path={LISTINGS_PAGE}
+          path={path}
           sp={sp}
           state={st}
           columns={LISTING_COLUMNS}
@@ -140,16 +172,21 @@ export async function ListingsDesk({ shopId, sp, ai, title }: { shopId: string; 
               actions={[
                 { label: "Switch on", run: bulkOn },
                 { label: "Switch off", run: bulkOff, confirm: "Hide {n} listings from buyers?" },
-                ...(collections.length ? [{ label: "Add to collection", run: bulkAddTo, pick: collections.map((c) => ({ value: c.id, label: c.name })) }] : []),
+                ...(collection
+                  ? [{ label: "Remove from collection", run: bulkRemoveFrom.bind(null, collection.id), confirm: "Take {n} listings out of this collection? The listings stay in your shop." }]
+                  : []),
+                ...(others.length ? [{ label: collection ? "Add to another collection" : "Add to collection", run: bulkAddTo, pick: others.map((c) => ({ value: c.id, label: c.name })) }] : []),
                 { label: "Copy", run: bulkCopy, confirm: "Make a hidden copy of {n} listings? (Up to 20 at a time.)" },
               ]}
               exportCsv={exportListings}
-              query={query}
+              query={csvQuery}
               filename="vouchly-listings"
             />
           }
           empty={
-            query ? (
+            collection && !query ? (
+              "Nothing in this collection yet. Use Edit to add listings."
+            ) : query ? (
               "No listings match these filters."
             ) : (
               <>
