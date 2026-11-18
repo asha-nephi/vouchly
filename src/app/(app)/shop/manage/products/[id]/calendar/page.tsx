@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,6 +9,7 @@ import { todayKey } from "@/lib/dates";
 import { myShop } from "@/lib/shops";
 import { BackBar, Note } from "@/components/ui";
 import BlockForm from "./block-form";
+import StayTabs from "../bookings/stay-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +32,18 @@ export default async function StayCalendar({ params, searchParams }: { params: P
   const { saved } = await searchParams;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-10">
-      <BackBar title="Calendar" href={`/shop/manage/products/${p.id}`} />
-      <div className="flex flex-col gap-4 px-4">
-        <p className="text-[15px] font-extrabold">{p.name}</p>
+    <main className="mx-auto min-h-dvh max-w-md pb-10 lg:max-w-none lg:px-8 lg:py-6">
+      <div className="lg:hidden">
+        <BackBar title="Calendar" href={`/shop/manage/products/${p.id}`} />
+      </div>
+      <StayTabs id={p.id} name={p.name} on="calendar" />
+      <div className="flex flex-col gap-4 px-4 lg:max-w-[540px] lg:px-0">
+        <div className="flex items-center justify-between gap-3 lg:hidden">
+          <p className="min-w-0 truncate text-[15px] font-extrabold">{p.name}</p>
+          <Link href={`/shop/manage/products/${p.id}/bookings`} className="shrink-0 text-sm font-bold text-accent">
+            See bookings
+          </Link>
+        </div>
         {saved && <Note tone="green">Calendar saved.</Note>}
         <Note>Tap nights you can&apos;t host to block them. Tap again to free them. Booked nights are blue.</Note>
         <BlockForm id={p.id} today={today} blocked={blocked} booked={booked} />
