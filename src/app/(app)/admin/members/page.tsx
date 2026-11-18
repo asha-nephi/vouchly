@@ -8,12 +8,15 @@ import { maskPhone } from "@/lib/phone";
 import { confirmMember } from "../../../actions";
 import { BackBar } from "@/components/ui";
 import SubmitButton from "@/components/submit-button";
+import type { Params } from "@/components/data/params";
+import { MembersDesk } from "./members-desk";
 
 export const dynamic = "force-dynamic";
 
-export default async function Members() {
+export default async function Members({ searchParams }: { searchParams: Promise<Params> }) {
   const me = await requireUser();
   if (me.role !== "ward_contact" && me.role !== "admin") redirect("/home");
+  const sp = await searchParams;
 
   const inviter = alias(users, "inviter");
   const rows = await db
@@ -34,7 +37,9 @@ export default async function Members() {
   const waiting = rows.filter((r) => !r.confirmed);
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-10">
+    <>
+    <MembersDesk sp={sp} full={me.role === "admin"} />
+    <main className="mx-auto min-h-dvh max-w-md pb-10 lg:hidden">
       <BackBar title="Members" href="/home" />
       <div className="flex flex-col gap-3 px-4">
         <p className="text-[13px] font-bold text-muted">Waiting to be confirmed ({waiting.length})</p>
@@ -66,5 +71,6 @@ export default async function Members() {
         ))}
       </div>
     </main>
+    </>
   );
 }

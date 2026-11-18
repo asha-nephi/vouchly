@@ -8,12 +8,15 @@ import { naira } from "@/lib/catalog";
 import { deliveryDayLabel, shortDateTime, telLink, waLink } from "@/lib/orders";
 import { BackBar, Note } from "@/components/ui";
 import ResolveForm from "./resolve-form";
+import type { Params } from "@/components/data/params";
+import { ProblemsDesk } from "./problems-desk";
 
 export const dynamic = "force-dynamic";
 
-export default async function Problems() {
+export default async function Problems({ searchParams }: { searchParams: Promise<Params> }) {
   const me = await requireUser();
   if (me.role !== "admin") redirect("/home");
+  const sp = await searchParams;
   const seller = alias(users, "seller");
   const rows = await db
     .select({ order: orders, shop: shops.name, buyer: users, seller })
@@ -41,7 +44,9 @@ export default async function Problems() {
   );
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md pb-10">
+    <>
+    <ProblemsDesk sp={sp} />
+    <main className="mx-auto min-h-dvh max-w-md pb-10 lg:hidden">
       <BackBar title="Problems" href="/me" />
       <div className="flex flex-col gap-3 px-4">
         <Note>Talk to both sides first. Refunding sends the buyer all their money back through Paystack.</Note>
@@ -67,5 +72,6 @@ export default async function Problems() {
         ))}
       </div>
     </main>
+    </>
   );
 }

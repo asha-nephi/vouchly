@@ -6,6 +6,7 @@ import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { authTokens, shops, users } from "@/db/schema";
 import { notify } from "@/lib/notify";
+import { confirmOne } from "@/lib/members";
 import { endSession, hash, makeInviteCode, requireUser, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email-auth";
@@ -305,23 +306,10 @@ export async function logout(): Promise<void> {
 export async function confirmMember(form: FormData): Promise<void> {
   const me = await requireUser();
   if (me.role !== "ward_contact" && me.role !== "admin") redirect("/home");
-  const id = String(form.get("id") ?? "");
-  const [done] = await db
-    .update(users)
-    .set({ confirmed: true, confirmedById: me.id, confirmedAt: new Date() })
-    .where(and(eq(users.id, id), eq(users.role, "member"), eq(users.confirmed, false)))
-    .returning({ id: users.id });
-  if (done) {
-    // A shop built while waiting goes live now.
-    const [shop] = await db.update(shops).set({ isOpen: true }).where(eq(shops.ownerId, id)).returning({ id: shops.id });
-    await notify(
-      id,
-      "You're confirmed",
-      shop ? "Your shop is now live. Share it on WhatsApp to get your first order." : "You can now open your shop on Vouchly.",
-      shop ? "/shop/manage" : "/sell",
-    ).catch((e) => console.error("Confirm notice failed.", e instanceof Error ? e.message : e));
-  }
-  redirect("/admin/members");
+  await confirmOne(me.id, String(form.get("id") ?? ""));
+  // The table sends its own address back, so filters and the panel stay put.
+  const back = String(form.get("back") ?? "");
+  redirect(back.startsWith("/admin/members") && !back.includes("//") ? back : "/admin/members");
 }
 
 export async function upgradeBuyerToMember(_: FormState, form: FormData): Promise<FormState> {
