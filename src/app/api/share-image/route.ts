@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import sharp from "sharp";
 import { isOurPhoto, isR2Photo, readPhoto } from "@/lib/photos";
+import { allow, clientIp } from "@/lib/rate-limit";
 
 const MAX_BYTES = 5_000_000;
 
@@ -33,6 +34,8 @@ async function fetchPhoto(src: string): Promise<Buffer | null> {
 export async function GET(req: NextRequest) {
   const src = req.nextUrl.searchParams.get("src") ?? "";
   if (!isOurPhoto(src)) return new NextResponse("Not found", { status: 404 });
+  // Making these pictures is slow work, so each visitor gets a fair share.
+  if (!allow(`share:${await clientIp()}`, 60, 60_000)) return new NextResponse("Too many tries.", { status: 429 });
   let bytes: Buffer | null = null;
   const local = src.match(/^\/api\/photos\/([0-9a-f-]{36})$/);
   if (local) {

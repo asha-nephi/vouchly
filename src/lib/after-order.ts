@@ -23,13 +23,21 @@ export async function refundOrder(orderId: string, reason: string): Promise<{ er
   if (order.status === "cancelled" || pay.status === "refunded") return {};
   if (!["held", "released"].includes(pay.status)) return { error: "This order wasn't paid, so there's nothing to refund." };
 
+  // Claim the order first, so a double tap can't send the refund twice.
+  const claimed = await db
+    .update(orders)
+    .set({ status: "cancelled", cancelReason: reason, cancelledAt: new Date() })
+    .where(and(eq(orders.id, order.id), eq(orders.status, order.status)))
+    .returning({ id: orders.id });
+  if (!claimed.length) return {};
   try {
     await refundPayment(pay.paystackReference);
   } catch (e) {
+    // Put the order back, so it can be tried again.
+    await db.update(orders).set({ status: order.status, cancelReason: order.cancelReason, cancelledAt: order.cancelledAt }).where(eq(orders.id, order.id));
     return { error: `Paystack couldn't refund it: ${(e as Error).message}. Please try again later.` };
   }
   await db.update(payments).set({ status: "refunded", refundedKobo: pay.amountKobo }).where(eq(payments.id, pay.id));
-  await db.update(orders).set({ status: "cancelled", cancelReason: reason, cancelledAt: new Date() }).where(eq(orders.id, order.id));
   await giveBackStock(order.id).catch((e) => console.error("Stock not given back:", (e as Error).message));
   await notify(order.buyerId, "Order cancelled and refunded", `${shop.name}: ${reason}. ${naira(pay.amountKobo)} is on its way back to you.`, `/orders/${order.code}`);
   await notify(shop.ownerId, "Order cancelled", `Order ${order.code} was cancelled and the buyer refunded.`, `/shop/manage/orders/${order.code}`);

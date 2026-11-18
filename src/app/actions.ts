@@ -4,10 +4,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { authTokens, shops, users } from "@/db/schema";
+import { authTokens, sessions, shops, users } from "@/db/schema";
 import { notify } from "@/lib/notify";
 import { confirmOne } from "@/lib/members";
-import { endSession, hash, makeInviteCode, requireUser, startSession } from "@/lib/auth";
+import { endOtherSessions, endSession, hash, makeInviteCode, requireUser, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email-auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -89,6 +89,13 @@ export async function startBuyerSignup(_: FormState, form: FormData): Promise<Fo
   redirect(await afterSignup(`/me/security?email=${sent ? "pending" : "failed"}`));
 }
 
+// A stand-in password check, so an unknown email takes as long to answer as a real one.
+let dummyHash: Promise<string> | null = null;
+async function fakeCheck(password: string) {
+  dummyHash ??= hashPassword("not-a-real-password");
+  await verifyPassword(password, await dummyHash);
+}
+
 export async function startEmailLogin(_: FormState, form: FormData): Promise<FormState> {
   const email = emailAddress(String(form.get("email") ?? ""));
   const password = String(form.get("password") ?? "");
@@ -124,6 +131,7 @@ export async function startEmailLogin(_: FormState, form: FormData): Promise<For
     return { error: "The email or password isn't right.", values };
   }
   if (!user?.passwordHash || (user.passwordLockedUntil && user.passwordLockedUntil > now)) {
+    await fakeCheck(password);
     hit(ipKey);
     return { error: "The email or password isn't right.", values };
   }
@@ -163,7 +171,7 @@ export async function requestPasswordReset(_: FormState, form: FormData): Promis
     .from(users)
     .where(and(eq(users.email, email), eq(users.isGuest, false), isNotNull(users.emailVerifiedAt)))
     .limit(1);
-  if (user?.email && user.emailVerifiedAt) {
+  if (user?.email && user.emailVerifiedAt && allow(`resetmail:${email}`, 3, 60 * 60_000)) {
     try {
       await sendPasswordResetEmail(user);
     } catch (error) {
@@ -174,6 +182,7 @@ export async function requestPasswordReset(_: FormState, form: FormData): Promis
 }
 
 export async function setNewPassword(_: FormState, form: FormData): Promise<FormState> {
+  if (!allow(`newpw:${await clientIp()}`, 10, 15 * 60_000)) return { error: TOO_MANY };
   const token = String(form.get("token") ?? "");
   const password = String(form.get("password") ?? "");
   if (!/^[A-Za-z0-9_-]{30,50}$/.test(token)) return { error: "This link has expired. Ask for a new one." };
@@ -197,6 +206,8 @@ export async function setNewPassword(_: FormState, form: FormData): Promise<Form
     .update(users)
     .set({ passwordHash, passwordFailedCount: 0, passwordFailedAt: null, passwordLockedUntil: null })
     .where(eq(users.id, authToken.userId));
+  // Whoever had the old password is signed out everywhere.
+  await db.delete(sessions).where(eq(sessions.userId, authToken.userId));
   await startSession(authToken.userId);
   redirect("/home");
 }
@@ -205,8 +216,18 @@ export async function updateLoginSettings(_: FormState, form: FormData): Promise
   const user = await requireUser();
   const email = emailAddress(String(form.get("email") ?? ""));
   const password = String(form.get("password") ?? "");
+  const currentPassword = String(form.get("currentPassword") ?? "");
   const values = { email };
 
+  // Someone who borrowed this phone can't take the account over without the old password.
+  if (user.passwordHash) {
+    const key = `pwcheck:${user.id}`;
+    if (blocked(key, 8, 15 * 60_000)) return { error: TOO_MANY, values };
+    if (currentPassword.length > 128 || !(await verifyPassword(currentPassword, user.passwordHash))) {
+      hit(key);
+      return { error: "Your current password isn't right.", values };
+    }
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) return { error: "Please enter a valid email address.", values };
   if (password.length < 12 || password.length > 128) return { error: "Use a password with at least 12 characters.", values };
   const changedEmail = email !== user.email;
@@ -225,6 +246,7 @@ export async function updateLoginSettings(_: FormState, form: FormData): Promise
       ...(changedEmail ? { emailVerifiedAt: null } : {}),
     })
     .where(eq(users.id, user.id));
+  await endOtherSessions(user.id);
   if (changedEmail) {
     await db.delete(authTokens).where(and(eq(authTokens.userId, user.id), eq(authTokens.purpose, "password_reset"), isNull(authTokens.usedAt)));
   }

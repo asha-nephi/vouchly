@@ -1,13 +1,18 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { settleDue } from "@/lib/after-order";
 import { recheckPending } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
-// For an outside timer (e.g. cron-job.org). Needs ?key=CRON_SECRET.
+const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+// For an outside timer (e.g. cron-job.org). Send CRON_SECRET in an "Authorization: Bearer ..." header.
+// The old ?key=... way still works, but it shows up in logs, so the header is better.
 export async function GET(req: NextRequest) {
   const key = process.env.CRON_SECRET;
-  if (!key || req.nextUrl.searchParams.get("key") !== key) return NextResponse.json({ ok: false }, { status: 401 });
+  const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? req.nextUrl.searchParams.get("key") ?? "";
+  if (!key || !same(given, key)) return NextResponse.json({ ok: false }, { status: 401 });
   try {
     const [settled, payments] = await Promise.all([settleDue(), recheckPending()]);
     return NextResponse.json({ ok: true, ...settled, payments });

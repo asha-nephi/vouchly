@@ -1,3 +1,4 @@
+import { escLike } from "@/lib/like";
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -54,7 +55,7 @@ export async function loadMembers(sp: Params, opts: { all?: boolean; ids?: strin
   if (f.joined === "week" || f.joined === "month") parts.push(gte(users.createdAt, keyToDate(addDays(todayKey(), f.joined === "week" ? -6 : -29))), lt(users.createdAt, keyToDate(addDays(todayKey(), 1))));
   if (st.q) {
     const digits = st.q.replace(/\D/g, "").replace(/^0/, "");
-    parts.push(or(ilike(users.name, `%${st.q}%`), ilike(users.email, `%${st.q}%`), ilike(shops.name, `%${st.q}%`), digits.length >= 4 ? ilike(users.phone, `%${digits}%`) : undefined));
+    parts.push(or(ilike(users.name, `%${escLike(st.q)}%`), ilike(users.email, `%${escLike(st.q)}%`), ilike(shops.name, `%${escLike(st.q)}%`), digits.length >= 4 ? ilike(users.phone, `%${digits}%`) : undefined));
   }
   if (opts.ids) parts.push(inArray(users.id, opts.ids.length ? opts.ids : ["00000000-0000-0000-0000-000000000000"]));
   const where = and(...parts);

@@ -9,6 +9,7 @@ export default function LoginSecurityForm({ email, hasPassword }: { email: strin
   return (
     <form action={action} className="mt-4 flex flex-col gap-3">
       <Field label="Email address" name="email" type="email" defaultValue={state?.values?.email ?? email} autoComplete="email" placeholder="you@example.com" />
+      {hasPassword && <Field label="Current password" name="currentPassword" type="password" autoComplete="current-password" hint="We ask this to keep your account safe." />}
       <Field label={hasPassword ? "New password" : "Password"} name="password" type="password" autoComplete="new-password" hint="Use at least 12 characters." />
       {state?.message && <Note tone="green">{state.message}</Note>}
       <ErrorText message={state?.error} />

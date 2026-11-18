@@ -1,3 +1,4 @@
+import { escLike } from "@/lib/like";
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, inArray, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
@@ -44,7 +45,7 @@ export async function loadSales(shopId: string, sp: Params, opts: { all?: boolea
   if (f.payout === "refunded") parts.push(inArray(payments.status, ["refunded", "part_refunded"]));
   const r = paidRange(f);
   if (r) parts.push(gte(payments.createdAt, keyToDate(r[0])), lt(payments.createdAt, keyToDate(r[1])));
-  if (st.q) parts.push(or(ilike(users.name, `%${st.q}%`), ilike(orders.code, `%${st.q}%`)));
+  if (st.q) parts.push(or(ilike(users.name, `%${escLike(st.q)}%`), ilike(orders.code, `%${escLike(st.q)}%`)));
   if (opts.codes) parts.push(inArray(orders.code, opts.codes.length ? opts.codes : ["-"]));
   const where = and(...parts);
   const col = {

@@ -4,10 +4,18 @@ import { headers } from "next/headers";
 // Simple per-server counters. Vouchly runs on one server, so memory is enough.
 const hits = new Map<string, number[]>();
 
-// The visitor's IP address, as the host passes it on.
+// The visitor's IP address.
+// Cloudflare sets cf-connecting-ip itself, so a visitor can't fake it there.
+// Otherwise we take the address the nearest proxy saw (the end of x-forwarded-for),
+// never the start, which the visitor can write. TRUSTED_PROXY_HOPS = extra proxies in front.
 export async function clientIp() {
   const h = await headers();
-  return h.get("cf-connecting-ip") || (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "unknown";
+  const cf = h.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  const chain = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const hops = Math.max(0, Number(process.env.TRUSTED_PROXY_HOPS ?? 0) || 0);
+  if (chain.length) return chain[Math.max(0, chain.length - 1 - hops)];
+  return h.get("x-real-ip")?.trim() || "unknown";
 }
 
 const recent = (key: string, windowMs: number) => (hits.get(key) ?? []).filter((t) => Date.now() - t < windowMs);
