@@ -254,6 +254,7 @@ export const orders = pgTable("orders", {
   problemResolution: text("problem_resolution"),
   cancelReason: text("cancel_reason"),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  checkedInAt: timestamp("checked_in_at", { withTimezone: true }), // events: ticked at the door
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("orders_code_idx").on(t.code), index("orders_buyer_idx").on(t.buyerId), index("orders_shop_day_idx").on(t.shopId, t.deliveryDay)]);
 

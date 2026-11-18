@@ -141,6 +141,13 @@
       "when": 1794923377821,
       "tag": "0019_products_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794966083867,
+      "tag": "0020_orders_checked_in",
+      "breakpoints": true
     }
   ]
 }

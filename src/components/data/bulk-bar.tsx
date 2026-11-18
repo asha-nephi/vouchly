@@ -6,8 +6,14 @@ import { useSelection } from "./selection";
 import type { BulkResult } from "./bulk";
 import { downloadCsv, type ExportAction } from "./export-button";
 
-// pick: the action needs one choice first, like which collection.
-export type BulkAction = { label: string; run: (ids: string[], value?: string) => Promise<BulkResult>; confirm?: string; pick?: { value: string; label: string }[] };
+// pick: the action needs one choice first, like which collection. write: it needs a short message first.
+export type BulkAction = {
+  label: string;
+  run: (ids: string[], value?: string) => Promise<BulkResult>;
+  confirm?: string;
+  pick?: { value: string; label: string }[];
+  write?: { placeholder: string; send: string };
+};
 
 const OFFLINE = "Couldn't reach Vouchly. Check your connection and try again.";
 
@@ -19,6 +25,8 @@ export function BulkBar({ actions, exportCsv, query, filename }: { actions: Bulk
   const [busy, setBusy] = useState("");
   const [result, setResult] = useState<{ label: string; res: BulkResult } | null>(null);
   const [error, setError] = useState("");
+  const [writing, setWriting] = useState<BulkAction | null>(null);
+  const [text, setText] = useState("");
   if (!sel) return null;
   const n = sel.picked.size;
   if (!n && !result && !error) return null;
@@ -77,7 +85,14 @@ export function BulkBar({ actions, exportCsv, query, filename }: { actions: Bulk
                 ))}
               </select>
             ) : (
-              <button key={a.label} type="button" disabled={pending} onClick={() => run(a)} className={`${btn} bg-white/12 hover:bg-white/20`}>
+              <button
+                key={a.label}
+                type="button"
+                disabled={pending}
+                aria-expanded={a.write ? writing === a : undefined}
+                onClick={() => (a.write ? setWriting(writing === a ? null : a) : run(a))}
+                className={`${btn} ${writing === a ? "bg-white text-ink" : "bg-white/12 hover:bg-white/20"}`}
+              >
                 {busy === a.label ? "Working…" : a.label}
               </button>
             ),
@@ -99,6 +114,34 @@ export function BulkBar({ actions, exportCsv, query, filename }: { actions: Bulk
           {n > 0 ? "Clear" : "Close"}
         </button>
       </div>
+      {writing?.write && n > 0 && (
+        <form
+          className="mt-2 flex items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim().length < 3) return setError("Please write your message.");
+            run(writing, text.trim());
+            setWriting(null);
+            setText("");
+          }}
+        >
+          <label className="sr-only" htmlFor="bulk-write">
+            {writing.label}
+          </label>
+          <textarea
+            id="bulk-write"
+            rows={2}
+            maxLength={600}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={writing.write.placeholder}
+            className="min-h-[52px] flex-1 rounded-[10px] border-0 bg-white px-3 py-2 text-[13px] text-ink outline-none placeholder:text-[#8a93a5]"
+          />
+          <button type="submit" disabled={pending} className={`${btn} h-9 bg-accent px-4 hover:bg-[#2340bd]`}>
+            {writing.write.send.replace("{n}", String(n))}
+          </button>
+        </form>
+      )}
       <div aria-live="polite">
         {result && (
           <div className="mt-1.5 text-[13px]">
