@@ -3,6 +3,7 @@ import "@fontsource-variable/manrope";
 import "./globals.css";
 import NavProgress from "@/components/nav-progress";
 import ToastHost from "@/components/toast";
+import OfflineSupport from "@/components/offline-support";
 
 const SITE = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
 const TITLE = "Vouchly: Buy from People You Can Trust in Lagos";
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="antialiased">
         <NavProgress />
         <ToastHost />
+        <OfflineSupport />
         {children}
       </body>
     </html>
