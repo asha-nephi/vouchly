@@ -162,6 +162,13 @@
       "when": 1795000867493,
       "tag": "0022_reset_pilot_data",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795003396791,
+      "tag": "0023_users_email_alerts",
+      "breakpoints": true
     }
   ]
 }

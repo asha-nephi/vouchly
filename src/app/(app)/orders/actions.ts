@@ -78,9 +78,9 @@ export async function reportProblem(_: BuyerFormState, form: FormData): Promise<
     .update(orders)
     .set({ status: "disputed", problem: `${label}: ${details}`, problemAt: new Date() })
     .where(eq(orders.id, order.id));
-  await notify(shop.ownerId, "Problem reported", `${user.name} reported a problem with order ${code}: ${label}.`, `/shop/manage/orders/${code}`);
+  await notify(shop.ownerId, "Problem reported", `${user.name} reported a problem with order ${code}: ${label}.`, `/shop/manage/orders/${code}`, { email: true });
   const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
-  for (const a of admins) await notify(a.id, "Problem reported", `Order ${code} from ${shop.name}: ${label}.`, "/admin/problems");
+  for (const a of admins) await notify(a.id, "Problem reported", `Order ${code} from ${shop.name}: ${label}.`, `/admin/problems?open=${code}`, { email: true });
   revalidatePath(`/orders/${code}`);
   return { done: true };
 }

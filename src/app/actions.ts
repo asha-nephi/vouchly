@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { authTokens, sessions, shops, users } from "@/db/schema";
 import { notify } from "@/lib/notify";
@@ -343,7 +343,7 @@ export async function upgradeBuyerToMember(_: FormState, form: FormData): Promis
   if (ward.length < 2) return { error: "Please enter your ward or branch.", values };
   if (!invite) return { error: "Please enter the invite code a member gave you.", values };
   const [inviter] = await db
-    .select({ id: users.id })
+    .select({ id: users.id, name: users.name })
     .from(users)
     .where(and(eq(users.inviteCode, invite), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true), isNull(users.suspendedAt)))
     .limit(1);
@@ -352,6 +352,9 @@ export async function upgradeBuyerToMember(_: FormState, form: FormData): Promis
     .update(users)
     .set({ role: "member", ward, invitedById: inviter.id, confirmed: false, confirmedById: null, confirmedAt: null })
     .where(eq(users.id, user.id));
+  // Ward contacts for this ward and the admin hear about it, in the bell and by email.
+  const leaders = await db.select({ id: users.id }).from(users).where(and(eq(users.isGuest, false), isNull(users.suspendedAt), or(eq(users.role, "admin"), and(eq(users.role, "ward_contact"), sql`lower(trim(${users.ward})) = lower(${ward})`))));
+  for (const l of leaders) await notify(l.id, "New member to confirm", `${user.name} joined from ${ward} with ${inviter.name}'s invite code. Please confirm them if you know them.`, `/admin/members?status=waiting`, { email: true });
   (await cookies()).delete(INVITE_COOKIE);
   redirect("/sell");
 }

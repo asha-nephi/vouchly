@@ -152,7 +152,7 @@ export async function bookService(_: BookState, form: FormData): Promise<BookSta
   await db.insert(orderItems).values({ orderId: order.id, productId: p.id, name: p.name, size: p.priceUnit, quantity: 1, priceKobo: itemsKobo });
 
   if (quote) {
-    await notify(shop.ownerId, "New quote request", `${user.name} needs “${p.name}” on ${shortDay(values.day)}. Send them a price.`, `/shop/manage/orders/${code}`);
+    await notify(shop.ownerId, "New quote request", `${user.name} needs “${p.name}” on ${shortDay(values.day)}. Send them a price.`, `/shop/manage/orders/${code}`, { email: true });
     redirect(`/orders/${code}?placed=1`);
   }
   const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo, totalKobo: itemsKobo });
@@ -324,7 +324,7 @@ export async function buyTickets(_: BookState, form: FormData): Promise<BookStat
   }
   const order = placed.order;
   if (free) {
-    await notify(shop.ownerId, "New sign-up", `${user.name} reserved ${qty === 1 ? "a seat" : `${qty} seats`} for “${p.name}”.`, `/shop/manage/orders/${code}`);
+    await notify(shop.ownerId, "New sign-up", `${user.name} reserved ${qty === 1 ? "a seat" : `${qty} seats`} for “${p.name}”.`, `/shop/manage/orders/${code}`, { email: true });
     redirect(`/orders/${code}?placed=1`);
   }
   const pay = await startPayment({ user, shop, orderId: order.id, code, itemsKobo, totalKobo: itemsKobo });

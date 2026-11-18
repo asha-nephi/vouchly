@@ -50,6 +50,7 @@ export const users = pgTable("users", {
   suspendedReason: text("suspended_reason"),
   suspendedById: uuid("suspended_by_id"),
   suspendedShopWasOpen: boolean("suspended_shop_was_open").notNull().default(false), // reopen it when lifted
+  emailAlerts: boolean("email_alerts").notNull().default(true), // new orders and problems by email too
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   // One account per phone for members. Guests can repeat.

@@ -82,7 +82,7 @@ export async function confirmPayment(reference: string): Promise<PaymentResult> 
     if (order.method === "download") await db.update(orders).set({ status: "received", receivedAt: new Date() }).where(eq(orders.id, order.id));
     await markCodeUsed(order.shopId, order.discountCode);
     const what = order.method === "check_in" || order.method === "session" ? "New booking" : order.method === "visit" ? "New job" : order.method === "download" || order.method === "event" ? "New sale" : "New order";
-    if (shop) await notify(shop.ownerId, what, `Order ${order.code} · ${naira(order.itemsKobo)} for ${deliveryDayLabel(order.deliveryDay)}.`, `/shop/manage/orders/${order.code}`);
+    if (shop) await notify(shop.ownerId, what, `Order ${order.code} · ${naira(order.itemsKobo)} for ${deliveryDayLabel(order.deliveryDay)}.`, `/shop/manage/orders/${order.code}`, { email: true });
   }
   return { code: order.code };
 }

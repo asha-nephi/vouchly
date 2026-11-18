@@ -139,6 +139,9 @@ export default async function Me() {
           <Link href="/me/security" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
             Login and security <span aria-hidden="true">›</span>
           </Link>
+          <Link href="/me/alerts" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
+            Email alerts <span className="text-sm font-medium text-muted">{user.emailAlerts ? "On" : "Off"} ›</span>
+          </Link>
           {user.role === "admin" && (
             <Link href="/admin/problems" className="flex items-center justify-between border-b border-[#eef0f4] py-4 text-[15px] font-semibold">
               Problems reported

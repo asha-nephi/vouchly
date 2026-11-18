@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "email_alerts" boolean DEFAULT true NOT NULL;
