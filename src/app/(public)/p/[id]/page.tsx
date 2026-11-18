@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { p, shop } = row;
   return shareMeta({
     title: `${p.name} · ${priceText(p)}`,
-    description: clip(p.about) || `From ${shop.name}, a Latter-day Saint business in ${shop.area}, Lagos. Pay safely on Vouchly.`,
+    description: clip(p.about) || `From ${shop.name}, a vouched-for seller in ${shop.area}, Lagos. Pay safely on Vouchly.`,
     path: `/p/${p.id}`,
     photo: p.photos[0],
   });

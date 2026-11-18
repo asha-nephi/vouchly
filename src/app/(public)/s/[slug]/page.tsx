@@ -36,7 +36,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
       : [];
     return shareMeta({
       title: `${col.name} from ${shop.name}`,
-      description: `${col.name} from ${shop.name}, a Latter-day Saint business in ${shop.area}, Lagos. Order and pay safely on Vouchly.`,
+      description: `${col.name} from ${shop.name}, a vouched-for seller in ${shop.area}, Lagos. Order and pay safely on Vouchly.`,
       path: `/s/${shop.slug}?c=${col.slug}`,
       photo: firstPhoto?.photos[0] ?? shop.coverPhoto,
     });
@@ -48,7 +48,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
     .limit(1);
   return shareMeta({
     title: `${shop.name} on Vouchly`,
-    description: clip(shop.about) || `${categoryLabel(shop.category)} in ${shop.area}, Lagos, from a Latter-day Saint member vouched for by their ward. Order and pay safely on Vouchly.`,
+    description: clip(shop.about) || `${categoryLabel(shop.category)} in ${shop.area}, Lagos, from a seller vouched for by people who know them. Order and pay safely on Vouchly.`,
     path: `/s/${shop.slug}`,
     photo: shop.coverPhoto ?? first?.photos[0],
   });

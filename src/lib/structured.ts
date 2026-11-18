@@ -27,7 +27,7 @@ export function shopJsonLd(shop: Shop, stats: Stats) {
     "@id": `${SITE}/s/${shop.slug}#shop`,
     name: shop.name,
     url: `${SITE}/s/${shop.slug}`,
-    description: shop.about ?? `${shop.name}, a Latter-day Saint business in ${shop.area}, Lagos, on Vouchly.`,
+    description: shop.about ?? `${shop.name}, a vouched-for seller in ${shop.area}, Lagos, on Vouchly.`,
     address: { "@type": "PostalAddress", addressLocality: shop.area, addressRegion: "Lagos", addressCountry: "NG" },
     ...rating(stats),
   };

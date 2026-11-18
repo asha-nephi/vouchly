@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 // Invite links get their own preview, naming who sent it.
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ code?: string }> }): Promise<Metadata> {
   const inviter = await inviterFor((await searchParams).code);
-  const base: Metadata = { title: { absolute: "Vouchly: LDS Marketplace for Latter-day Saint Entrepreneurs" }, alternates: { canonical: "/" } };
+  const base: Metadata = { title: { absolute: "Vouchly: Buy from People You Can Trust in Lagos" }, alternates: { canonical: "/" } };
   if (!inviter) return base;
   const title = `${inviter.name.split(" ")[0]} invited you to Vouchly`;
   const description = "Buy food, book stays and hire services from confirmed members in Lagos. Your invite code is ready.";
@@ -48,7 +48,7 @@ const STRUCTURED = {
       url: SITE,
       logo: `${SITE}/icons/icon-512.png`,
       slogan: "Buy from people you can trust.",
-      description: "Vouchly is an online marketplace for LDS entrepreneurs and the Latter-day Saint community in Lagos, Nigeria. Members vouched for by their ward sell food and goods, services and classes to anyone.",
+      description: "Vouchly is an online marketplace in Lagos, Nigeria, where every seller is vouched for. Started by Latter-day Saint (LDS) entrepreneurs and open to every buyer: food and goods, services and classes to anyone.",
       knowsAbout: ["LDS entrepreneurs", "Latter-day Saint businesses", "Lagos marketplace", "returned missionary businesses"],
       address: { "@type": "PostalAddress", streetAddress: "57 Seriki Aro Avenue", addressLocality: "Ikeja", addressRegion: "Lagos", postalCode: "100282", addressCountry: "NG" },
       areaServed: { "@type": "City", name: "Lagos" },
@@ -200,7 +200,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
               Buy from people you can trust.
             </h1>
             <p className="mb-5 mt-3 max-w-[46ch] text-base leading-relaxed text-[#3A4458] lg:mb-7 lg:mt-[18px] lg:text-lg">
-              Food and goods, plumbers and electricians, classes and downloads. All from Latter-day Saint members in Lagos who someone has vouched for.
+              Food and goods, plumbers and electricians, classes and downloads. All from local sellers in Lagos who someone has vouched for.
             </p>
 
             <form action="/search" className="max-w-[640px] rounded-[18px] border border-line bg-white p-1.5 lg:rounded-[20px] lg:p-2 lg:shadow-[0_12px_32px_-16px_rgba(20,33,61,0.25)]">
@@ -415,16 +415,16 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
           <div className="mx-auto grid max-w-[1200px] gap-8 px-4 py-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14 lg:px-6 lg:py-16">
             <div>
               <h2 id="about-title" className="text-xl font-extrabold lg:text-[28px] lg:tracking-[-0.02em]">
-                A marketplace for LDS entrepreneurs in Lagos
+                Started by members, open to everyone
               </h2>
               <p className="mt-3 text-[15px] leading-relaxed text-[#3A4458] lg:text-base">
-                Vouchly helps members of the Latter-day Saint community earn a living from what they know and make. Food makers,
-                tailors, plumbers, electricians, chefs, coaches and returned missionaries with a skill open a shop, share one link, and
-                get paid safely.
+                Vouchly was started by Latter-day Saint entrepreneurs in Lagos to help people earn a living from what they know and
+                make. Food makers, tailors, plumbers, electricians, chefs, coaches and returned missionaries with a skill open a shop,
+                share one link, and get paid safely.
               </p>
               <p className="mt-3 text-[15px] leading-relaxed text-[#3A4458] lg:text-base">
-                Every seller is confirmed by someone in their own ward, so buyers know who they are dealing with. Anyone can buy, and
-                money goes through Paystack.
+                Every seller is confirmed by someone who knows them, so buyers know who they are dealing with. Anyone in Lagos can buy,
+                and money goes through Paystack.
               </p>
               <Link href="/about" className="mt-4 inline-block text-[15px] font-extrabold text-accent">
                 More about Vouchly

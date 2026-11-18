@@ -5,9 +5,9 @@ import NavProgress from "@/components/nav-progress";
 import ToastHost from "@/components/toast";
 
 const SITE = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
-const TITLE = "Vouchly: LDS Marketplace for Latter-day Saint Entrepreneurs";
+const TITLE = "Vouchly: Buy from People You Can Trust in Lagos";
 const DESCRIPTION =
-  "Vouchly is the LDS marketplace for Latter-day Saint entrepreneurs in Lagos. Buy goods, hire pros and book classes from members vouched for by their ward.";
+  "Food, home services, classes and more from local sellers in Lagos who are vouched for by people who know them. Open to everyone. Pay safely with Paystack.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   applicationName: "Vouchly",
   keywords: [
     "Vouchly",
+    "Lagos marketplace",
+    "trusted sellers Lagos",
+    "home services Lagos",
     "LDS marketplace",
     "LDS entrepreneurs",
     "LDS community",

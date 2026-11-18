@@ -2,7 +2,7 @@
 export const FAQ = [
   {
     q: "What is Vouchly?",
-    a: "Vouchly is an online marketplace for LDS entrepreneurs and the wider Latter-day Saint community in Lagos, Nigeria. Members sell food and goods, offer services like plumbing, electrical work and catering, and run classes, coaching and downloads. Anyone can buy.",
+    a: "Vouchly is an online marketplace in Lagos, Nigeria, where every seller is vouched for. It was started by LDS (Latter-day Saint) entrepreneurs. Sellers offer food and goods, services like plumbing, electrical work and catering, and run classes, coaching and downloads. Anyone can buy.",
   },
   {
     q: "Who can sell on Vouchly?",

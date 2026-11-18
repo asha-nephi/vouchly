@@ -4,9 +4,9 @@ import Seal from "@/components/seal";
 import { FAQ } from "@/lib/seo-copy";
 
 const SITE = process.env.SITE_URL ?? "https://vouchly-af24.onrender.com";
-const TITLE = "About Vouchly: the LDS marketplace for Latter-day Saint entrepreneurs";
+const TITLE = "About Vouchly: a trusted Lagos marketplace started by LDS entrepreneurs";
 const DESCRIPTION =
-  "Vouchly is an online marketplace and business directory for LDS entrepreneurs, returned missionaries and the Latter-day Saint community in Lagos, Nigeria.";
+  "Vouchly is a Lagos marketplace where every seller is vouched for. It was started by LDS (Latter-day Saint) entrepreneurs and returned missionaries, and anyone can buy.";
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },
@@ -64,12 +64,12 @@ export default function About() {
           Every seller is vouched for by their ward
         </p>
         <h1 className="text-[32px] font-extrabold leading-[1.1] tracking-[-0.03em] lg:text-[44px]">
-          The marketplace for LDS entrepreneurs in Lagos
+          A trusted marketplace, started by LDS entrepreneurs in Lagos
         </h1>
         <p className="mt-4 text-[17px] leading-relaxed text-[#3A4458]">
-          Vouchly is an online marketplace and business directory for the Latter-day Saint community in Lagos, Nigeria. It helps
-          members become more self-reliant by selling what they make and the skills they have, to each other and to anyone they
-          share a link with.
+          Vouchly is an online marketplace and business directory in Lagos, Nigeria, started by members of the Latter-day Saint
+          community. It helps people become more self-reliant by selling what they make and the skills they have. Anyone can buy:
+          sellers reach everyone they share a link with.
         </p>
 
         <section className="mt-10">
