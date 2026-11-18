@@ -16,6 +16,7 @@ export const ROLE_FILTER = [
 export const STATUS_FILTER = [
   { value: "waiting", label: "Waiting for confirmation" },
   { value: "confirmed", label: "Confirmed" },
+  { value: "suspended", label: "Suspended" },
 ];
 export const SHOP_FILTER = [
   { value: "yes", label: "Has a shop" },
@@ -47,8 +48,9 @@ export async function loadMembers(sp: Params, opts: { all?: boolean; ids?: strin
   const lastActive = sql<Date | null>`(select max(${sessions.createdAt}) from ${sessions} where ${sessions.userId} = ${users.id})`.mapWith((v) => (v ? new Date(v) : null));
   const parts: (SQL | undefined)[] = [eq(users.isGuest, false), inArray(users.role, ["member", "ward_contact", "admin"])];
   if (f.role && ROLE_FILTER.some((r) => r.value === f.role)) parts.push(eq(users.role, f.role as "member"));
-  if (f.status === "waiting") parts.push(eq(users.confirmed, false), eq(users.role, "member"));
-  if (f.status === "confirmed") parts.push(or(eq(users.confirmed, true), inArray(users.role, ["ward_contact", "admin"])));
+  if (f.status === "waiting") parts.push(eq(users.confirmed, false), eq(users.role, "member"), isNull(users.suspendedAt));
+  if (f.status === "confirmed") parts.push(or(eq(users.confirmed, true), inArray(users.role, ["ward_contact", "admin"])), isNull(users.suspendedAt));
+  if (f.status === "suspended") parts.push(isNotNull(users.suspendedAt));
   if (f.shop === "yes") parts.push(isNotNull(shops.id));
   if (f.shop === "no") parts.push(isNull(shops.id));
   if (f.ward) parts.push(eq(users.ward, f.ward));
@@ -83,8 +85,13 @@ export async function memberDetail(id: string) {
   const inviter = row.u.invitedById ? (await db.select({ name: users.name, code: users.inviteCode }).from(users).where(eq(users.id, row.u.invitedById)).limit(1))[0] : null;
   const [[bought], [sold], [invited]] = await Promise.all([
     db.select({ n: sql<number>`count(*)::int` }).from(orders).where(and(eq(orders.buyerId, id), sql`${orders.status} <> 'awaiting_payment'`)),
-    row.shop?.id ? db.select({ n: sql<number>`count(*)::int` }).from(orders).where(and(eq(orders.shopId, row.shop.id), sql`${orders.status} <> 'awaiting_payment'`)) : Promise.resolve([{ n: 0 }]),
+    row.shop?.id
+      ? db
+          .select({ n: sql<number>`count(*)::int`, open: sql<number>`count(*) filter (where ${orders.status} in ('paid', 'confirmed', 'preparing', 'ready', 'on_the_way', 'disputed', 'requested', 'quoted'))::int` })
+          .from(orders)
+          .where(and(eq(orders.shopId, row.shop.id), sql`${orders.status} <> 'awaiting_payment'`))
+      : Promise.resolve([{ n: 0, open: 0 }]),
     db.select({ n: sql<number>`count(*)::int` }).from(users).where(eq(users.invitedById, id)),
   ]);
-  return { ...row, confirmer: confirmer?.name ?? null, inviter, bought: bought.n, sold: sold.n, invited: invited.n };
+  return { ...row, confirmer: confirmer?.name ?? null, inviter, bought: bought.n, sold: sold.n, openOrders: sold.open, invited: invited.n };
 }

@@ -6,7 +6,7 @@ export const MEMBERS_PAGE = "/admin/members";
 const SELLER = { products: "Products", service: "Services", online: "Online" } as const;
 
 const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "short", year: "2-digit" });
-export const waiting = (r: MemberRow) => r.u.role === "member" && !r.u.confirmed;
+export const waiting = (r: MemberRow) => r.u.role === "member" && !r.u.confirmed && !r.u.suspendedAt;
 const phoneText = (r: MemberRow, full: boolean) => (full ? `0${r.u.phone.slice(3)}` : maskPhone(r.u.phone));
 
 // Admins see full phone numbers. Ward contacts see them masked, like before.
@@ -49,7 +49,12 @@ export function memberColumns(full: boolean): (Column<MemberRow> & { csv: (r: Me
     },
     { id: "joined", label: "Joined", sortable: true, cell: (r) => <span className="text-muted">{day.format(r.u.createdAt)}</span>, csv: (r) => r.u.createdAt.toISOString() },
     { id: "active", label: "Last sign-in", sortable: true, cell: (r) => <span className="text-muted">{r.lastActive ? day.format(r.lastActive) : "—"}</span>, csv: (r) => r.lastActive?.toISOString() ?? "" },
-    { id: "status", label: "Status", cell: (r) => (waiting(r) ? <Pill tone="amber">Waiting</Pill> : <Pill tone="green">Confirmed</Pill>), csv: (r) => (waiting(r) ? "Waiting" : "Confirmed") },
+    {
+      id: "status",
+      label: "Status",
+      cell: (r) => (r.u.suspendedAt ? <Pill tone="red">Suspended</Pill> : waiting(r) ? <Pill tone="amber">Waiting</Pill> : <Pill tone="green">Confirmed</Pill>),
+      csv: (r) => (r.u.suspendedAt ? "Suspended" : waiting(r) ? "Waiting" : "Confirmed"),
+    },
     { id: "invited", label: "Invited by", cell: (r) => <span className="text-muted">{r.invitedBy ?? "Founder"}</span>, csv: (r) => r.invitedBy ?? "Founder" },
   ];
 }

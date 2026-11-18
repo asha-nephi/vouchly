@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
@@ -30,7 +30,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 async function inviterFor(raw?: string) {
   const code = raw && /^[A-Za-z0-9]{4,12}$/.test(raw) ? raw.toUpperCase() : "";
   if (!code) return null;
-  const [row] = await db.select({ name: users.name, ward: users.ward }).from(users).where(and(eq(users.inviteCode, code), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true))).limit(1);
+  const [row] = await db.select({ name: users.name, ward: users.ward }).from(users).where(and(eq(users.inviteCode, code), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true), isNull(users.suspendedAt))).limit(1);
   return row ? { ...row, code } : null;
 }
 

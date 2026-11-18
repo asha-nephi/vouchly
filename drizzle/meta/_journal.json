@@ -148,6 +148,13 @@
       "when": 1794966083867,
       "tag": "0020_orders_checked_in",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794971502961,
+      "tag": "0021_member_suspend_log",
+      "breakpoints": true
     }
   ]
 }

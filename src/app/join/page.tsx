@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { currentMember, currentUser } from "@/lib/auth";
@@ -27,7 +27,7 @@ export default async function Join({ searchParams }: { searchParams: Promise<{ c
     ? await db
         .select({ name: users.name })
         .from(users)
-        .where(and(eq(users.inviteCode, code), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true)))
+        .where(and(eq(users.inviteCode, code), inArray(users.role, ["member", "ward_contact", "admin"]), eq(users.confirmed, true), isNull(users.suspendedAt)))
         .limit(1)
     : [];
   // Step 1 picks a path. Selling paths then come here with ?step=details.

@@ -38,7 +38,7 @@ export default async function Members({ searchParams }: { searchParams: Promise<
 
   return (
     <>
-    <MembersDesk sp={sp} full={me.role === "admin"} />
+    <MembersDesk sp={sp} full={me.role === "admin"} meId={me.id} />
     <main className="mx-auto min-h-dvh max-w-md pb-10 lg:hidden">
       <BackBar title="Members" href="/home" />
       <div className="flex flex-col gap-3 px-4">

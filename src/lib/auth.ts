@@ -3,7 +3,11 @@ import "server-only";
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+<<<<<<< Updated upstream
 import { and, eq, gt, ne } from "drizzle-orm";
+=======
+import { and, eq, gt, isNull } from "drizzle-orm";
+>>>>>>> Stashed changes
 import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 
@@ -21,6 +25,9 @@ export function makeInviteCode(): string {
 }
 
 export async function startSession(userId: string) {
+  // A suspended account can't sign in. The login page explains.
+  const [u] = await db.select({ suspendedAt: users.suspendedAt }).from(users).where(eq(users.id, userId)).limit(1);
+  if (u?.suspendedAt) redirect("/login?paused=1");
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
   await db.insert(sessions).values({ tokenHash: hash(token), userId, expiresAt });
@@ -56,7 +63,8 @@ export const currentUser = cache(async function currentUser() {
     .select({ user: users })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.tokenHash, hash(token)), gt(sessions.expiresAt, new Date())))
+    // Suspended people count as signed out everywhere.
+    .where(and(eq(sessions.tokenHash, hash(token)), gt(sessions.expiresAt, new Date()), isNull(users.suspendedAt)))
     .limit(1);
   return rows[0]?.user ?? null;
 });

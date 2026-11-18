@@ -46,6 +46,10 @@ export const users = pgTable("users", {
   confirmedById: uuid("confirmed_by_id"),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   isGuest: boolean("is_guest").notNull().default(false), // bought through a shared link, no account
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }), // set = can't sign in, shop closed
+  suspendedReason: text("suspended_reason"),
+  suspendedById: uuid("suspended_by_id"),
+  suspendedShopWasOpen: boolean("suspended_shop_was_open").notNull().default(false), // reopen it when lifted
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   // One account per phone for members. Guests can repeat.
@@ -355,3 +359,13 @@ export const savedViews = pgTable("saved_views", {
   query: text("query").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("saved_views_user_page_name_idx").on(t.userId, t.page, t.name)]);
+
+// Who did what to a member: confirm, suspend, lift, role change. Never edited or deleted.
+export const memberLog = pgTable("member_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  byId: uuid("by_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(), // confirmed, suspended, unsuspended, role
+  detail: text("detail"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("member_log_user_idx").on(t.userId, t.createdAt)]);
