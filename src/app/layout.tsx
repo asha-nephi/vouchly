@@ -45,6 +45,8 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   // App pages need a login, so only the public pages are listed for search.
   robots: { index: true, follow: true },
+  // Google Search Console proof that we own the site. The code goes in Render as GOOGLE_SITE_VERIFICATION.
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
 };
 
 export const viewport: Viewport = { themeColor: "#14213d", width: "device-width", initialScale: 1, viewportFit: "cover" };
